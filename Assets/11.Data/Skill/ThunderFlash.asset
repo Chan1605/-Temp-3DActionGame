@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dac056c140f35d441b753bd402b9f38d, type: 3}
+  m_Name: ThunderFlash
+  m_EditorClassIdentifier: Assembly-CSharp::SkillData
+  stanceState: Skill_Stance
+  chargeState: Skill_Charge
+  releaseState: Skill_Release
+  chargeStartTime: 0.2
+  chargeLevelTime: 0.5
+  maxChargeLevel: 2
+  chargeTimeScale: 0.4
+  baseRange: 10
+  rangePerLevel: 4
+  searchAngle: 70
+  behindDistance: 1.5
+  whiffDistance: 6
+  dashDuration: 0.1
+  pathRadius: 0.8
+  maxChain: 6
+  chainRange: 12
+  chainWindow: 0.4
+  killDelay: 0.25
+  recoveryTime: 0.3
+  hitStopTime: 0.08
+  cooldown: 3
+  damage: 100
+  postureDamage: 100
+  instantKill: 1
