@@ -1,0 +1,56 @@
+# 줄바꿈 자동 정규화
+* text=auto
+
+# 코드
+*.cs     text diff=csharp
+*.shader text
+*.hlsl   text
+*.cginc  text
+*.json   text
+*.md     text
+
+# Unity YAML (Force Text 직렬화)
+*.unity      text
+*.prefab     text
+*.asset      text
+*.mat        text
+*.anim       text
+*.controller text
+*.overrideController text
+*.physicMaterial text
+*.inputactions text
+*.meta       text
+
+# ===== Git LFS: 바이너리 에셋 =====
+# 이미지
+*.png  filter=lfs diff=lfs merge=lfs -text
+*.jpg  filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+*.tga  filter=lfs diff=lfs merge=lfs -text
+*.psd  filter=lfs diff=lfs merge=lfs -text
+*.tif  filter=lfs diff=lfs merge=lfs -text
+*.tiff filter=lfs diff=lfs merge=lfs -text
+*.exr  filter=lfs diff=lfs merge=lfs -text
+*.hdr  filter=lfs diff=lfs merge=lfs -text
+
+# 3D 모델
+*.fbx   filter=lfs diff=lfs merge=lfs -text
+*.FBX   filter=lfs diff=lfs merge=lfs -text
+*.obj   filter=lfs diff=lfs merge=lfs -text
+*.blend filter=lfs diff=lfs merge=lfs -text
+
+# 오디오 / 영상
+*.wav filter=lfs diff=lfs merge=lfs -text
+*.mp3 filter=lfs diff=lfs merge=lfs -text
+*.ogg filter=lfs diff=lfs merge=lfs -text
+*.aif filter=lfs diff=lfs merge=lfs -text
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+*.mov filter=lfs diff=lfs merge=lfs -text
+
+# 폰트
+*.ttf filter=lfs diff=lfs merge=lfs -text
+*.otf filter=lfs diff=lfs merge=lfs -text
+
+# 기타 바이너리
+*.dll filter=lfs diff=lfs merge=lfs -text
+*.zip filter=lfs diff=lfs merge=lfs -text
