@@ -1,6 +1,6 @@
 # -Temp-3DActionGame
 
-> 약·강 공격을 섞는 **분기 콤보**와 **벽력일섬** 스킬을 중심으로 한 3D 근접 액션 게임 · Unity 개인 프로젝트 (개발 중)
+> 약·강 공격을 섞는 **콤보**와 **벽력일섬** 스킬을 중심으로 한 3D 근접 액션 게임 · Unity 개인 프로젝트 (개발 중)
 
 검은신화: 오공의 간파처럼 타격 순간의 손맛(히트스톱, 카메라, 이펙트)을 레퍼런스로 삼되, 게임의 중심은 다양한 콤보와 스킬로 풀어가는 근접 전투입니다.
 
@@ -104,5 +104,3 @@ Assets/
 | --- | --- | --- |
 | Sword Animations Pack | Studio9CG | Unity Asset Store EULA (레포 미포함) |
 | DOTween | Demigiant | Unity Asset Store (레포 미포함) |
-| Pretendard | 길형진 (orioncactus) | SIL Open Font License 1.1 |
-| Zenitsu Katana (임시 무기 모델) | 출처 기입 필요 | 확인 필요 · 개인 학습용 임시 사용, 공개 빌드 전 교체 예정 |
