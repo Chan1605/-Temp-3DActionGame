@@ -519,7 +519,9 @@ MonoBehaviour:
   locomotion: {fileID: 8946055058242759463}
   attackCrossFade: 0.08
   returnCrossFade: 0.2
+  moveCancelCrossFade: 0.12
   idleInputBuffer: 0.2
+  stepWeight: 1
   logComboRoute: 1
 --- !u!114 &3070939792974395059
 MonoBehaviour:
