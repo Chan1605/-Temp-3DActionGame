@@ -20,9 +20,10 @@ public class AttackData : ScriptableObject
     [SerializeField, Range(0f, 1f)] float recoveryEnd = 0.9f;
     [SerializeField, Range(0f, 1f)] float moveCancelStart = 0.5f;
 
-    // 클립의 루트 모션(앞으로 내딛는 움직임) 적용 비율, 0이면 제자리 공격
-    [Header("Movement")]
-    [SerializeField] float rootMotionScale = 1f;
+    // 공격 초반 정면으로 내딛는 거리(m)와 끝나는 시점(정규화), 거리 0이면 제자리 공격
+    [Header("Step")]
+    [SerializeField] float stepDistance = 0.6f;
+    [SerializeField, Range(0f, 1f)] float stepEnd = 0.3f;
 
     // 이 공격 도중 약/강 입력 시 이어질 다음 공격, 비어 있으면 그 입력으로는 콤보가 끝남
     [Header("Combo")]
@@ -45,7 +46,8 @@ public class AttackData : ScriptableObject
     public float ComboTransition => comboTransition;
     public float RecoveryEnd => recoveryEnd;
     public float MoveCancelStart => moveCancelStart;
-    public float RootMotionScale => rootMotionScale;
+    public float StepDistance => stepDistance;
+    public float StepEnd => stepEnd;
 
     public AttackData GetNext(AttackInput input) => input == AttackInput.Light ? nextLight : nextHeavy;
 

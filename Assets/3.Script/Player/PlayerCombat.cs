@@ -21,11 +21,11 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] float returnCrossFade = 0.2f;
     [SerializeField] float moveCancelCrossFade = 0.12f;
     [SerializeField] float idleInputBuffer = 0.2f;
-    [SerializeField] float rootMotionWeight = 1f;
+    [FormerlySerializedAs("rootMotionWeight")]
+    [SerializeField] float stepWeight = 1f;
     [SerializeField] bool logComboRoute = true;
 
     CharacterController controller;
-    AnimatorMoveRelay moveRelay;
 
     AttackData current;
     float elapsed;
@@ -33,6 +33,7 @@ public class PlayerCombat : MonoBehaviour
     float lastPressTime = float.NegativeInfinity;
     AttackInput lastPressInput;
     bool swingActive;
+    float stepTraveled;
     string route = "";
 
     public bool IsAttacking => current != null;
@@ -46,24 +47,18 @@ public class PlayerCombat : MonoBehaviour
         if (weapon == null) weapon = GetComponentInChildren<WeaponHitbox>();
         if (locomotion == null) locomotion = GetComponent<PlayerLocomotion>();
         controller = GetComponent<CharacterController>();
-
-        // OnAnimatorMove는 Animator가 붙은 모델 오브젝트에서만 호출되므로 중계 컴포넌트를 둠
-        if (animator != null && !animator.TryGetComponent(out moveRelay))
-            moveRelay = animator.gameObject.AddComponent<AnimatorMoveRelay>();
     }
 
     void OnEnable()
     {
         Subscribe(lightAttackAction, OnLightPressed);
         Subscribe(heavyAttackAction, OnHeavyPressed);
-        if (moveRelay != null) moveRelay.Moved += OnAnimatorMoved;
     }
 
     void OnDisable()
     {
         Unsubscribe(lightAttackAction, OnLightPressed);
         Unsubscribe(heavyAttackAction, OnHeavyPressed);
-        if (moveRelay != null) moveRelay.Moved -= OnAnimatorMoved;
         if (IsAttacking) EndCombo(returnCrossFade);
     }
 
@@ -94,6 +89,8 @@ public class PlayerCombat : MonoBehaviour
 
         elapsed += Time.deltaTime;
         float t = elapsed / current.Duration;
+
+        ApplyStep(t);
 
         // 판정 구간 진입/이탈 시에만 히트박스를 켜고 끔
         bool inHitWindow = t >= current.HitStart && t <= current.HitEnd;
@@ -129,6 +126,7 @@ public class PlayerCombat : MonoBehaviour
         AttackInput input = lastPressInput;
         current = attack;
         elapsed = 0f;
+        stepTraveled = 0f;
         attackStartTime = Time.time;
         lastPressTime = float.NegativeInfinity;
 
@@ -166,13 +164,22 @@ public class PlayerCombat : MonoBehaviour
 
     bool HasMoveInput() => locomotion != null && locomotion.GetInputDirection().sqrMagnitude > 0.0001f;
 
-    // 공격 중에만 클립의 루트 모션을 수평으로 적용 → 베면서 앞으로 내딛는 느낌
-    void OnAnimatorMoved(Vector3 deltaPosition, Quaternion deltaRotation)
+    // 공격 초반(0 ~ stepEnd)에만 정면으로 내딛음, ease-out이라 처음에 빠르고 끝에서 멈추듯 감속
+    // 루트 모션 대신 코드로 처리 → Humanoid 몸 높이(bodyPosition)를 건드리지 않음
+    void ApplyStep(float t)
     {
-        if (!IsAttacking || controller == null || !controller.enabled) return;
+        if (controller == null || !controller.enabled) return;
+        if (current.StepEnd <= 0f || current.StepDistance <= 0f) return;
 
-        Vector3 move = Vector3.ProjectOnPlane(deltaPosition, Vector3.up) * (current.RootMotionScale * rootMotionWeight);
-        if (move.sqrMagnitude > 0f) controller.Move(move);
+        float p = Mathf.Clamp01(t / current.StepEnd);
+        float eased = 1f - (1f - p) * (1f - p);
+        float target = current.StepDistance * stepWeight * eased;
+
+        float delta = target - stepTraveled;
+        if (delta <= 0f) return;
+
+        stepTraveled = target;
+        controller.Move(transform.forward * delta);
     }
 
     void BeginSwing(AttackData attack)

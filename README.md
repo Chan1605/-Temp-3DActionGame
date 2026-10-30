@@ -23,7 +23,7 @@
 - 약공격(□) · 강공격(△) 입력에 따라 다음 공격이 갈라지는 콤보 트리
 - 콤보 연결은 코드가 아니라 `AttackData`(ScriptableObject)끼리의 참조로 구성 → 에셋 연결만으로 새 콤보 추가
 - 입력 버퍼, 판정 구간, 다음 타 전환 시점을 정규화 시간으로 데이터에 기입
-- 판정이 끝나면 이동 입력으로 즉시 캔슬, 공격 중에만 클립 루트 모션을 적용해 앞으로 내딛으며 베기
+- 판정이 끝나면 이동 입력으로 즉시 캔슬, 공격 초반에만 코드로 짧게 내딛으며 베기 (거리·구간은 `AttackData`에 기입)
 
 | 입력 | 콤보 |
 | --- | --- |
@@ -61,6 +61,7 @@
 프로젝트를 실행하려면 아래 에셋을 직접 임포트해야 합니다.
 
 1. [Sword Animations Pack](https://assetstore.unity.com/packages/3d/animations/sword-animations-pack-256301) → `Assets/ThirdParty/SwordAnimationPack`
+   - 반드시 이 경로로 옮길 것 (기본 위치에 두면 `.gitignore`에 걸리지 않아 git이 팩 전체를 변경으로 잡음)
 2. [DOTween (HOTween v2)](https://assetstore.unity.com/packages/tools/animation/dotween-hotween-v2-27676) → `Assets/Plugins/Demigiant`
 3. `ThirdParty/SwordAnimationPack/Model/9CG_Sword.FBX` 의 Rig를 **Humanoid (Create From This Model)** 로 변경 후 Apply
 4. `Assets/1.Scene/SampleScene` 열기
@@ -68,6 +69,7 @@
    - `Tools/Setup/Player Locomotion`
    - `Tools/Setup/Combat Test`
    - `Tools/Setup/Thunder Skill`
+   - `Tools/Setup/Fix Player Clips` (팩의 .anim 재생 바인딩이 비어 있어 애니메이션이 안 나올 때, 위 셋업 이후 마지막에 실행)
 
 ## 에디터 셋업 메뉴
 
@@ -79,6 +81,7 @@
 | Equip Katana | 카타나 모델 장착, 머티리얼 생성, 히트박스를 날에 맞춤 |
 | Flip Katana Edge | 칼날 방향 반전 |
 | Remove Old Sword | 기존 검 제거 전 히트박스를 분리 |
+| Fix Player Clips | Player.controller가 쓰는 클립을 모아 설정 재적용 후 다시 저장(재생 바인딩 재생성) |
 
 ## 폴더 구조
 
