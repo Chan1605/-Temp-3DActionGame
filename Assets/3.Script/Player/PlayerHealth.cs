@@ -25,6 +25,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     public float MaxHealth => maxHealth;
     public bool IsStunned => stunTimer > 0f;
     public bool CanBeTargeted => true;
+    public event System.Action<DamageInfo> Damaged; // [변경] 피격 이펙트용
 
     void Awake()
     {
@@ -91,6 +92,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
 
         stunTimer = stunTime;
         invulnerableTimer = invulnerableTime;
+        Damaged?.Invoke(info); // [변경]
         return HitResult.Hit;
     }
 }

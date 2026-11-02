@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic; // [변경]
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -22,9 +22,9 @@ public class PlayerDodge : MonoBehaviour
     [SerializeField] PlayerCombat combat;
     [SerializeField] PlayerSkill skill;
     [SerializeField] PlayerHealth health;
-    [SerializeField] PlayerParry parry; // [변경]
-    [SerializeField] PlayerAfterimage afterimage; // [변경]
-    [SerializeField] ThirdPersonCamera followCamera; // [변경]
+    [SerializeField] PlayerParry parry;
+    [SerializeField] PlayerAfterimage afterimage;
+    [SerializeField] ThirdPersonCamera followCamera;
 
     [Header("Move")]
     [SerializeField] float distance = 4f;
@@ -38,9 +38,13 @@ public class PlayerDodge : MonoBehaviour
     [SerializeField] float invulnerableStart = 0f;
     [SerializeField] float invulnerableEnd = 0.3f;
 
-    // [변경] 저스트 회피: 적 공격이 justWindow초 안에 들어올 때 회피하면 적만 느려지고 잔상이 남음
+    // [변경] 저스트 회피 타이밍 (둘 중 하나만 만족해도 인정)
+    //  1) 회피를 누른 순간: 적 판정 시작 justWindow초 전 ~ 판정 시작 후 justLateWindow초 사이
+    //  2) 회피 시작 후 avoidedHitWindow초 안에 무적으로 공격을 흘림
     [Header("Just Dodge")]
     [SerializeField] float justWindow = 0.2f;
+    [SerializeField] float justLateWindow = 0.1f;
+    [SerializeField] float avoidedHitWindow = 0.2f;
     [SerializeField] float threatRadius = 4f;
     [SerializeField] float slowScale = 0.2f;
     [SerializeField] float slowTime = 1f;
@@ -68,18 +72,18 @@ public class PlayerDodge : MonoBehaviour
     float readyTime;
     int chainCount;
     float lastDodgeTime = float.NegativeInfinity;
-    bool justTriggered; // [변경]
-    float justInvulnerableUntil; // [변경]
+    bool justTriggered;
+    float justInvulnerableUntil;
 
-    readonly Collider[] overlapBuffer = new Collider[32]; // [변경]
-    readonly HashSet<IAttackThreat> seen = new HashSet<IAttackThreat>(); // [변경]
+    readonly Collider[] overlapBuffer = new Collider[32];
+    readonly HashSet<IAttackThreat> seen = new HashSet<IAttackThreat>();
 
     public bool IsDodging => dodging;
-    // [변경] 저스트 회피 직후에는 무적을 조금 더 유지 (슬로 중 연속 공격에 바로 맞지 않게)
+    // 저스트 회피 직후에는 무적을 조금 더 유지 (슬로 중 연속 공격에 바로 맞지 않게)
     public bool IsInvulnerable => (dodging && timer >= invulnerableStart && timer <= invulnerableEnd)
                                   || Time.unscaledTime < justInvulnerableUntil;
     public event Action<Vector3> Dodged;
-    public event Action JustDodged; // [변경] 이후 뇌기 +1 등에 연결
+    public event Action JustDodged; // 이후 뇌기 +1 등에 연결
 
     void Awake()
     {
@@ -89,9 +93,9 @@ public class PlayerDodge : MonoBehaviour
         if (combat == null) combat = GetComponent<PlayerCombat>();
         if (skill == null) skill = GetComponent<PlayerSkill>();
         if (health == null) health = GetComponent<PlayerHealth>();
-        if (parry == null) parry = GetComponent<PlayerParry>(); // [변경]
-        if (afterimage == null) afterimage = GetComponent<PlayerAfterimage>(); // [변경]
-        if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>(); // [변경]
+        if (parry == null) parry = GetComponent<PlayerParry>();
+        if (afterimage == null) afterimage = GetComponent<PlayerAfterimage>();
+        if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
     }
 
     void OnEnable()
@@ -122,7 +126,7 @@ public class PlayerDodge : MonoBehaviour
         if (Time.time < readyTime) return false;
         if (health != null && health.IsStunned) return false;
         if (skill != null && skill.IsActive) return false;
-        if (parry != null && parry.IsActive) return false; // [변경] 간파 반격 중에는 회피 불가
+        if (parry != null && parry.IsActive) return false; // 간파 반격 중에는 회피 불가
 
         // 연속 회피는 maxChain회까지, 잠시 쉬면 다시 채워짐
         if (Time.time - lastDodgeTime > chainResetTime) chainCount = 0;
@@ -167,10 +171,10 @@ public class PlayerDodge : MonoBehaviour
         traveled = 0f;
         chainCount++;
         lastDodgeTime = Time.time;
-        justTriggered = false; // [변경]
+        justTriggered = false;
 
         Dodged?.Invoke(direction);
-        if (IsThreatNearby()) TriggerJustDodge(); // [변경] 회피 시작 시점에 곧 맞을 공격이 있었는지 확인
+        if (IsThreatNearby()) TriggerJustDodge(); // 회피 시작 시점에 곧 맞을 공격이 있었는지 확인
         if (logDodge) Debug.Log($"[Dodge] {(turnToDirection ? "F(회전)" : "FBLR"[clipIndex].ToString())} · 연속 {chainCount}");
     }
 
@@ -191,13 +195,13 @@ public class PlayerDodge : MonoBehaviour
         if (timer >= moveTime + recoveryTime) EndDodge(true);
     }
 
-    // [변경] PlayerHealth가 회피 무적으로 공격을 흘렸을 때 호출. 회피 직후라면 저스트 회피로 인정
+    // PlayerHealth가 회피 무적으로 공격을 흘렸을 때 호출. 회피 직후라면 저스트 회피로 인정
     public void NotifyAvoidedHit()
     {
-        if (dodging && timer <= justWindow) TriggerJustDodge();
+        if (dodging && timer <= avoidedHitWindow) TriggerJustDodge(); // [변경] 전용 값으로 분리
     }
 
-    // [변경] 반경 안의 적 중 justWindow초 안에 이 위치를 때릴 공격이 있는지
+    // 반경 안의 적 중 justWindow초 안에 이 위치를 때릴 공격이 있는지
     bool IsThreatNearby()
     {
         seen.Clear();
@@ -209,12 +213,12 @@ public class PlayerDodge : MonoBehaviour
 
             IAttackThreat threat = col.GetComponentInParent<IAttackThreat>();
             if (threat == null || !seen.Add(threat)) continue;
-            if (threat.IsAboutToHit(transform.position, justWindow)) return true;
+            if (threat.IsAboutToHit(transform.position, justWindow, justLateWindow)) return true; // [변경]
         }
         return false;
     }
 
-    // [변경] 적만 느려지고(플레이어는 그대로) 잔상이 남음
+    // 적만 느려지고(플레이어는 그대로) 잔상이 남음
     void TriggerJustDodge()
     {
         if (justTriggered) return;

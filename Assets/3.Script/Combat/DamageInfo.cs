@@ -7,6 +7,7 @@ public struct DamageInfo
     public float PostureDamage;
     public bool Parryable;
     public bool InstantKill;
+    public AttackWeight Weight; // [변경]
     public Vector3 HitPoint;
     public Vector3 Direction;
 }

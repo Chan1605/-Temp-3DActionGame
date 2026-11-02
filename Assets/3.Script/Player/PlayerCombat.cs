@@ -17,6 +17,7 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] WeaponHitbox weapon;
     [SerializeField] PlayerLocomotion locomotion;
     [SerializeField] PlayerParry parry; // [변경] 우클릭 시 간파를 먼저 시도
+    [SerializeField] PlayerTargeting targeting; // [변경] P2 소프트 타겟팅
 
     [SerializeField] float attackCrossFade = 0.08f;
     [SerializeField] float returnCrossFade = 0.2f;
@@ -25,6 +26,7 @@ public class PlayerCombat : MonoBehaviour
     [FormerlySerializedAs("rootMotionWeight")]
     [SerializeField] float stepWeight = 1f;
     [SerializeField] bool logComboRoute = true;
+    [SerializeField] float swingFxTail = 0.06f; // [변경] 판정이 끝난 뒤 궤적·검기를 조금 더 유지하는 정규화 시간
 
     CharacterController controller;
 
@@ -34,7 +36,9 @@ public class PlayerCombat : MonoBehaviour
     float lastPressTime = float.NegativeInfinity;
     AttackInput lastPressInput;
     bool swingActive;
+    bool swingFxActive; // [변경]
     float stepTraveled;
+    float stepTotal; // [변경] 이번 공격에서 내딛을 총 거리 (타겟팅 시 끌어당김 포함)
     string route = "";
 
     public bool IsAttacking => current != null;
@@ -43,6 +47,10 @@ public class PlayerCombat : MonoBehaviour
     public bool InputLocked { get; set; }
     public bool CanCancel => current != null && elapsed / current.Duration >= current.ComboTransition;
 
+    // [변경] 이펙트(PlayerVfx)가 구독하는 이벤트 — 전투 코드는 이펙트를 직접 모름
+    public event System.Action<AttackData, AttackInput> AttackStarted;
+    public event System.Action AttackSwingFinished;
+
     void Awake()
     {
         if (animator == null) animator = GetComponentInChildren<Animator>();
@@ -50,6 +58,7 @@ public class PlayerCombat : MonoBehaviour
         if (locomotion == null) locomotion = GetComponent<PlayerLocomotion>();
         controller = GetComponent<CharacterController>();
         if (parry == null) parry = GetComponent<PlayerParry>(); // [변경]
+        if (targeting == null) targeting = GetComponent<PlayerTargeting>(); // [변경]
     }
 
     void OnEnable()
@@ -105,6 +114,8 @@ public class PlayerCombat : MonoBehaviour
         if (inHitWindow && !swingActive) BeginSwing(current);
         else if (!inHitWindow && swingActive) EndSwing();
 
+        if (swingFxActive && t >= current.HitEnd + swingFxTail) FinishSwingFx(); // [변경]
+
         // inputOpen 이후 눌린 입력만 인정하고, 그 입력에 연결된 다음 공격이 있으면 comboTransition에 분기
         bool buffered = lastPressTime >= attackStartTime + current.InputOpen * current.Duration;
         if (buffered && t >= current.ComboTransition)
@@ -138,14 +149,34 @@ public class PlayerCombat : MonoBehaviour
         attackStartTime = Time.time;
         lastPressTime = float.NegativeInfinity;
 
+        float baseStep = attack.StepDistance * stepWeight;
+        stepTotal = baseStep;
+
         if (locomotion != null)
         {
             Vector3 dir = locomotion.GetInputDirection();
-            if (dir.sqrMagnitude > 0.0001f) transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+
+            // [변경] 대상이 있으면 그쪽으로 돌고, 멈출 거리(stopDistance)까지 최대 maxPull만큼 더 내딛음
+            // 이미 가까우면 기본 내딛기도 줄여서 적을 파고들지 않게 함
+            if (targeting != null && targeting.TryFindTarget(dir, out Transform target, out float distance))
+            {
+                Vector3 to = target.position - transform.position;
+                to.y = 0f;
+                if (to.sqrMagnitude > 0.0001f) transform.rotation = Quaternion.LookRotation(to.normalized, Vector3.up);
+                stepTotal = Mathf.Clamp(distance - targeting.StopDistance, 0f, baseStep + targeting.MaxPull);
+            }
+            else if (dir.sqrMagnitude > 0.0001f)
+            {
+                transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+            }
+
             locomotion.MovementLocked = true;
         }
 
         animator.CrossFadeInFixedTime(attack.StateHash, attackCrossFade, 0, 0f);
+
+        swingFxActive = true; // [변경]
+        AttackStarted?.Invoke(attack, input);
 
         if (logComboRoute)
         {
@@ -158,6 +189,7 @@ public class PlayerCombat : MonoBehaviour
     public void CancelAttack()
     {
         if (swingActive) EndSwing();
+        FinishSwingFx(); // [변경]
         current = null;
         lastPressTime = float.NegativeInfinity;
     }
@@ -165,9 +197,18 @@ public class PlayerCombat : MonoBehaviour
     void EndCombo(float crossFade)
     {
         if (swingActive) EndSwing();
+        FinishSwingFx(); // [변경]
         current = null;
         if (locomotion != null) locomotion.MovementLocked = false;
         animator.CrossFadeInFixedTime(LocomotionHash, crossFade, 0, 0f);
+    }
+
+    // [변경] 궤적·검기 종료 알림 (한 번만)
+    void FinishSwingFx()
+    {
+        if (!swingFxActive) return;
+        swingFxActive = false;
+        AttackSwingFinished?.Invoke();
     }
 
     bool HasMoveInput() => locomotion != null && locomotion.GetInputDirection().sqrMagnitude > 0.0001f;
@@ -177,11 +218,11 @@ public class PlayerCombat : MonoBehaviour
     void ApplyStep(float t)
     {
         if (controller == null || !controller.enabled) return;
-        if (current.StepEnd <= 0f || current.StepDistance <= 0f) return;
+        if (current.StepEnd <= 0f || stepTotal <= 0f) return; // [변경]
 
         float p = Mathf.Clamp01(t / current.StepEnd);
         float eased = 1f - (1f - p) * (1f - p);
-        float target = current.StepDistance * stepWeight * eased;
+        float target = stepTotal * eased; // [변경]
 
         float delta = target - stepTraveled;
         if (delta <= 0f) return;
@@ -200,7 +241,8 @@ public class PlayerCombat : MonoBehaviour
             Attacker = gameObject,
             Damage = attack.Damage,
             PostureDamage = attack.PostureDamage,
-            Parryable = attack.Parryable
+            Parryable = attack.Parryable,
+            Weight = attack.Weight // [변경]
         });
     }
 

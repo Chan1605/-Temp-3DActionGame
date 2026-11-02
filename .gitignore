@@ -76,3 +76,9 @@ desktop.ini
 # DOTween (에셋스토어 배포본)
 /[Aa]ssets/Plugins/Demigiant/
 /[Aa]ssets/Plugins/Demigiant.meta
+
+# [변경] Procedural Lightning(ThirdParty)이 에디터 시작 시 자동으로 복사·생성하는 파일 - PC마다 다시 생김
+/[Aa]ssets/Gizmos/
+/[Aa]ssets/Gizmos.meta
+/[Aa]ssets/_TerrainAutoUpgrade/
+/[Aa]ssets/_TerrainAutoUpgrade.meta

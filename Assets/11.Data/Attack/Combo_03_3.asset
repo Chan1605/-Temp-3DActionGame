@@ -17,6 +17,7 @@ MonoBehaviour:
   damage: 28
   postureDamage: 14
   parryable: 1
+  weight: 1
   hitStart: 0.3334483
   hitEnd: 0.48689654
   inputOpen: 0.2

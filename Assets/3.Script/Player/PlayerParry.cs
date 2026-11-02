@@ -17,8 +17,10 @@ public class PlayerParry : MonoBehaviour
     [SerializeField] PlayerAfterimage afterimage;
     [SerializeField] ThirdPersonCamera followCamera;
 
+    // [변경] 간파 타이밍: 적 판정 시작 window초 전부터 판정 시작 후 lateWindow초까지 우클릭하면 성공
     [Header("Judge")]
     [SerializeField] float window = 0.2f;
+    [SerializeField] float lateWindow = 0.2f;
     [SerializeField] float searchRadius = 4f;
 
     [Header("Counter")]
@@ -94,7 +96,7 @@ public class PlayerParry : MonoBehaviour
 
             IAttackThreat threat = col.GetComponentInParent<IAttackThreat>();
             if (threat == null || !seen.Add(threat)) continue;
-            if (!threat.IsParryable || !threat.IsAboutToHit(transform.position, window)) continue;
+            if (!threat.IsParryable || !threat.IsAboutToHit(transform.position, window, lateWindow)) continue; // [변경]
 
             float dist = (((Component)threat).transform.position - transform.position).sqrMagnitude;
             if (dist < bestDist)
@@ -174,6 +176,7 @@ public class PlayerParry : MonoBehaviour
             Damage = counterDamage,
             PostureDamage = counterPostureDamage,
             Parryable = false,
+            Weight = AttackWeight.Parry,
             HitPoint = ((Component)target).transform.position + Vector3.up,
             Direction = dir.normalized
         });

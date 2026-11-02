@@ -26,6 +26,10 @@ public static class SwordsmanSetup
     const string HitboxName = "Hitbox";
     const string PlayerTag = "Player";
 
+    // [변경] 셋업을 다시 돌리면 프리팹의 색도 이 값으로 맞춤
+    static readonly Color BodyTint = new Color(0.18f, 0.18f, 0.22f);
+    static readonly Color WindupColor = new Color(1.6f, 0.7f, 0.15f);
+
     // 상태 이름, 클립 경로 (전부 1회 재생)
     static readonly (string state, string clip)[] OneShotStates =
     {
@@ -232,6 +236,8 @@ public static class SwordsmanSetup
             var existingSo = new SerializedObject(contents.GetComponent<EnemySwordsman>());
             existingSo.FindProperty("data").objectReferenceValue = data;
             existingSo.FindProperty("animator").objectReferenceValue = existingAnimator;
+            existingSo.FindProperty("bodyTint").colorValue = BodyTint; // [변경]
+            existingSo.FindProperty("windupColor").colorValue = WindupColor;
             existingSo.ApplyModifiedPropertiesWithoutUndo();
 
             PrefabUtility.SaveAsPrefabAsset(contents, PrefabPath);
@@ -262,6 +268,8 @@ public static class SwordsmanSetup
         so.FindProperty("data").objectReferenceValue = data;
         so.FindProperty("animator").objectReferenceValue = animator;
         so.FindProperty("weapon").objectReferenceValue = hitbox;
+        so.FindProperty("bodyTint").colorValue = BodyTint; // [변경]
+        so.FindProperty("windupColor").colorValue = WindupColor;
         so.ApplyModifiedPropertiesWithoutUndo();
 
         if (!AssetDatabase.IsValidFolder("Assets/2.Model/Prefabs")) AssetDatabase.CreateFolder("Assets/2.Model", "Prefabs");

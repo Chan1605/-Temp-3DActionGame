@@ -149,6 +149,7 @@ MonoBehaviour:
   bodyTint: {r: 0.35, g: 0.35, b: 0.4, a: 1}
   windupColor: {r: 1, g: 1, b: 1, a: 1}
   hitColor: {r: 1, g: 0.25, b: 0.2, a: 1}
+  parryColor: {r: 1, g: 0.95, b: 0.6, a: 1}
   hitFlashTime: 0.1
   gravity: -20
   knockbackTime: 0.15

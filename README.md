@@ -64,15 +64,19 @@
 1. [Sword Animations Pack](https://assetstore.unity.com/packages/3d/animations/sword-animations-pack-256301) → `Assets/ThirdParty/SwordAnimationPack`
    - 반드시 이 경로로 옮길 것 (기본 위치에 두면 `.gitignore`에 걸리지 않아 git이 팩 전체를 변경으로 잡음)
 2. [DOTween (HOTween v2)](https://assetstore.unity.com/packages/tools/animation/dotween-hotween-v2-27676) → `Assets/Plugins/Demigiant`
-3. `ThirdParty/SwordAnimationPack/Model/9CG_Sword.FBX` 의 Rig를 **Humanoid (Create From This Model)** 로 변경 후 Apply
-4. `Assets/1.Scene/SampleScene` 열기
-5. 메뉴에서 아래 셋업을 순서대로 한 번 실행 (ThirdParty 클립의 Loop Time 등 레포에 포함되지 않는 설정을 다시 맞춤)
+3. [Procedural Lightning](https://assetstore.unity.com/packages/tools/particles-effects/procedural-lightning-high-performance-and-shocking-lightning-34217) → `Assets/ThirdParty/ProceduralLightning`
+4. [Master Stylized Projectile](https://assetstore.unity.com/packages/vfx/particles/master-stylized-projectile-255608) → `Assets/ThirdParty/MasterStylizedProjectiles`
+5. `ThirdParty/SwordAnimationPack/Model/9CG_Sword.FBX` 의 Rig를 **Humanoid (Create From This Model)** 로 변경 후 Apply
+6. `Assets/1.Scene/SampleScene` 열기
+7. 메뉴에서 아래 셋업을 순서대로 한 번 실행 (ThirdParty 클립의 Loop Time 등 레포에 포함되지 않는 설정을 다시 맞춤)
    - `Tools/Setup/Player Locomotion`
    - `Tools/Setup/Combat Test`
    - `Tools/Setup/Thunder Skill`
    - `Tools/Setup/Swordsman Enemy`
    - `Tools/Setup/Player Dodge`
    - `Tools/Setup/Just Dodge and Parry`
+   - `Tools/Setup/Player Vfx`
+   - `Tools/Setup/Hit Feedback`
    - `Tools/Setup/Fix Player Clips` (팩의 .anim 재생 바인딩이 비어 있어 애니메이션이 안 나올 때, 위 셋업 이후 마지막에 실행)
 
 ## 에디터 셋업 메뉴
@@ -89,6 +93,8 @@
 | Add Swordsman | 검병을 플레이어 앞에 한 명 더 배치 |
 | Player Dodge | 회피 상태 4개(앞·뒤·좌·우) 추가, PlayerDodge 연결, Space · 패드 B 회피 |
 | Just Dodge and Parry | 잔상 머티리얼 · 간파 반격 상태 생성, PlayerAfterimage · PlayerParry 연결 |
+| Player Vfx | 검 궤적(SwordTrail) · 강공격 검기 · 벽력일섬 돌진 번개·낙뢰(PlayerVfx) 연결 |
+| Hit Feedback | 공격 무게(약·강) 지정, 무게별 히트스톱 · 카메라 흔들림 · 피격 이펙트(HitFeedback) 연결 |
 | Fit Attack Hit Windows | 모든 AttackData 클립을 플레이어 칼 기준으로 측정해 판정 구간(hitStart/hitEnd)을 실제 휘두르는 구간에 맞춤 (Tools/Debug/Attack Timing Report는 적용 없이 비교만) |
 | Fix Player Clips | Player · Swordsman 컨트롤러가 쓰는 클립을 모아 설정 재적용 후 다시 저장(재생 바인딩 재생성) |
 
@@ -116,3 +122,5 @@ Assets/
 | --- | --- | --- |
 | Sword Animations Pack | Studio9CG | Unity Asset Store EULA (레포 미포함) |
 | DOTween | Demigiant | Unity Asset Store (레포 미포함) |
+| Procedural Lightning | Digital Ruby | Unity Asset Store EULA (레포 미포함) |
+| Master Stylized Projectile | WhiteBox Studio | Unity Asset Store EULA (레포 미포함) |

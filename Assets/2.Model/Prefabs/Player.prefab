@@ -421,6 +421,11 @@ GameObject:
   - component: {fileID: 3070939792974395059}
   - component: {fileID: 4005965994054678145}
   - component: {fileID: 118300998889972725}
+  - component: {fileID: 4503054392510635615}
+  - component: {fileID: 4353746522782798047}
+  - component: {fileID: 3880032383890577890}
+  - component: {fileID: 2319970398063733898}
+  - component: {fileID: 2336979120302626365}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -519,12 +524,15 @@ MonoBehaviour:
   animator: {fileID: 9054350018550051993}
   weapon: {fileID: 8066946278627523393}
   locomotion: {fileID: 8946055058242759463}
+  parry: {fileID: 4353746522782798047}
+  targeting: {fileID: 0}
   attackCrossFade: 0.08
   returnCrossFade: 0.2
   moveCancelCrossFade: 0.12
   idleInputBuffer: 0.2
   stepWeight: 1
   logComboRoute: 1
+  swingFxTail: 0.06
 --- !u!114 &3070939792974395059
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -568,6 +576,7 @@ MonoBehaviour:
   locomotion: {fileID: 8946055058242759463}
   skill: {fileID: 3070939792974395059}
   dodge: {fileID: 118300998889972725}
+  parry: {fileID: 4353746522782798047}
   followCamera: {fileID: 0}
 --- !u!114 &118300998889972725
 MonoBehaviour:
@@ -587,12 +596,23 @@ MonoBehaviour:
   combat: {fileID: 3750847782795144091}
   skill: {fileID: 3070939792974395059}
   health: {fileID: 4005965994054678145}
+  parry: {fileID: 4353746522782798047}
+  afterimage: {fileID: 4503054392510635615}
+  followCamera: {fileID: 0}
   distance: 4
   moveTime: 0.4
   recoveryTime: 0.15
   turnToDirection: 0
   invulnerableStart: 0
   invulnerableEnd: 0.3
+  justWindow: 0.2
+  justLateWindow: 0.1
+  avoidedHitWindow: 0.2
+  threatRadius: 4
+  slowScale: 0.2
+  slowTime: 1
+  afterimageTime: 0.5
+  justInvulnerableTime: 0.5
   cooldown: 0.15
   maxChain: 2
   chainResetTime: 0.8
@@ -600,6 +620,297 @@ MonoBehaviour:
   clipStartOffset: 0.15
   crossFade: 0.05
   logDodge: 0
+--- !u!114 &4503054392510635615
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 745b7f01058453944a395690df3fbb95, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAfterimage
+  material: {fileID: 2100000, guid: 33ad016f89be9cf4685ac61475198500, type: 2}
+  color: {r: 0.45, g: 0.75, b: 1, a: 0.6}
+  interval: 0.05
+  lifetime: 0.35
+  poolSize: 16
+  sourceRoot: {fileID: 2183600895543438077}
+--- !u!114 &4353746522782798047
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b536059ffc8e6a44a41124a55e50106, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerParry
+  animator: {fileID: 9054350018550051993}
+  locomotion: {fileID: 8946055058242759463}
+  combat: {fileID: 3750847782795144091}
+  skill: {fileID: 3070939792974395059}
+  health: {fileID: 4005965994054678145}
+  dodge: {fileID: 118300998889972725}
+  afterimage: {fileID: 4503054392510635615}
+  followCamera: {fileID: 0}
+  window: 0.2
+  lateWindow: 0.2
+  searchRadius: 4
+  counterHitTime: 0.5
+  duration: 0.85
+  counterDamage: 30
+  counterPostureDamage: 40
+  freezeScale: 0.05
+  freezeTime: 0.15
+  shakeStrength: 0.2
+  logParry: 1
+--- !u!114 &3880032383890577890
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70dc4aff77f51244284f4435b826328f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerVfx
+  combat: {fileID: 3750847782795144091}
+  skill: {fileID: 3070939792974395059}
+  trail: {fileID: 6587575302745953988}
+  blade: {fileID: 8589396617217203519}
+  boltPrefab: {fileID: 1600819035976254, guid: 9bcfdd98d29605342a31a197383939a1, type: 3}
+  swordTrail: 1
+  bladeLightning: 1
+  dashLightning: 1
+  strikeLightning: 1
+  chargeLightning: 1
+  bladeInterval: 0.035
+  bladeStyle:
+    width: {x: 0.02, y: 0.035}
+    duration: {x: 0.04, y: 0.08}
+    count: {x: 1, y: 1}
+    generations: 4
+    chaos: 0.22
+    forkedness: 0.25
+    growth: 0
+    intensity: 2.5
+    glowIntensity: 1.2
+    glowWidth: 4
+    jitter: 0
+    trunkColor: {r: 1, g: 1, b: 1, a: 1}
+    glowColor: {r: 0.45, g: 0.6, b: 1, a: 1}
+    lightRange: 2.5
+    lightIntensity: 0.8
+    lightPercent: 0.03
+    lightColor: {r: 0.6, g: 0.75, b: 1, a: 1}
+  dashHeight: 1
+  dashStyle:
+    width: {x: 0.035, y: 0.06}
+    duration: {x: 0.15, y: 0.25}
+    count: {x: 1, y: 2}
+    generations: 6
+    chaos: 0.25
+    forkedness: 0.4
+    growth: 0.15
+    intensity: 3
+    glowIntensity: 1.6
+    glowWidth: 5
+    jitter: 0.3
+    trunkColor: {r: 1, g: 1, b: 1, a: 1}
+    glowColor: {r: 0.45, g: 0.6, b: 1, a: 1}
+    lightRange: 6
+    lightIntensity: 1.5
+    lightPercent: 0.02
+    lightColor: {r: 0.6, g: 0.75, b: 1, a: 1}
+  strikeHeight: 12
+  strikeSpread: 2
+  strikeFlickerDelay: 0.07
+  impactArcs: 4
+  impactRadius: 1.6
+  strikeStyle:
+    width: {x: 0.05, y: 0.08}
+    duration: {x: 0.18, y: 0.28}
+    count: {x: 1, y: 1}
+    generations: 7
+    chaos: 0.22
+    forkedness: 0.55
+    growth: 0.35
+    intensity: 3.5
+    glowIntensity: 2
+    glowWidth: 5
+    jitter: 0.4
+    trunkColor: {r: 1, g: 1, b: 1, a: 1}
+    glowColor: {r: 0.45, g: 0.6, b: 1, a: 1}
+    lightRange: 12
+    lightIntensity: 3
+    lightPercent: 0.05
+    lightColor: {r: 0.6, g: 0.75, b: 1, a: 1}
+  chargeBladeInterval:
+  - 0.12
+  - 0.06
+  - 0.035
+  chargeGroundInterval:
+  - 0
+  - 0.18
+  - 0.08
+  chargeGroundRadius: 1.3
+  levelUpArcs: 5
+  chargeStyle:
+    width: {x: 0.03, y: 0.06}
+    duration: {x: 0.05, y: 0.1}
+    count: {x: 1, y: 1}
+    generations: 5
+    chaos: 0.3
+    forkedness: 0.3
+    growth: 0
+    intensity: 2.5
+    glowIntensity: 1.5
+    glowWidth: 5
+    jitter: 0
+    trunkColor: {r: 1, g: 1, b: 1, a: 1}
+    glowColor: {r: 0.45, g: 0.6, b: 1, a: 1}
+    lightRange: 3
+    lightIntensity: 1
+    lightPercent: 0.02
+    lightColor: {r: 0.6, g: 0.75, b: 1, a: 1}
+--- !u!114 &2319970398063733898
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac6c14395c8d83d418e59baf94418485, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerTargeting
+  softTargeting: 1
+  coneAngle: 60
+  searchRadius: 4
+  stopDistance: 1.3
+  maxPull: 1.5
+  keepTargetTime: 1.5
+  angleWeight: 0.6
+  logTarget: 0
+--- !u!114 &2336979120302626365
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5352e86b60b480c43b56625365acf0c1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HitFeedback
+  weapon: {fileID: 8066946278627523393}
+  parry: {fileID: 4353746522782798047}
+  health: {fileID: 4005965994054678145}
+  skill: {fileID: 3070939792974395059}
+  followCamera: {fileID: 0}
+  enableHitStop: 1
+  enableEffects: 1
+  effectMode: 0
+  hitStopScale: 0.02
+  effectLifetime: 3
+  settings:
+  - weight: 0
+    hitStop: 0.04
+    shake: 0.02
+    shakeTime: 0.1
+    effect: {fileID: 8172394614802003838, guid: 083c17ed86759cc4487ffa6ca1c4eb1a, type: 3}
+    effectScale: 0.7
+    sparkCount: 3
+    sparkRadius: 0.45
+    streakLength: 0
+  - weight: 1
+    hitStop: 0.08
+    shake: 0.08
+    shakeTime: 0.1
+    effect: {fileID: 4550076289710732121, guid: a73108d561dbdf34ba462e73e97ed541, type: 3}
+    effectScale: 0.35
+    sparkCount: 6
+    sparkRadius: 0.8
+    streakLength: 1.4
+  - weight: 2
+    hitStop: 0
+    shake: 0
+    shakeTime: 0.1
+    effect: {fileID: 4550076289710732121, guid: 6863ce4e345ba8947ad4e877ee1d1fc4, type: 3}
+    effectScale: 0.4
+    sparkCount: 8
+    sparkRadius: 1
+    streakLength: 0
+  playerHitEffect: {fileID: 2585137204373214539, guid: aea6938645addf84fa322db3b7a5cb58, type: 3}
+  playerHitScale: 1
+  playerHitStop: 0.05
+  playerSparkCount: 4
+  playerSparkRadius: 0.6
+  boltPrefab: {fileID: 1600819035976254, guid: 9bcfdd98d29605342a31a197383939a1, type: 3}
+  sparkSpread: 0.9
+  sparkStyle:
+    width: {x: 0.015, y: 0.03}
+    duration: {x: 0.05, y: 0.09}
+    count: {x: 1, y: 1}
+    generations: 4
+    chaos: 0.3
+    forkedness: 0.2
+    growth: 0
+    intensity: 3
+    glowIntensity: 1.2
+    glowWidth: 4
+    jitter: 0
+    trunkColor: {r: 1, g: 1, b: 1, a: 1}
+    glowColor: {r: 0.45, g: 0.6, b: 1, a: 1}
+    lightRange: 2.5
+    lightIntensity: 1.2
+    lightPercent: 0.06
+    lightColor: {r: 0.6, g: 0.75, b: 1, a: 1}
+  streakStyle:
+    width: {x: 0.025, y: 0.04}
+    duration: {x: 0.08, y: 0.12}
+    count: {x: 1, y: 1}
+    generations: 5
+    chaos: 0.18
+    forkedness: 0.35
+    growth: 0
+    intensity: 3.5
+    glowIntensity: 1.6
+    glowWidth: 5
+    jitter: 0
+    trunkColor: {r: 1, g: 1, b: 1, a: 1}
+    glowColor: {r: 0.45, g: 0.6, b: 1, a: 1}
+    lightRange: 4
+    lightIntensity: 2
+    lightPercent: 0.1
+    lightColor: {r: 0.6, g: 0.75, b: 1, a: 1}
+  playerSparkStyle:
+    width: {x: 0.015, y: 0.03}
+    duration: {x: 0.06, y: 0.1}
+    count: {x: 1, y: 1}
+    generations: 4
+    chaos: 0.3
+    forkedness: 0.2
+    growth: 0
+    intensity: 2.5
+    glowIntensity: 1.4
+    glowWidth: 4
+    jitter: 0
+    trunkColor: {r: 1, g: 0.85, b: 0.9, a: 1}
+    glowColor: {r: 0.9, g: 0.15, b: 0.45, a: 1}
+    lightRange: 2.5
+    lightIntensity: 1
+    lightPercent: 0.06
+    lightColor: {r: 1, g: 0.3, b: 0.5, a: 1}
 --- !u!1 &1515010326207606855
 GameObject:
   m_ObjectHideFlags: 0
@@ -860,6 +1171,7 @@ GameObject:
   - component: {fileID: 4076426485361985546}
   - component: {fileID: 8589396617217203519}
   - component: {fileID: 8066946278627523393}
+  - component: {fileID: 6587575302745953988}
   m_Layer: 0
   m_Name: Hitbox
   m_TagString: Untagged
@@ -921,6 +1233,26 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   targetTag: 
+--- !u!114 &6587575302745953988
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2186139761831222520}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6425dab12c5afe5439aebb84ec23d4e6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SwordTrail
+  blade: {fileID: 8589396617217203519}
+  handReference: {fileID: 4538197362500821654}
+  material: {fileID: 2100000, guid: 6234f5eb861e2614bb223d3aea964e33, type: 2}
+  color: {r: 0.55, g: 0.8, b: 1, a: 0.9}
+  lifetime: 0.15
+  baseRatio: 0.3
+  subdivisions: 4
+  maxSamples: 40
 --- !u!1 &2397380145005194733
 GameObject:
   m_ObjectHideFlags: 0
