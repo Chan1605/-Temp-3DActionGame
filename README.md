@@ -52,8 +52,9 @@
 | Shift | 달리기 |
 | 마우스 | 카메라 |
 | 좌클릭 | 약공격 (□) |
-| 우클릭 | 강공격 (△) |
+| 우클릭 | 강공격 (△) · 적 공격 직전이면 간파(받아치고 반격) |
 | Q | 벽력일섬 (짧게 = 즉발, 길게 = 차지, 착지 후 다시 = 연쇄) |
+| Space | 회피 (입력 방향, 입력 없으면 뒤로 · 공격 중 캔슬 가능 · 적 공격 직전이면 저스트 회피: 적만 느려지고 잔상) |
 
 ## 실행 방법
 
@@ -69,6 +70,9 @@
    - `Tools/Setup/Player Locomotion`
    - `Tools/Setup/Combat Test`
    - `Tools/Setup/Thunder Skill`
+   - `Tools/Setup/Swordsman Enemy`
+   - `Tools/Setup/Player Dodge`
+   - `Tools/Setup/Just Dodge and Parry`
    - `Tools/Setup/Fix Player Clips` (팩의 .anim 재생 바인딩이 비어 있어 애니메이션이 안 나올 때, 위 셋업 이후 마지막에 실행)
 
 ## 에디터 셋업 메뉴
@@ -81,7 +85,12 @@
 | Equip Katana | 카타나 모델 장착, 머티리얼 생성, 히트박스를 날에 맞춤 |
 | Flip Katana Edge | 칼날 방향 반전 |
 | Remove Old Sword | 기존 검 제거 전 히트박스를 분리 |
-| Fix Player Clips | Player.controller가 쓰는 클립을 모아 설정 재적용 후 다시 저장(재생 바인딩 재생성) |
+| Swordsman Enemy | 검병 프리팹 · Swordsman.controller · EnemyData 생성, 플레이어 피격(PlayerHealth) 연결, 검병 1명 배치 |
+| Add Swordsman | 검병을 플레이어 앞에 한 명 더 배치 |
+| Player Dodge | 회피 상태 4개(앞·뒤·좌·우) 추가, PlayerDodge 연결, Space · 패드 B 회피 |
+| Just Dodge and Parry | 잔상 머티리얼 · 간파 반격 상태 생성, PlayerAfterimage · PlayerParry 연결 |
+| Fit Attack Hit Windows | 모든 AttackData 클립을 플레이어 칼 기준으로 측정해 판정 구간(hitStart/hitEnd)을 실제 휘두르는 구간에 맞춤 (Tools/Debug/Attack Timing Report는 적용 없이 비교만) |
+| Fix Player Clips | Player · Swordsman 컨트롤러가 쓰는 클립을 모아 설정 재적용 후 다시 저장(재생 바인딩 재생성) |
 
 ## 폴더 구조
 

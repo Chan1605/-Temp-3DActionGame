@@ -5,15 +5,27 @@ using UnityEngine;
 
 public static class PlayerClipFixer
 {
-    const string ControllerPath = "Assets/5.Animation/Player/Player.controller";
+    static readonly string[] ControllerPaths =
+    {
+        "Assets/5.Animation/Player/Player.controller",
+        "Assets/5.Animation/Enemy/Swordsman.controller"
+    };
 
     [MenuItem("Tools/Setup/Fix Player Clips")]
     static void Run()
     {
-        var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+        foreach (string path in ControllerPaths)
+        {
+            if (AssetDatabase.LoadAssetAtPath<AnimatorController>(path) != null) Fix(path);
+        }
+    }
+
+    public static void Fix(string controllerPath)
+    {
+        var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
         if (controller == null)
         {
-            Debug.LogError("[ClipFixer] Player.controller가 없습니다. Tools/Setup/Player Locomotion을 먼저 실행하세요.");
+            Debug.LogError($"[ClipFixer] {controllerPath}가 없습니다.");
             return;
         }
 
@@ -42,7 +54,7 @@ public static class PlayerClipFixer
         if (paths.Count > 0) AssetDatabase.ForceReserializeAssets(paths);
         AssetDatabase.Refresh();
 
-        Debug.Log($"[ClipFixer] 클립 {clips.Count}개 중 .anim {paths.Count}개 재저장 완료");
+        Debug.Log($"[ClipFixer] {controller.name} · 클립 {clips.Count}개 중 .anim {paths.Count}개 재저장 완료");
     }
 
     static void CollectFromStateMachine(AnimatorStateMachine machine, HashSet<AnimationClip> clips)

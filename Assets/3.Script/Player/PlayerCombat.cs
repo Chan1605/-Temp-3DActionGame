@@ -16,6 +16,7 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] Animator animator;
     [SerializeField] WeaponHitbox weapon;
     [SerializeField] PlayerLocomotion locomotion;
+    [SerializeField] PlayerParry parry; // [변경] 우클릭 시 간파를 먼저 시도
 
     [SerializeField] float attackCrossFade = 0.08f;
     [SerializeField] float returnCrossFade = 0.2f;
@@ -38,6 +39,7 @@ public class PlayerCombat : MonoBehaviour
 
     public bool IsAttacking => current != null;
     public AttackData CurrentAttack => current;
+    public float AttackElapsed => current != null ? elapsed : 0f; // [변경] 회피가 공격을 끊을 수 있는 시점 판단용
     public bool InputLocked { get; set; }
     public bool CanCancel => current != null && elapsed / current.Duration >= current.ComboTransition;
 
@@ -47,6 +49,7 @@ public class PlayerCombat : MonoBehaviour
         if (weapon == null) weapon = GetComponentInChildren<WeaponHitbox>();
         if (locomotion == null) locomotion = GetComponent<PlayerLocomotion>();
         controller = GetComponent<CharacterController>();
+        if (parry == null) parry = GetComponent<PlayerParry>(); // [변경]
     }
 
     void OnEnable()
@@ -63,7 +66,12 @@ public class PlayerCombat : MonoBehaviour
     }
 
     void OnLightPressed(InputAction.CallbackContext ctx) => RegisterPress(AttackInput.Light);
-    void OnHeavyPressed(InputAction.CallbackContext ctx) => RegisterPress(AttackInput.Heavy);
+    // [변경] 적 공격 직전이면 간파, 아니면 평소대로 강공격 입력
+    void OnHeavyPressed(InputAction.CallbackContext ctx)
+    {
+        if (parry != null && parry.TryParry()) return;
+        RegisterPress(AttackInput.Heavy);
+    }
 
     // 버퍼는 마지막 입력 하나만 기억: □ 누르고 바로 △ 누르면 △가 우선
     void RegisterPress(AttackInput input)

@@ -419,6 +419,8 @@ GameObject:
   - component: {fileID: 8946055058242759463}
   - component: {fileID: 3750847782795144091}
   - component: {fileID: 3070939792974395059}
+  - component: {fileID: 4005965994054678145}
+  - component: {fileID: 118300998889972725}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -546,6 +548,58 @@ MonoBehaviour:
   obstacleMask:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &4005965994054678145
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c620962e7698224b97869d6c28044d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
+  maxHealth: 100
+  stunTime: 0.35
+  invulnerableTime: 0.6
+  animator: {fileID: 9054350018550051993}
+  combat: {fileID: 3750847782795144091}
+  locomotion: {fileID: 8946055058242759463}
+  skill: {fileID: 3070939792974395059}
+  dodge: {fileID: 118300998889972725}
+  followCamera: {fileID: 0}
+--- !u!114 &118300998889972725
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d59ece352c8d1ee47928587da4b34c14, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerDodge
+  dodgeAction: {fileID: -4667418021385524400, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  animator: {fileID: 9054350018550051993}
+  locomotion: {fileID: 8946055058242759463}
+  combat: {fileID: 3750847782795144091}
+  skill: {fileID: 3070939792974395059}
+  health: {fileID: 4005965994054678145}
+  distance: 4
+  moveTime: 0.4
+  recoveryTime: 0.15
+  turnToDirection: 0
+  invulnerableStart: 0
+  invulnerableEnd: 0.3
+  cooldown: 0.15
+  maxChain: 2
+  chainResetTime: 0.8
+  attackCancelTime: 0.1
+  clipStartOffset: 0.15
+  crossFade: 0.05
+  logDodge: 0
 --- !u!1 &1515010326207606855
 GameObject:
   m_ObjectHideFlags: 0
@@ -866,6 +920,7 @@ MonoBehaviour:
   hitMask:
     serializedVersion: 2
     m_Bits: 4294967295
+  targetTag: 
 --- !u!1 &2397380145005194733
 GameObject:
   m_ObjectHideFlags: 0
@@ -1440,7 +1495,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 563129190470504868}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: -1.8347263, y: 12.514479, z: 158.25023}
 --- !u!1 &4212727519411449491
 GameObject:
   m_ObjectHideFlags: 0
@@ -2581,7 +2636,7 @@ Transform:
   - {fileID: 7117908773678089895}
   - {fileID: 4076426485361985546}
   m_Father: {fileID: 5090184323580091682}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 89.687836, y: 0.019544046, z: -179.98045}
 --- !u!1 &7744667127320898915
 GameObject:
   m_ObjectHideFlags: 0

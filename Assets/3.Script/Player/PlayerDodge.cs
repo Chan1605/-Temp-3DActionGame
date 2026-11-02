@@ -1,0 +1,253 @@
+using System;
+using System.Collections.Generic; // [변경]
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+[RequireComponent(typeof(CharacterController))]
+public class PlayerDodge : MonoBehaviour
+{
+    static readonly int LocomotionHash = Animator.StringToHash("Locomotion");
+
+    // 순서: 앞, 뒤, 왼쪽, 오른쪽
+    static readonly int[] DodgeHashes =
+    {
+        Animator.StringToHash("Dodge_F"), Animator.StringToHash("Dodge_B"),
+        Animator.StringToHash("Dodge_L"), Animator.StringToHash("Dodge_R")
+    };
+
+    [SerializeField] InputActionReference dodgeAction;
+
+    [SerializeField] Animator animator;
+    [SerializeField] PlayerLocomotion locomotion;
+    [SerializeField] PlayerCombat combat;
+    [SerializeField] PlayerSkill skill;
+    [SerializeField] PlayerHealth health;
+    [SerializeField] PlayerParry parry; // [변경]
+    [SerializeField] PlayerAfterimage afterimage; // [변경]
+    [SerializeField] ThirdPersonCamera followCamera; // [변경]
+
+    [Header("Move")]
+    [SerializeField] float distance = 4f;
+    [SerializeField] float moveTime = 0.4f;
+    [SerializeField] float recoveryTime = 0.15f;
+
+    // true: 입력 방향으로 몸을 돌려 앞구르기 / false: 바라보는 방향 유지, 앞·뒤·좌·우 회피 모션
+    [SerializeField] bool turnToDirection;
+
+    [Header("Invulnerable")]
+    [SerializeField] float invulnerableStart = 0f;
+    [SerializeField] float invulnerableEnd = 0.3f;
+
+    // [변경] 저스트 회피: 적 공격이 justWindow초 안에 들어올 때 회피하면 적만 느려지고 잔상이 남음
+    [Header("Just Dodge")]
+    [SerializeField] float justWindow = 0.2f;
+    [SerializeField] float threatRadius = 4f;
+    [SerializeField] float slowScale = 0.2f;
+    [SerializeField] float slowTime = 1f;
+    [SerializeField] float afterimageTime = 0.5f;
+    [SerializeField] float justInvulnerableTime = 0.5f;
+
+    [Header("Limit")]
+    [SerializeField] float cooldown = 0.15f;
+    [SerializeField] int maxChain = 2;
+    [SerializeField] float chainResetTime = 0.8f;
+    [SerializeField] float attackCancelTime = 0.1f;
+
+    // 팩 회피 클립은 앞 0.2초가 준비 동작이라 그 뒤부터 재생해 입력 즉시 몸이 움직이게 함
+    [Header("Animation")]
+    [SerializeField] float clipStartOffset = 0.15f;
+    [SerializeField] float crossFade = 0.05f;
+    [SerializeField] bool logDodge;
+
+    CharacterController controller;
+
+    bool dodging;
+    float timer;
+    Vector3 direction;
+    float traveled;
+    float readyTime;
+    int chainCount;
+    float lastDodgeTime = float.NegativeInfinity;
+    bool justTriggered; // [변경]
+    float justInvulnerableUntil; // [변경]
+
+    readonly Collider[] overlapBuffer = new Collider[32]; // [변경]
+    readonly HashSet<IAttackThreat> seen = new HashSet<IAttackThreat>(); // [변경]
+
+    public bool IsDodging => dodging;
+    // [변경] 저스트 회피 직후에는 무적을 조금 더 유지 (슬로 중 연속 공격에 바로 맞지 않게)
+    public bool IsInvulnerable => (dodging && timer >= invulnerableStart && timer <= invulnerableEnd)
+                                  || Time.unscaledTime < justInvulnerableUntil;
+    public event Action<Vector3> Dodged;
+    public event Action JustDodged; // [변경] 이후 뇌기 +1 등에 연결
+
+    void Awake()
+    {
+        controller = GetComponent<CharacterController>();
+        if (animator == null) animator = GetComponentInChildren<Animator>();
+        if (locomotion == null) locomotion = GetComponent<PlayerLocomotion>();
+        if (combat == null) combat = GetComponent<PlayerCombat>();
+        if (skill == null) skill = GetComponent<PlayerSkill>();
+        if (health == null) health = GetComponent<PlayerHealth>();
+        if (parry == null) parry = GetComponent<PlayerParry>(); // [변경]
+        if (afterimage == null) afterimage = GetComponent<PlayerAfterimage>(); // [변경]
+        if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>(); // [변경]
+    }
+
+    void OnEnable()
+    {
+        if (dodgeAction != null) dodgeAction.action.Enable();
+    }
+
+    void OnDisable()
+    {
+        if (dodging) EndDodge(true);
+    }
+
+    void Update()
+    {
+        // 회피 도중 스킬이 시작되면 회피만 조용히 끝내고 제어권은 스킬에 넘김
+        if (dodging && skill != null && skill.IsActive)
+        {
+            EndDodge(false);
+            return;
+        }
+
+        if (dodgeAction != null && dodgeAction.action.WasPressedThisFrame() && CanDodge()) StartDodge();
+        if (dodging) UpdateDodge(Time.deltaTime);
+    }
+
+    bool CanDodge()
+    {
+        if (Time.time < readyTime) return false;
+        if (health != null && health.IsStunned) return false;
+        if (skill != null && skill.IsActive) return false;
+        if (parry != null && parry.IsActive) return false; // [변경] 간파 반격 중에는 회피 불가
+
+        // 연속 회피는 maxChain회까지, 잠시 쉬면 다시 채워짐
+        if (Time.time - lastDodgeTime > chainResetTime) chainCount = 0;
+        if (chainCount >= maxChain) return false;
+
+        // 회피 중 재입력은 이동이 거의 끝난 뒤에만 받음
+        if (dodging && timer < moveTime * 0.7f) return false;
+
+        // 공격은 시작 직후 아주 짧은 구간만 지나면 언제든 회피로 끊을 수 있음 (판정 중 포함)
+        if (combat != null && combat.IsAttacking && combat.AttackElapsed < attackCancelTime) return false;
+
+        return true;
+    }
+
+    void StartDodge()
+    {
+        Vector3 input = locomotion != null ? locomotion.GetInputDirection() : Vector3.zero;
+        direction = input.sqrMagnitude > 0.0001f ? input.normalized : -transform.forward;
+
+        if (combat != null)
+        {
+            if (combat.IsAttacking) combat.CancelAttack();
+            combat.InputLocked = true;
+        }
+        if (locomotion != null) locomotion.MovementLocked = true;
+
+        int clipIndex;
+        if (turnToDirection)
+        {
+            transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
+            clipIndex = 0;
+        }
+        else
+        {
+            clipIndex = DirectionIndex(transform.InverseTransformDirection(direction));
+        }
+
+        animator.CrossFadeInFixedTime(DodgeHashes[clipIndex], crossFade, 0, clipStartOffset);
+
+        dodging = true;
+        timer = 0f;
+        traveled = 0f;
+        chainCount++;
+        lastDodgeTime = Time.time;
+        justTriggered = false; // [변경]
+
+        Dodged?.Invoke(direction);
+        if (IsThreatNearby()) TriggerJustDodge(); // [변경] 회피 시작 시점에 곧 맞을 공격이 있었는지 확인
+        if (logDodge) Debug.Log($"[Dodge] {(turnToDirection ? "F(회전)" : "FBLR"[clipIndex].ToString())} · 연속 {chainCount}");
+    }
+
+    // 처음에 빠르고 끝에서 멈추듯 감속 (ease-out)
+    void UpdateDodge(float dt)
+    {
+        timer += dt;
+
+        float p = Mathf.Clamp01(timer / moveTime);
+        float eased = 1f - (1f - p) * (1f - p);
+        float delta = distance * eased - traveled;
+        if (delta > 0f && controller.enabled)
+        {
+            controller.Move(direction * delta);
+            traveled += delta;
+        }
+
+        if (timer >= moveTime + recoveryTime) EndDodge(true);
+    }
+
+    // [변경] PlayerHealth가 회피 무적으로 공격을 흘렸을 때 호출. 회피 직후라면 저스트 회피로 인정
+    public void NotifyAvoidedHit()
+    {
+        if (dodging && timer <= justWindow) TriggerJustDodge();
+    }
+
+    // [변경] 반경 안의 적 중 justWindow초 안에 이 위치를 때릴 공격이 있는지
+    bool IsThreatNearby()
+    {
+        seen.Clear();
+        int count = Physics.OverlapSphereNonAlloc(transform.position, threatRadius, overlapBuffer, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < count; i++)
+        {
+            Collider col = overlapBuffer[i];
+            if (col.transform.IsChildOf(transform)) continue;
+
+            IAttackThreat threat = col.GetComponentInParent<IAttackThreat>();
+            if (threat == null || !seen.Add(threat)) continue;
+            if (threat.IsAboutToHit(transform.position, justWindow)) return true;
+        }
+        return false;
+    }
+
+    // [변경] 적만 느려지고(플레이어는 그대로) 잔상이 남음
+    void TriggerJustDodge()
+    {
+        if (justTriggered) return;
+        justTriggered = true;
+
+        CombatTime.SlowEnemies(slowScale, slowTime);
+        justInvulnerableUntil = Time.unscaledTime + justInvulnerableTime;
+        if (afterimage != null) afterimage.Emit(afterimageTime);
+        if (followCamera != null) followCamera.Shake(0.06f, 0.1f);
+
+        JustDodged?.Invoke();
+        Debug.Log("[Dodge] 저스트 회피");
+    }
+
+    // 피격·스킬로 끊길 때는 restoreControl = false, 잠금 해제와 애니메이션은 끊은 쪽이 담당
+    public void Interrupt() => EndDodge(false);
+
+    void EndDodge(bool restoreControl)
+    {
+        if (!dodging) return;
+        dodging = false;
+        readyTime = Time.time + cooldown;
+
+        if (!restoreControl) return;
+
+        if (combat != null) combat.InputLocked = false;
+        if (locomotion != null) locomotion.MovementLocked = false;
+        animator.CrossFadeInFixedTime(LocomotionHash, 0.15f, 0, 0f);
+    }
+
+    static int DirectionIndex(Vector3 local)
+    {
+        if (Mathf.Abs(local.z) >= Mathf.Abs(local.x)) return local.z >= 0f ? 0 : 1;
+        return local.x < 0f ? 2 : 3;
+    }
+}

@@ -17,10 +17,13 @@ MonoBehaviour:
   damage: 28
   postureDamage: 14
   parryable: 1
-  hitStart: 0.25
-  hitEnd: 0.45
+  hitStart: 0.3334483
+  hitEnd: 0.48689654
   inputOpen: 0.2
   comboTransition: 0.5
   recoveryEnd: 1
+  moveCancelStart: 0.5
+  stepDistance: 0.6
+  stepEnd: 0.3
   nextLight: {fileID: 0}
   nextHeavy: {fileID: 0}

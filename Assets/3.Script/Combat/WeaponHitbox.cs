@@ -7,6 +7,7 @@ public class WeaponHitbox : MonoBehaviour
     [SerializeField] BoxCollider box;
     [SerializeField] Transform owner;
     [SerializeField] LayerMask hitMask = ~0;
+    [SerializeField] string targetTag = "";
 
     readonly Collider[] overlapBuffer = new Collider[16];
     readonly HashSet<IDamageable> hitTargets = new HashSet<IDamageable>();
@@ -50,8 +51,15 @@ public class WeaponHitbox : MonoBehaviour
             Collider col = overlapBuffer[i];
             if (col.transform.IsChildOf(owner)) continue;
 
+            // 상대 칼의 판정 박스에 닿은 것은 몸에 맞은 것으로 치지 않음
+            if (col.isTrigger && col.TryGetComponent(out WeaponHitbox _)) continue;
+
             IDamageable target = col.GetComponentInParent<IDamageable>();
-            if (target == null || !hitTargets.Add(target)) continue;
+            if (target == null) continue;
+
+            // 태그를 지정하면 그 태그의 대상만 때림 (적끼리 서로 베지 않게)
+            if (!string.IsNullOrEmpty(targetTag) && !((Component)target).CompareTag(targetTag)) continue;
+            if (!hitTargets.Add(target)) continue;
 
             DamageInfo info = pendingInfo;
             info.HitPoint = col.ClosestPoint(center);
