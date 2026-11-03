@@ -13,8 +13,9 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     [SerializeField] PlayerCombat combat;
     [SerializeField] PlayerLocomotion locomotion;
     [SerializeField] PlayerSkill skill;
-    [SerializeField] PlayerDodge dodge; // [변경] 회피 무적 판정
-    [SerializeField] PlayerParry parry; // [변경] 간파 반격 중 무적
+    [SerializeField] PlayerDodge dodge; // 회피 무적 판정
+    [SerializeField] PlayerParry parry; // 간파 반격 중 무적
+    [SerializeField] PlayerGuard guard; // [변경] 정면 공격 가드
     [SerializeField] ThirdPersonCamera followCamera;
 
     float health;
@@ -25,7 +26,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     public float MaxHealth => maxHealth;
     public bool IsStunned => stunTimer > 0f;
     public bool CanBeTargeted => true;
-    public event System.Action<DamageInfo> Damaged; // [변경] 피격 이펙트용
+    public event System.Action<DamageInfo> Damaged; // 피격 이펙트용
 
     void Awake()
     {
@@ -33,8 +34,9 @@ public class PlayerHealth : MonoBehaviour, IDamageable
         if (combat == null) combat = GetComponent<PlayerCombat>();
         if (locomotion == null) locomotion = GetComponent<PlayerLocomotion>();
         if (skill == null) skill = GetComponent<PlayerSkill>();
-        if (dodge == null) dodge = GetComponent<PlayerDodge>(); // [변경]
-        if (parry == null) parry = GetComponent<PlayerParry>(); // [변경]
+        if (dodge == null) dodge = GetComponent<PlayerDodge>();
+        if (parry == null) parry = GetComponent<PlayerParry>();
+        if (guard == null) guard = GetComponent<PlayerGuard>(); // [변경]
         if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
         health = maxHealth;
     }
@@ -61,24 +63,25 @@ public class PlayerHealth : MonoBehaviour, IDamageable
         if (skill != null && skill.IsActive) return HitResult.Ignored;
         if (invulnerableTimer > 0f) return HitResult.Ignored;
 
-        // [변경] 회피 무적 구간이면 무시, 무적이 끝난 회피 후반에 맞으면 회피를 끊고 피격 처리
-        if (parry != null && parry.IsInvulnerable) return HitResult.Ignored; // [변경]
+        // 회피 무적 구간이면 무시, 무적이 끝난 회피 후반에 맞으면 회피를 끊고 피격 처리
+        if (parry != null && parry.IsInvulnerable) return HitResult.Ignored;
+
+        // [변경] 가드로 막으면 경직 없이 일부 피해만 (뇌기 보상이 없는 안전책)
+        if (guard != null && guard.TryBlock(info))
+        {
+            TakeDamage(info.Damage * guard.ChipDamageRatio);
+            return HitResult.Blocked;
+        }
+
         if (dodge != null && dodge.IsInvulnerable)
         {
-            dodge.NotifyAvoidedHit(); // [변경] 회피 직후에 흘린 공격이면 저스트 회피로 인정
+            dodge.NotifyAvoidedHit(); // 회피 직후에 흘린 공격이면 저스트 회피로 인정
             Debug.Log("[Player] 회피 성공");
             return HitResult.Ignored;
         }
         if (dodge != null && dodge.IsDodging) dodge.Interrupt();
 
-        health -= info.Damage;
-        Debug.Log($"[Player] 피격 {info.Damage} (체력 {Mathf.Max(health, 0f)}/{maxHealth})");
-
-        if (health <= 0f)
-        {
-            Debug.Log("[Player] 사망 → 테스트용으로 체력 회복");
-            health = maxHealth;
-        }
+        TakeDamage(info.Damage); // [변경] 가드 깎임 피해와 공용
 
         if (combat != null)
         {
@@ -92,7 +95,20 @@ public class PlayerHealth : MonoBehaviour, IDamageable
 
         stunTimer = stunTime;
         invulnerableTimer = invulnerableTime;
-        Damaged?.Invoke(info); // [변경]
+        Damaged?.Invoke(info);
         return HitResult.Hit;
+    }
+
+    // [변경]
+    void TakeDamage(float amount)
+    {
+        health -= amount;
+        Debug.Log($"[Player] 피해 {amount:0.#} (체력 {Mathf.Max(health, 0f):0.#}/{maxHealth})");
+
+        if (health <= 0f)
+        {
+            Debug.Log("[Player] 사망 → 테스트용으로 체력 회복");
+            health = maxHealth;
+        }
     }
 }

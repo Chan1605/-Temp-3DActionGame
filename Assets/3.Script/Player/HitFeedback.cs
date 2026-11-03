@@ -5,7 +5,7 @@ using UnityEngine;
 // P3 무게별 피드백: 피격 이벤트만 구독해서 히트스톱 · 카메라 흔들림 · 피격 이펙트를 낸다 (전투 로직과 분리)
 public class HitFeedback : MonoBehaviour
 {
-    // [변경] 피격 이펙트 방식: 번개 스파크 / 팩 프리팹 / 둘 다 (A/B 비교용)
+    // 피격 이펙트 방식: 번개 스파크 / 팩 프리팹 / 둘 다 (A/B 비교용)
     public enum EffectMode { LightningSparks, PrefabEffect, Both }
 
     [System.Serializable]
@@ -18,7 +18,7 @@ public class HitFeedback : MonoBehaviour
         public GameObject effect;
         public float effectScale = 1f;
 
-        // [변경] 스파크: 맞은 지점에서 튀는 짧은 번개 수 · 길이, 강공격은 베는 방향으로 긴 한 줄 추가
+        // 스파크: 맞은 지점에서 튀는 짧은 번개 수 · 길이, 강공격은 베는 방향으로 긴 한 줄 추가
         public int sparkCount = 3;
         public float sparkRadius = 0.45f;
         public float streakLength;
@@ -27,18 +27,19 @@ public class HitFeedback : MonoBehaviour
     [SerializeField] WeaponHitbox weapon;
     [SerializeField] PlayerParry parry;
     [SerializeField] PlayerHealth health;
+    [SerializeField] PlayerGuard guard; // [변경]
     [SerializeField] PlayerSkill skill;
     [SerializeField] ThirdPersonCamera followCamera;
 
     [SerializeField] bool enableHitStop = true;
     [SerializeField] bool enableEffects = true;
-    [SerializeField] EffectMode effectMode = EffectMode.LightningSparks; // [변경]
+    [SerializeField] EffectMode effectMode = EffectMode.LightningSparks;
     [SerializeField] float hitStopScale = 0.02f;
     [SerializeField] float effectLifetime = 3f;
 
     [SerializeField] List<WeightSetting> settings = new List<WeightSetting>
     {
-        new WeightSetting { weight = AttackWeight.Light, hitStop = 0.04f, shake = 0.02f, effectScale = 0.7f, sparkCount = 3, sparkRadius = 0.45f }, // [변경] 스파크 값 추가
+        new WeightSetting { weight = AttackWeight.Light, hitStop = 0.04f, shake = 0.02f, effectScale = 0.7f, sparkCount = 3, sparkRadius = 0.45f }, // 스파크 값 추가
         new WeightSetting { weight = AttackWeight.Heavy, hitStop = 0.08f, shake = 0.08f, effectScale = 0.35f, sparkCount = 6, sparkRadius = 0.8f, streakLength = 1.4f },
         new WeightSetting { weight = AttackWeight.Parry, hitStop = 0f, shake = 0f, effectScale = 0.4f, sparkCount = 8, sparkRadius = 1f },
     };
@@ -47,10 +48,16 @@ public class HitFeedback : MonoBehaviour
     [SerializeField] GameObject playerHitEffect;
     [SerializeField] float playerHitScale = 1f;
     [SerializeField] float playerHitStop = 0.05f;
-    [SerializeField] int playerSparkCount = 4; // [변경]
+    [SerializeField] int playerSparkCount = 4;
     [SerializeField] float playerSparkRadius = 0.6f;
 
-    // [변경] ===== 번개 스파크 =====
+    // [변경] 가드로 막았을 때: 칼끼리 부딪힌 짧은 스파크
+    [Header("Block")]
+    [SerializeField] int blockSparkCount = 4;
+    [SerializeField] float blockSparkRadius = 0.5f;
+    [SerializeField] float blockHitStop = 0.03f;
+
+    // ===== 번개 스파크 =====
     [Header("Lightning Sparks")]
     [SerializeField] GameObject boltPrefab;
     [SerializeField] float sparkSpread = 0.9f;
@@ -58,7 +65,7 @@ public class HitFeedback : MonoBehaviour
     [SerializeField] LightningBoltStyle streakStyle = DefaultStreakStyle();
     [SerializeField] LightningBoltStyle playerSparkStyle = DefaultPlayerSparkStyle();
 
-    LightningBoltPrefabScriptBase sparkBolt; // [변경]
+    LightningBoltPrefabScriptBase sparkBolt;
     LightningBoltPrefabScriptBase streakBolt;
     LightningBoltPrefabScriptBase playerSparkBolt;
 
@@ -66,7 +73,7 @@ public class HitFeedback : MonoBehaviour
     bool hitStopping;
     float savedTimeScale = 1f;
 
-    bool UseSparks => effectMode != EffectMode.PrefabEffect; // [변경]
+    bool UseSparks => effectMode != EffectMode.PrefabEffect;
     bool UsePrefab => effectMode != EffectMode.LightningSparks;
 
     void Awake()
@@ -74,10 +81,11 @@ public class HitFeedback : MonoBehaviour
         if (weapon == null) weapon = GetComponentInChildren<WeaponHitbox>();
         if (parry == null) parry = GetComponent<PlayerParry>();
         if (health == null) health = GetComponent<PlayerHealth>();
+        if (guard == null) guard = GetComponent<PlayerGuard>(); // [변경]
         if (skill == null) skill = GetComponent<PlayerSkill>();
         if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
 
-        // [변경] 번개 오브젝트는 종류별로 하나씩 만들어 두고 Trigger만 반복 (UseGameTime=false라 히트스톱 중에도 정상 속도로 보임)
+        // 번개 오브젝트는 종류별로 하나씩 만들어 두고 Trigger만 반복 (UseGameTime=false라 히트스톱 중에도 정상 속도로 보임)
         sparkBolt = LightningFactory.Create(boltPrefab, "HitSparkLightning", sparkStyle);
         streakBolt = LightningFactory.Create(boltPrefab, "HitStreakLightning", streakStyle);
         playerSparkBolt = LightningFactory.Create(boltPrefab, "PlayerHitSparkLightning", playerSparkStyle);
@@ -88,6 +96,7 @@ public class HitFeedback : MonoBehaviour
         if (weapon != null) weapon.OnHit += OnWeaponHit;
         if (parry != null) parry.Parried += OnParried;
         if (health != null) health.Damaged += OnPlayerDamaged;
+        if (guard != null) guard.Blocked += OnBlocked; // [변경]
     }
 
     void OnDisable()
@@ -95,6 +104,7 @@ public class HitFeedback : MonoBehaviour
         if (weapon != null) weapon.OnHit -= OnWeaponHit;
         if (parry != null) parry.Parried -= OnParried;
         if (health != null) health.Damaged -= OnPlayerDamaged;
+        if (guard != null) guard.Blocked -= OnBlocked; // [변경]
         EndHitStop();
     }
 
@@ -111,8 +121,8 @@ public class HitFeedback : MonoBehaviour
         if (s == null) return;
 
         Vector3 dir = info.Direction.sqrMagnitude > 0.0001f ? info.Direction : transform.forward;
-        if (UsePrefab) Spawn(s.effect, info.HitPoint, Quaternion.LookRotation(-dir, Vector3.up), s.effectScale); // [변경]
-        // [변경] 맞은 면에서 공격자 쪽(카메라 쪽)으로 튀어야 잘 보임 → -dir 방향으로 분사
+        if (UsePrefab) Spawn(s.effect, info.HitPoint, Quaternion.LookRotation(-dir, Vector3.up), s.effectScale);
+        // 맞은 면에서 공격자 쪽(카메라 쪽)으로 튀어야 잘 보임 → -dir 방향으로 분사
         if (UseSparks) Sparks(sparkBolt, info.HitPoint, -dir, s.sparkCount, s.sparkRadius, s.streakLength, dir);
         Shake(s.shake, s.shakeTime);
         HitStop(s.hitStop);
@@ -127,18 +137,26 @@ public class HitFeedback : MonoBehaviour
         Vector3 point = Vector3.Lerp(transform.position, enemy.transform.position, 0.5f) + Vector3.up * 1.2f;
         Vector3 dir = enemy.transform.position - transform.position;
         dir.y = 0f;
-        if (UsePrefab) Spawn(s.effect, point, dir.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(dir) : Quaternion.identity, s.effectScale); // [변경]
-        if (UseSparks) Sparks(sparkBolt, point, Vector3.zero, s.sparkCount, s.sparkRadius, s.streakLength, dir); // [변경] 칼끼리 부딪힌 지점에서 사방으로
+        if (UsePrefab) Spawn(s.effect, point, dir.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(dir) : Quaternion.identity, s.effectScale);
+        if (UseSparks) Sparks(sparkBolt, point, Vector3.zero, s.sparkCount, s.sparkRadius, s.streakLength, dir); // 칼끼리 부딪힌 지점에서 사방으로
         Shake(s.shake, s.shakeTime);
         HitStop(s.hitStop);
     }
 
     void OnPlayerDamaged(DamageInfo info)
     {
-        Vector3 point = transform.position + Vector3.up * 1.2f; // [변경]
+        Vector3 point = transform.position + Vector3.up * 1.2f;
         if (UsePrefab) Spawn(playerHitEffect, point, Quaternion.identity, playerHitScale);
         if (UseSparks) Sparks(playerSparkBolt, point, -info.Direction, playerSparkCount, playerSparkRadius, 0f, info.Direction);
         HitStop(playerHitStop);
+    }
+
+    // [변경] 공격자 쪽으로 튀는 파란 스파크 (붉은 피격 스파크와 구분)
+    void OnBlocked(DamageInfo info)
+    {
+        Vector3 point = info.HitPoint.sqrMagnitude > 0.0001f ? info.HitPoint : transform.position + Vector3.up * 1.2f;
+        if (UseSparks) Sparks(sparkBolt, point, -info.Direction, blockSparkCount, blockSparkRadius, 0f, info.Direction);
+        HitStop(blockHitStop);
     }
 
     WeightSetting Find(AttackWeight weight)
@@ -148,7 +166,7 @@ public class HitFeedback : MonoBehaviour
         return null;
     }
 
-    // [변경] 핵심: 한 지점에서 짧은 번개 여러 줄을 방사.
+    // 핵심: 한 지점에서 짧은 번개 여러 줄을 방사.
     // sprayDir이 0이면 사방, 아니면 그 방향 반구 쪽으로 퍼짐. streak > 0이면 공격 방향에 수직(가로)으로 긴 한 줄을 추가해 베인 느낌을 줌
     void Sparks(LightningBoltPrefabScriptBase bolt, Vector3 point, Vector3 sprayDir, int count, float radius, float streak, Vector3 attackDir)
     {
@@ -221,7 +239,7 @@ public class HitFeedback : MonoBehaviour
         Time.timeScale = savedTimeScale;
     }
 
-    // [변경] ===== 스파크 프리셋 ===== 짧고 가늘게, 대신 조명 섬광으로 맞은 순간을 강조
+    // ===== 스파크 프리셋 ===== 짧고 가늘게, 대신 조명 섬광으로 맞은 순간을 강조
     static LightningBoltStyle DefaultSparkStyle() => new LightningBoltStyle
     {
         width = new Vector2(0.015f, 0.03f), duration = new Vector2(0.05f, 0.09f), generations = 4,

@@ -111,7 +111,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &6593122202223128644
 Transform:
   m_ObjectHideFlags: 0
@@ -426,6 +426,7 @@ GameObject:
   - component: {fileID: 3880032383890577890}
   - component: {fileID: 2319970398063733898}
   - component: {fileID: 2336979120302626365}
+  - component: {fileID: 3089636979221752952}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -489,6 +490,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerLocomotion
   moveAction: {fileID: -1680190386980627800, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   sprintAction: {fileID: -7471211009204490832, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  jumpAction: {fileID: -2099379676528639254, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   cameraTransform: {fileID: 0}
   animator: {fileID: 9054350018550051993}
   slowWalkSpeed: 2
@@ -500,6 +502,12 @@ MonoBehaviour:
   sprintTurnSmoothTime: 0.1
   sharpTurnSpeedKeep: 0.5
   gravity: -20
+  jumpHeight: 1.2
+  airborneDelay: 0.15
+  landMoveThreshold: 1.5
+  jumpCrossFade: 0.05
+  landCrossFade: 0.08
+  jumpBuffer: 0.15
   walkClipSpeed: 1.4997509
   runClipSpeed: 5
   sprintClipSpeed: 10
@@ -524,7 +532,6 @@ MonoBehaviour:
   animator: {fileID: 9054350018550051993}
   weapon: {fileID: 8066946278627523393}
   locomotion: {fileID: 8946055058242759463}
-  parry: {fileID: 4353746522782798047}
   targeting: {fileID: 0}
   attackCrossFade: 0.08
   returnCrossFade: 0.2
@@ -577,6 +584,7 @@ MonoBehaviour:
   skill: {fileID: 3070939792974395059}
   dodge: {fileID: 118300998889972725}
   parry: {fileID: 4353746522782798047}
+  guard: {fileID: 3089636979221752952}
   followCamera: {fileID: 0}
 --- !u!114 &118300998889972725
 MonoBehaviour:
@@ -597,11 +605,13 @@ MonoBehaviour:
   skill: {fileID: 3070939792974395059}
   health: {fileID: 4005965994054678145}
   parry: {fileID: 4353746522782798047}
+  guard: {fileID: 3089636979221752952}
   afterimage: {fileID: 4503054392510635615}
   followCamera: {fileID: 0}
   distance: 4
   moveTime: 0.4
   recoveryTime: 0.15
+  easeOut: 0.6
   turnToDirection: 0
   invulnerableStart: 0
   invulnerableEnd: 0.3
@@ -617,6 +627,8 @@ MonoBehaviour:
   maxChain: 2
   chainResetTime: 0.8
   attackCancelTime: 0.1
+  inputBuffer: 0.2
+  actionCancelTime: 0.3
   clipStartOffset: 0.15
   crossFade: 0.05
   logDodge: 0
@@ -815,6 +827,7 @@ MonoBehaviour:
   weapon: {fileID: 8066946278627523393}
   parry: {fileID: 4353746522782798047}
   health: {fileID: 4005965994054678145}
+  guard: {fileID: 3089636979221752952}
   skill: {fileID: 3070939792974395059}
   followCamera: {fileID: 0}
   enableHitStop: 1
@@ -855,6 +868,9 @@ MonoBehaviour:
   playerHitStop: 0.05
   playerSparkCount: 4
   playerSparkRadius: 0.6
+  blockSparkCount: 4
+  blockSparkRadius: 0.5
+  blockHitStop: 0.03
   boltPrefab: {fileID: 1600819035976254, guid: 9bcfdd98d29605342a31a197383939a1, type: 3}
   sparkSpread: 0.9
   sparkStyle:
@@ -911,6 +927,35 @@ MonoBehaviour:
     lightIntensity: 1
     lightPercent: 0.06
     lightColor: {r: 1, g: 0.3, b: 0.5, a: 1}
+--- !u!114 &3089636979221752952
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4bb892a4e2a6c348bbbc7c06d40083d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerGuard
+  guardAction: {fileID: -2004706293986608252, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  animator: {fileID: 9054350018550051993}
+  locomotion: {fileID: 8946055058242759463}
+  combat: {fileID: 3750847782795144091}
+  parry: {fileID: 4353746522782798047}
+  dodge: {fileID: 118300998889972725}
+  skill: {fileID: 3070939792974395059}
+  health: {fileID: 4005965994054678145}
+  followCamera: {fileID: 0}
+  guardAngle: 120
+  chipDamageRatio: 0.2
+  pushBack: 0.4
+  blockStunTime: 0.3
+  shakeStrength: 0.05
+  startCrossFade: 0.08
+  endCrossFade: 0.15
+  logGuard: 1
 --- !u!1 &1515010326207606855
 GameObject:
   m_ObjectHideFlags: 0

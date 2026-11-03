@@ -56,11 +56,11 @@ public class PlayerSkill : MonoBehaviour
     public bool IsActive => phase != Phase.Ready;
     public bool IsInvulnerable => phase == Phase.Dashing;
 
-    // [변경] 이펙트(PlayerVfx)용 이벤트: 돌진 시작·끝 지점, 일괄 베기로 베인 대상 위치
+    // 이펙트(PlayerVfx)용 이벤트: 돌진 시작·끝 지점, 일괄 베기로 베인 대상 위치
     public event System.Action<Vector3, Vector3> Dashed;
     public event System.Action<Vector3> TargetCut;
 
-    // [변경] Q를 누르고 있는 동안(자세·차지) 이펙트용 이벤트
+    // Q를 누르고 있는 동안(자세·차지) 이펙트용 이벤트
     public event System.Action HoldStarted;
     public event System.Action<int> ChargeLevelChanged;
     public event System.Action HoldEnded;
@@ -130,6 +130,8 @@ public class PlayerSkill : MonoBehaviour
             return;
         }
 
+        if (locomotion != null && !locomotion.IsGrounded) return; // [변경] 공중 일섬은 v1 범위 밖
+
         // 콤보 중에는 다음 타 전환 구간 이후에만 캔슬해서 들어감
         if (combat != null)
         {
@@ -147,7 +149,7 @@ public class PlayerSkill : MonoBehaviour
         pendingHits.Clear();
 
         animator.CrossFadeInFixedTime(stanceHash, 0.05f, 0, 0f);
-        HoldStarted?.Invoke(); // [변경]
+        HoldStarted?.Invoke();
     }
 
     // 짧게 떼면 즉발(0단계), 길게 누르면 차지 단계가 올라가며 사거리 증가
@@ -168,7 +170,7 @@ public class PlayerSkill : MonoBehaviour
             }
 
             chargeLevel = level;
-            ChargeLevelChanged?.Invoke(chargeLevel); // [변경]
+            ChargeLevelChanged?.Invoke(chargeLevel);
             if (followCamera != null) followCamera.Shake(0.04f * level, 0.12f);
             Debug.Log($"[Skill] 차지 {chargeLevel}단계");
         }
@@ -179,7 +181,7 @@ public class PlayerSkill : MonoBehaviour
     void Release()
     {
         RestoreTimeScale();
-        HoldEnded?.Invoke(); // [변경]
+        HoldEnded?.Invoke();
 
         Vector3 dir = locomotion != null ? locomotion.GetInputDirection() : Vector3.zero;
         if (dir.sqrMagnitude < 0.0001f) dir = transform.forward;
@@ -219,7 +221,7 @@ public class PlayerSkill : MonoBehaviour
         dashTimer = 0f;
         dashCount++;
         phase = Phase.Dashing;
-        Dashed?.Invoke(start, end); // [변경]
+        Dashed?.Invoke(start, end);
 
         // 적을 통과해야 하므로 돌진 중에는 CharacterController를 끄고 직접 이동
         controller.enabled = false;
@@ -309,13 +311,13 @@ public class PlayerSkill : MonoBehaviour
                 Damage = data.Damage,
                 PostureDamage = data.PostureDamage,
                 Parryable = false,
-                Weight = AttackWeight.Skill, // [변경]
+                Weight = AttackWeight.Skill,
                 InstantKill = data.InstantKill,
                 HitPoint = hit.Point,
                 Direction = hit.Direction
             });
             applied++;
-            TargetCut?.Invoke(((Component)hit.Target).transform.position); // [변경]
+            TargetCut?.Invoke(((Component)hit.Target).transform.position);
         }
 
         if (applied > 0)
@@ -330,7 +332,7 @@ public class PlayerSkill : MonoBehaviour
 
     void EndSkill()
     {
-        if (phase == Phase.Holding) HoldEnded?.Invoke(); // [변경] 차지 도중 끊긴 경우에도 이펙트 정리
+        if (phase == Phase.Holding) HoldEnded?.Invoke(); // 차지 도중 끊긴 경우에도 이펙트 정리
         phase = Phase.Ready;
         RestoreTimeScale();
         hitStopTimer = 0f;

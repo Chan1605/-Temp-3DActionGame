@@ -6,10 +6,15 @@ public class PlayerLocomotion : MonoBehaviour
 {
     static readonly int MoveBlendHash = Animator.StringToHash("MoveBlend");
     static readonly int MoveAnimSpeedHash = Animator.StringToHash("MoveAnimSpeed");
+    static readonly int LocomotionHash = Animator.StringToHash("Locomotion"); // 점프 상태
+    static readonly int JumpStartHash = Animator.StringToHash("Jump_Start");
+    static readonly int JumpLoopHash = Animator.StringToHash("Jump_Loop");
+    static readonly int JumpLandHash = Animator.StringToHash("Jump_Land");
 
     [Header("Input")]
     [SerializeField] InputActionReference moveAction;
     [SerializeField] InputActionReference sprintAction;
+    [SerializeField] InputActionReference jumpAction; // Space 점프
 
     [Header("References")]
     [SerializeField] Transform cameraTransform;
@@ -29,6 +34,15 @@ public class PlayerLocomotion : MonoBehaviour
 
     [SerializeField] float gravity = -20f;
 
+    // 점프: 공중 공격은 v1 범위 밖이라 이동·피하기용. 착지 시 이 속도 이상으로 달리고 있으면 착지 모션 없이 바로 로코모션
+    [Header("Jump")]
+    [SerializeField] float jumpHeight = 1.2f;
+    [SerializeField] float airborneDelay = 0.15f;
+    [SerializeField] float landMoveThreshold = 1.5f;
+    [SerializeField] float jumpCrossFade = 0.05f;
+    [SerializeField] float landCrossFade = 0.08f;
+    [SerializeField] float jumpBuffer = 0.15f; // [변경] 회피·공격 끝나기 직전에 누른 점프도 나가게
+
     [Header("Animation")]
     [SerializeField] float walkClipSpeed = 1.6f;
     [SerializeField] float runClipSpeed = 4.5f;
@@ -40,9 +54,15 @@ public class PlayerLocomotion : MonoBehaviour
     float currentSpeed;
     float turnVelocity;
     float verticalVelocity;
+    float airTime;
+    bool airAnim;
+    float lastJumpPress = float.NegativeInfinity; // [변경]
 
     public float CurrentSpeed => currentSpeed;
     public bool MovementLocked { get; set; }
+    // 경사·계단에서 isGrounded가 잠깐 끊겨도 공중으로 치지 않도록 airborneDelay만큼 여유를 둠
+    public bool IsGrounded => airTime < airborneDelay;
+    public bool HasBufferedJump => Time.time - lastJumpPress <= jumpBuffer; // [변경]
 
     void Awake()
     {
@@ -58,6 +78,7 @@ public class PlayerLocomotion : MonoBehaviour
     {
         if (moveAction != null) moveAction.action.Enable();
         if (sprintAction != null) sprintAction.action.Enable();
+        if (jumpAction != null) jumpAction.action.Enable();
     }
 
     void Update()
@@ -74,6 +95,7 @@ public class PlayerLocomotion : MonoBehaviour
         if (MovementLocked)
         {
             currentSpeed = 0f;
+            turnVelocity = 0f; // [변경] 잠금 전 회전 속도가 남아 풀린 직후 휙 도는 것 방지
         }
         else
         {
@@ -97,15 +119,85 @@ public class PlayerLocomotion : MonoBehaviour
             currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, rate * dt);
         }
 
+        // 점프 입력 → 이동 → 착지 판정 순서
+        bool wasGrounded = IsGrounded;
+        if (jumpAction != null && jumpAction.action.WasPressedThisFrame()) lastJumpPress = Time.time; // [변경] 버퍼로 기록
+        if (!MovementLocked && wasGrounded && HasBufferedJump) Jump();
+
         if (controller.isGrounded && verticalVelocity < 0f) verticalVelocity = -2f;
         verticalVelocity += gravity * dt;
 
-        controller.Move((transform.forward * currentSpeed + Vector3.up * verticalVelocity) * dt);
+        CollisionFlags flags = controller.Move((transform.forward * currentSpeed + Vector3.up * verticalVelocity) * dt);
+        if ((flags & CollisionFlags.Above) != 0 && verticalVelocity > 0f) verticalVelocity = 0f; // 천장에 닿으면 바로 낙하
 
+        UpdateAirState(dt, wasGrounded);
         UpdateAnimator(dt);
     }
 
     public Vector3 GetInputDirection() => ToCameraRelative(ReadMoveInput());
+
+    // [변경] 회피 등이 끝날 때 호출: 입력 중이면 목표 속도로 바로 시작하고 블렌드도 즉시 맞춤
+    // 바라보는 방향과 입력이 어긋난 만큼은 급선회 규칙(sharpTurnSpeedKeep)대로 줄여서 옆으로 미끄러지지 않게 함
+    public void CarryMomentum()
+    {
+        Vector2 input = ReadMoveInput();
+        Vector3 dir = ToCameraRelative(input);
+        if (dir.sqrMagnitude < 0.0001f) return;
+
+        bool sprint = sprintAction != null && sprintAction.action.IsPressed();
+        float align = Mathf.Clamp01(Vector3.Dot(transform.forward, dir));
+        currentSpeed = TargetSpeed(Mathf.Clamp01(input.magnitude), sprint) * Mathf.Lerp(sharpTurnSpeedKeep, 1f, align);
+        if (animator != null) animator.SetFloat(MoveBlendHash, SpeedToBlend(currentSpeed));
+    }
+
+    // ===== 점프 =====
+    void Jump()
+    {
+        lastJumpPress = float.NegativeInfinity; // [변경]
+        verticalVelocity = Mathf.Sqrt(2f * jumpHeight * -gravity);
+        airTime = airborneDelay;
+        airAnim = true;
+        if (animator != null) animator.CrossFadeInFixedTime(JumpStartHash, jumpCrossFade, 0, 0f);
+    }
+
+    void UpdateAirState(float dt, bool wasGrounded)
+    {
+        if (controller.isGrounded) airTime = 0f;
+        else airTime += dt;
+
+        if (wasGrounded && !IsGrounded)
+        {
+            // 점프 없이 턱에서 떨어진 경우 → 낙하 모션
+            if (!airAnim && !MovementLocked && animator != null)
+            {
+                airAnim = true;
+                animator.CrossFadeInFixedTime(JumpLoopHash, 0.15f, 0, 0f);
+            }
+        }
+        else if (!wasGrounded && IsGrounded)
+        {
+            Land();
+        }
+    }
+
+    void Land()
+    {
+        if (!airAnim) return;
+        airAnim = false;
+
+        // 공중에서 피격 등 다른 행동이 애니메이션을 가져갔으면 건드리지 않음
+        if (animator == null || !IsInAirState()) return;
+
+        if (currentSpeed > landMoveThreshold) animator.CrossFadeInFixedTime(LocomotionHash, 0.12f, 0, 0f);
+        else animator.CrossFadeInFixedTime(JumpLandHash, landCrossFade, 0, 0f);
+    }
+
+    bool IsInAirState()
+    {
+        int current = animator.GetCurrentAnimatorStateInfo(0).shortNameHash;
+        int next = animator.IsInTransition(0) ? animator.GetNextAnimatorStateInfo(0).shortNameHash : 0;
+        return current == JumpStartHash || current == JumpLoopHash || next == JumpStartHash || next == JumpLoopHash;
+    }
 
     float TargetSpeed(float inputAmount, bool sprint)
     {

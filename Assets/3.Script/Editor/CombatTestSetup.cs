@@ -122,7 +122,7 @@ public static class CombatTestSetup
 
         EditorSceneManager.MarkSceneDirty(player.scene);
         Selection.activeGameObject = player;
-        Debug.Log($"[CombatSetup] 완료 · 공격 노드 {Nodes.Length}개, □=좌클릭/Square, △=우클릭/Triangle");
+        Debug.Log($"[CombatSetup] 완료 · 공격 노드 {Nodes.Length}개, □=좌클릭/Square, △=E/Triangle"); // [변경] 강공격 키를 E로
     }
 
     // 팩의 모든 클립이 Loop Time 켜짐 상태라 1회성 공격 클립만 끔

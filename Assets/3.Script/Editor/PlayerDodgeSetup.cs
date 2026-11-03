@@ -74,7 +74,7 @@ public static class PlayerDodgeSetup
 
         EditorSceneManager.MarkSceneDirty(player.scene);
         Selection.activeGameObject = player;
-        Debug.Log("[DodgeSetup] 완료 · Space(패드 B) 회피, 회피 상태 4개, PlayerDodge 연결");
+        Debug.Log("[DodgeSetup] 완료 · L Shift(패드 B) 회피, 회피 상태 4개, PlayerDodge 연결"); // [변경] 회피 키 변경
     }
 
     static void SetLoop(AnimationClip clip, bool loop)

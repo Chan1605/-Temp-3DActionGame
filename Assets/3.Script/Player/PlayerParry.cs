@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// 간파(기본형): 적 공격이 곧 들어오는 순간 우클릭하면 받아치고 반격. 아니면 평소대로 강공격.
+// 간파(기본형): 적 공격이 곧 들어오는 순간 우클릭하면 받아치고 반격. 아니면 PlayerGuard가 가드로 이어감.
 public class PlayerParry : MonoBehaviour
 {
     static readonly int LocomotionHash = Animator.StringToHash("Locomotion");
@@ -17,7 +17,7 @@ public class PlayerParry : MonoBehaviour
     [SerializeField] PlayerAfterimage afterimage;
     [SerializeField] ThirdPersonCamera followCamera;
 
-    // [변경] 간파 타이밍: 적 판정 시작 window초 전부터 판정 시작 후 lateWindow초까지 우클릭하면 성공
+    // 간파 타이밍: 적 판정 시작 window초 전부터 판정 시작 후 lateWindow초까지 우클릭하면 성공
     [Header("Judge")]
     [SerializeField] float window = 0.2f;
     [SerializeField] float lateWindow = 0.2f;
@@ -64,12 +64,13 @@ public class PlayerParry : MonoBehaviour
         if (active) End(true);
     }
 
-    // PlayerCombat이 우클릭을 받았을 때 먼저 호출. true면 간파가 발동했으니 강공격은 나가지 않음
+    // PlayerGuard가 우클릭을 누른 순간 먼저 호출. true면 간파 발동, false면 가드 자세로
     public bool TryParry()
     {
         if (active) return true;
+        if (locomotion != null && !locomotion.IsGrounded) return false;
         if (skill != null && skill.IsActive) return false;
-        if (dodge != null && dodge.IsDodging) return false;
+        if (dodge != null && dodge.IsDodging && !dodge.CanCancel) return false; // [변경] 회피 후반이면 간파로 끊고 들어감
         if (health != null && health.IsStunned) return false;
 
         IAttackThreat found = FindThreat();
@@ -96,7 +97,7 @@ public class PlayerParry : MonoBehaviour
 
             IAttackThreat threat = col.GetComponentInParent<IAttackThreat>();
             if (threat == null || !seen.Add(threat)) continue;
-            if (!threat.IsParryable || !threat.IsAboutToHit(transform.position, window, lateWindow)) continue; // [변경]
+            if (!threat.IsParryable || !threat.IsAboutToHit(transform.position, window, lateWindow)) continue;
 
             float dist = (((Component)threat).transform.position - transform.position).sqrMagnitude;
             if (dist < bestDist)
@@ -121,6 +122,7 @@ public class PlayerParry : MonoBehaviour
             combat.CancelAttack();
             combat.InputLocked = true;
         }
+        if (dodge != null && dodge.IsDodging) dodge.Interrupt(); // [변경] 잠금·애니메이션은 간파가 이어받음
         if (locomotion != null) locomotion.MovementLocked = true;
 
         Vector3 to = ((Component)threat).transform.position - transform.position;

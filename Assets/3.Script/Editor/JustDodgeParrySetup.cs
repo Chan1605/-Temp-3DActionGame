@@ -56,7 +56,7 @@ public static class JustDodgeParrySetup
 
         SetRefs(player.GetComponent<PlayerDodge>(), ("parry", parry), ("afterimage", afterimage), ("followCamera", cam));
         SetRefs(player.GetComponent<PlayerHealth>(), ("parry", parry));
-        SetRefs(player.GetComponent<PlayerCombat>(), ("parry", parry));
+        // [변경] 간파 입력은 PlayerGuard(우클릭)가 담당 → PlayerCombat의 parry 연결 제거
 
         PlayerClipFixer.Fix(ControllerPath);
 

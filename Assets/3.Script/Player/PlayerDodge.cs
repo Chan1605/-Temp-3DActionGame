@@ -23,6 +23,7 @@ public class PlayerDodge : MonoBehaviour
     [SerializeField] PlayerSkill skill;
     [SerializeField] PlayerHealth health;
     [SerializeField] PlayerParry parry;
+    [SerializeField] PlayerGuard guard; // [변경] 회피 후반에 가드로 바로 넘어가기 위해
     [SerializeField] PlayerAfterimage afterimage;
     [SerializeField] ThirdPersonCamera followCamera;
 
@@ -30,6 +31,8 @@ public class PlayerDodge : MonoBehaviour
     [SerializeField] float distance = 4f;
     [SerializeField] float moveTime = 0.4f;
     [SerializeField] float recoveryTime = 0.15f;
+    // [변경] 0 = 일정한 속도, 1 = 처음에 빠르고 끝에서 완전히 멈춤. 끝 속도가 0이면 다음 동작 전에 한 번 멈춘 느낌이 남
+    [SerializeField, Range(0f, 1f)] float easeOut = 0.6f;
 
     // true: 입력 방향으로 몸을 돌려 앞구르기 / false: 바라보는 방향 유지, 앞·뒤·좌·우 회피 모션
     [SerializeField] bool turnToDirection;
@@ -38,7 +41,7 @@ public class PlayerDodge : MonoBehaviour
     [SerializeField] float invulnerableStart = 0f;
     [SerializeField] float invulnerableEnd = 0.3f;
 
-    // [변경] 저스트 회피 타이밍 (둘 중 하나만 만족해도 인정)
+    // 저스트 회피 타이밍 (둘 중 하나만 만족해도 인정)
     //  1) 회피를 누른 순간: 적 판정 시작 justWindow초 전 ~ 판정 시작 후 justLateWindow초 사이
     //  2) 회피 시작 후 avoidedHitWindow초 안에 무적으로 공격을 흘림
     [Header("Just Dodge")]
@@ -57,6 +60,14 @@ public class PlayerDodge : MonoBehaviour
     [SerializeField] float chainResetTime = 0.8f;
     [SerializeField] float attackCancelTime = 0.1f;
 
+    // [변경] 회피 → 다른 행동 연결
+    //  inputBuffer: 회피 입력을 이 시간만큼 기억 (연속 회피·공격 직후 회피가 씹히지 않게)
+    //  actionCancelTime: 이 시점부터 공격·점프·가드·간파 입력이 있으면 남은 회피를 끊고 바로 넘어감 (무적 끝 무렵)
+    //  이동 거리를 다 간 뒤(moveTime)에는 이동 입력만 있어도 후딜레이 없이 이동으로 넘어감
+    [Header("Buffer & Cancel")]
+    [SerializeField] float inputBuffer = 0.2f;
+    [SerializeField] float actionCancelTime = 0.3f;
+
     // 팩 회피 클립은 앞 0.2초가 준비 동작이라 그 뒤부터 재생해 입력 즉시 몸이 움직이게 함
     [Header("Animation")]
     [SerializeField] float clipStartOffset = 0.15f;
@@ -72,6 +83,7 @@ public class PlayerDodge : MonoBehaviour
     float readyTime;
     int chainCount;
     float lastDodgeTime = float.NegativeInfinity;
+    float lastPressTime = float.NegativeInfinity; // [변경]
     bool justTriggered;
     float justInvulnerableUntil;
 
@@ -79,6 +91,7 @@ public class PlayerDodge : MonoBehaviour
     readonly HashSet<IAttackThreat> seen = new HashSet<IAttackThreat>();
 
     public bool IsDodging => dodging;
+    public bool CanCancel => dodging && timer >= actionCancelTime; // [변경]
     // 저스트 회피 직후에는 무적을 조금 더 유지 (슬로 중 연속 공격에 바로 맞지 않게)
     public bool IsInvulnerable => (dodging && timer >= invulnerableStart && timer <= invulnerableEnd)
                                   || Time.unscaledTime < justInvulnerableUntil;
@@ -94,6 +107,7 @@ public class PlayerDodge : MonoBehaviour
         if (skill == null) skill = GetComponent<PlayerSkill>();
         if (health == null) health = GetComponent<PlayerHealth>();
         if (parry == null) parry = GetComponent<PlayerParry>();
+        if (guard == null) guard = GetComponent<PlayerGuard>(); // [변경]
         if (afterimage == null) afterimage = GetComponent<PlayerAfterimage>();
         if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
     }
@@ -117,8 +131,17 @@ public class PlayerDodge : MonoBehaviour
             return;
         }
 
-        if (dodgeAction != null && dodgeAction.action.WasPressedThisFrame() && CanDodge()) StartDodge();
-        if (dodging) UpdateDodge(Time.deltaTime);
+        // [변경] 누른 순간이 아니라 버퍼 안에서 회피 가능해지는 첫 프레임에 발동
+        if (dodgeAction != null && dodgeAction.action.WasPressedThisFrame()) lastPressTime = Time.time;
+        if (Time.time - lastPressTime <= inputBuffer && CanDodge())
+        {
+            lastPressTime = float.NegativeInfinity;
+            StartDodge();
+        }
+
+        if (!dodging) return;
+        UpdateDodge(Time.deltaTime);
+        if (dodging) TryCancelIntoAction(); // [변경]
     }
 
     bool CanDodge()
@@ -127,6 +150,7 @@ public class PlayerDodge : MonoBehaviour
         if (health != null && health.IsStunned) return false;
         if (skill != null && skill.IsActive) return false;
         if (parry != null && parry.IsActive) return false; // 간파 반격 중에는 회피 불가
+        if (locomotion != null && !locomotion.IsGrounded) return false; // 공중 회피는 v1 범위 밖
 
         // 연속 회피는 maxChain회까지, 잠시 쉬면 다시 채워짐
         if (Time.time - lastDodgeTime > chainResetTime) chainCount = 0;
@@ -184,7 +208,7 @@ public class PlayerDodge : MonoBehaviour
         timer += dt;
 
         float p = Mathf.Clamp01(timer / moveTime);
-        float eased = 1f - (1f - p) * (1f - p);
+        float eased = Mathf.Lerp(p, 1f - (1f - p) * (1f - p), easeOut); // [변경] 끝 속도가 0이 되지 않게 선형과 섞음
         float delta = distance * eased - traveled;
         if (delta > 0f && controller.enabled)
         {
@@ -195,10 +219,28 @@ public class PlayerDodge : MonoBehaviour
         if (timer >= moveTime + recoveryTime) EndDodge(true);
     }
 
+    // [변경] 핵심: 회피가 끝날 때까지 기다리지 않고, 다음 행동 입력이 있으면 그 행동에 바로 넘김
+    void TryCancelIntoAction()
+    {
+        if (timer < actionCancelTime) return;
+
+        bool wantsAction = (combat != null && combat.HasBufferedPress)
+                           || (locomotion != null && locomotion.HasBufferedJump)
+                           || (guard != null && guard.IsHeld);
+        if (wantsAction)
+        {
+            EndDodge(true, false); // 다음 행동이 자기 애니메이션으로 바로 전환하므로 로코모션 크로스페이드는 생략
+            return;
+        }
+
+        if (timer >= moveTime && locomotion != null && locomotion.GetInputDirection().sqrMagnitude > 0.0001f)
+            EndDodge(true);
+    }
+
     // PlayerHealth가 회피 무적으로 공격을 흘렸을 때 호출. 회피 직후라면 저스트 회피로 인정
     public void NotifyAvoidedHit()
     {
-        if (dodging && timer <= avoidedHitWindow) TriggerJustDodge(); // [변경] 전용 값으로 분리
+        if (dodging && timer <= avoidedHitWindow) TriggerJustDodge(); // 전용 값으로 분리
     }
 
     // 반경 안의 적 중 justWindow초 안에 이 위치를 때릴 공격이 있는지
@@ -213,7 +255,7 @@ public class PlayerDodge : MonoBehaviour
 
             IAttackThreat threat = col.GetComponentInParent<IAttackThreat>();
             if (threat == null || !seen.Add(threat)) continue;
-            if (threat.IsAboutToHit(transform.position, justWindow, justLateWindow)) return true; // [변경]
+            if (threat.IsAboutToHit(transform.position, justWindow, justLateWindow)) return true;
         }
         return false;
     }
@@ -236,7 +278,7 @@ public class PlayerDodge : MonoBehaviour
     // 피격·스킬로 끊길 때는 restoreControl = false, 잠금 해제와 애니메이션은 끊은 쪽이 담당
     public void Interrupt() => EndDodge(false);
 
-    void EndDodge(bool restoreControl)
+    void EndDodge(bool restoreControl, bool playLocomotion = true) // [변경]
     {
         if (!dodging) return;
         dodging = false;
@@ -245,8 +287,12 @@ public class PlayerDodge : MonoBehaviour
         if (!restoreControl) return;
 
         if (combat != null) combat.InputLocked = false;
-        if (locomotion != null) locomotion.MovementLocked = false;
-        animator.CrossFadeInFixedTime(LocomotionHash, 0.15f, 0, 0f);
+        if (locomotion != null)
+        {
+            locomotion.MovementLocked = false;
+            locomotion.CarryMomentum(); // [변경] 속도 0에서 다시 가속하지 않고 입력 방향 속도로 이어감
+        }
+        if (playLocomotion) animator.CrossFadeInFixedTime(LocomotionHash, 0.15f, 0, 0f); // [변경]
     }
 
     static int DirectionIndex(Vector3 local)

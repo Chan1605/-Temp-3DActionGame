@@ -42,6 +42,15 @@
                     "initialStateCheck": false
                 },
                 {
+                    "name": "Guard",
+                    "type": "Button",
+                    "id": "97e8839d-58cb-4606-b30a-298024d241f9",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
                     "name": "Skill",
                     "type": "Button",
                     "id": "128d36ce-4589-4823-b822-544168f6b9e5",
@@ -305,11 +314,22 @@
                 {
                     "name": "",
                     "id": "91823701-0534-4d07-9b20-f978ee4cb3cd",
-                    "path": "<Mouse>/rightButton",
+                    "path": "<Keyboard>/e",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
                     "action": "HeavyAttack",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "5abf55fb-19ab-4654-a2bb-5b4f00b97640",
+                    "path": "<Mouse>/rightButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "Guard",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -536,7 +556,7 @@
                 {
                     "name": "",
                     "id": "bc802314-36b3-4bf7-aa81-b7f792cfcaef",
-                    "path": "<Keyboard>/space",
+                    "path": "<Keyboard>/leftShift",
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
