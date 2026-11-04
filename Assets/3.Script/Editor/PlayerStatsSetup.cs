@@ -101,11 +101,17 @@ public static class PlayerStatsSetup
         SetRef(dn, "font", bold);
 
         // 스탯 패널: 좌하단 체력 묶음(높이 84) 바로 위
-        RectTransform panel = Rect("StatsPanel", hud.transform, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(Margin, Margin + 96f), new Vector2(460f, 64f));
+        RectTransform panel = Rect("StatsPanel", hud.transform, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(Margin, Margin + 96f), new Vector2(460f, 74f));
         var sp = panel.gameObject.AddComponent<StatsPanel>();
 
         Text level = Label("Level", panel, "Lv 1", 22, new Color(0.95f, 0.8f, 0.45f), TextAnchor.LowerLeft, bold,
-            Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(0f, 40f), new Vector2(120f, 26f));
+            Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(0f, 48f), new Vector2(300f, 26f));
+
+        // [변경] 경험치 막대: 레벨 글자와 스탯 사이 얇은 금색 줄
+        RectTransform xpBack = Rect("XpBar", panel, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(0f, 42f), new Vector2(220f, 4f));
+        AddImage(xpBack.gameObject, new Color(0.04f, 0.05f, 0.07f, 0.6f));
+        RectTransform xpFill = Rect("Fill", xpBack, Vector2.zero, new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+        AddImage(xpFill.gameObject, new Color(0.95f, 0.8f, 0.45f));
         Text statText = Label("Stats", panel, "공격력 100%   공속 1.15\n치명타 10%   치명 피해 150%", 15, new Color(0.82f, 0.85f, 0.9f, 0.85f), TextAnchor.LowerLeft, regular,
             Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(460f, 40f));
         statText.lineSpacing = 1.1f;
@@ -121,6 +127,7 @@ public static class PlayerStatsSetup
         var so = new SerializedObject(sp);
         so.FindProperty("stats").objectReferenceValue = stats;
         so.FindProperty("levelText").objectReferenceValue = level;
+        so.FindProperty("xpFill").objectReferenceValue = xpFill; // [변경]
         so.FindProperty("statText").objectReferenceValue = statText;
         so.FindProperty("levelUpGroup").objectReferenceValue = group;
         so.FindProperty("levelUpText").objectReferenceValue = upText;
@@ -139,6 +146,13 @@ public static class PlayerStatsSetup
         rt.anchoredPosition = pos;
         rt.sizeDelta = size;
         return rt;
+    }
+
+    static void AddImage(GameObject go, Color color)
+    {
+        var image = go.AddComponent<Image>();
+        image.color = color;
+        image.raycastTarget = false;
     }
 
     static Text Label(string name, Transform parent, string text, int size, Color color, TextAnchor align, Font font,

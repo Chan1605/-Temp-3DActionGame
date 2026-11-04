@@ -12,7 +12,7 @@ public class PlayerCombat : MonoBehaviour
 
     [SerializeField] AttackData lightStarter;
     [SerializeField] AttackData heavyStarter;
-    [SerializeField] AttackData runStarter;      // [변경] 달리는 중 □ → 달리기 공격 (없으면 일반 □)
+    [SerializeField] AttackData runStarter;      // 달리는 중 □ → 달리기 공격 (없으면 일반 □)
     [SerializeField] float runAttackSpeed = 7f;  // 이 속도 이상으로 달리고 있으면 달리기 공격
 
     [SerializeField] Animator animator;
@@ -58,6 +58,7 @@ public class PlayerCombat : MonoBehaviour
     // 이펙트(PlayerVfx)가 구독하는 이벤트 — 전투 코드는 이펙트를 직접 모름
     public event System.Action<AttackData, AttackInput> AttackStarted;
     public event System.Action AttackSwingFinished;
+    public event System.Action<AttackData> SwingStarted; // [변경] 판정이 켜지는 순간 (뇌락 착지 효과용)
 
     void Awake()
     {
@@ -110,7 +111,7 @@ public class PlayerCombat : MonoBehaviour
         {
             if (HasBufferedPress && IsGrounded()) // 공중에서는 공격 시작 안 함 (착지 직전 입력은 버퍼로 착지 후 나감)
             {
-                AttackData starter = lastPressInput == AttackInput.Light ? LightStarter() : heavyStarter; // [변경]
+                AttackData starter = lastPressInput == AttackInput.Light ? LightStarter() : heavyStarter;
                 if (starter != null) StartAttack(starter, true);
             }
             return;
@@ -227,7 +228,7 @@ public class PlayerCombat : MonoBehaviour
         AttackSwingFinished?.Invoke();
     }
 
-    // [변경] 달리기 속도가 남아 있을 때 □를 누르면 달리기 공격으로 시작 (잠금 전 속도 기준)
+    // 달리기 속도가 남아 있을 때 □를 누르면 달리기 공격으로 시작 (잠금 전 속도 기준)
     AttackData LightStarter()
     {
         bool running = runStarter != null && locomotion != null && locomotion.CurrentSpeed >= runAttackSpeed;
@@ -261,6 +262,7 @@ public class PlayerCombat : MonoBehaviour
     void BeginSwing(AttackData attack)
     {
         swingActive = true;
+        SwingStarted?.Invoke(attack); // [변경]
         if (weapon == null) return;
 
         weapon.BeginSwing(new DamageInfo

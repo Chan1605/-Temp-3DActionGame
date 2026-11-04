@@ -16,6 +16,9 @@ public class ZoneArena : MonoBehaviour
     {
         public GameObject enemyPrefab;
         [Min(1)] public int count = 2;
+        // 정예: 기본 적과 함께 웨이브 가운데에 세움 (0이면 없음)
+        public GameObject elitePrefab;
+        [Min(0)] public int eliteCount;
     }
 
     [SerializeField] float radius = 16f;
@@ -29,9 +32,22 @@ public class ZoneArena : MonoBehaviour
     [SerializeField] List<Wave> waves = new List<Wave>();
     [SerializeField] float firstWaveDelay = 0.8f;
     [SerializeField] float waveInterval = 2f;
-    [SerializeField] float spawnRadius = 10f; // [변경] 중심에서 등장 거리 (14m → 10m, 걸어오는 공백 줄임)
-    [SerializeField] float spawnHold = 0.6f;  // [변경] 등장 직후 무방비 시간
+    [SerializeField] float spawnRadius = 10f; // 중심에서 등장 거리 (14m → 10m, 걸어오는 공백 줄임)
+    [SerializeField] float spawnHold = 0.6f;  // 등장 직후 무방비 시간
     [SerializeField] float spawnSpread = 35f;
+
+    // 시련 모드: 정해진 웨이브 대신 끝없이 이어짐. 웨이브마다 적 수·정예·체력·공격력·경험치가 오르고, 쓰러지면 기록을 남기고 처음부터
+    [Header("Endless (시련)")]
+    [SerializeField] bool endless;
+    [SerializeField] GameObject endlessEnemy;
+    [SerializeField] GameObject endlessElite;
+    [SerializeField] int endlessBaseCount = 2;
+    [SerializeField] float countPerWave = 0.5f;
+    [SerializeField] int endlessMaxCount = 7;
+    [SerializeField] int eliteEvery = 3;          // n웨이브마다 정예 1명 추가
+    [SerializeField] float healthPerWave = 0.12f;
+    [SerializeField] float damagePerWave = 0.06f;
+    [SerializeField] float xpPerWave = 0.05f; // [변경] 0.1이면 시련 7웨이브 전에 Lv10 → 목표(8~10웨이브)에 맞춰 절반
 
     [Header("Checkpoint")]
     [SerializeField] Transform respawnPoint;
@@ -63,7 +79,7 @@ public class ZoneArena : MonoBehaviour
     // 어느 구역인지 몰라도 구독할 수 있게 정적 이벤트로 알림
     public static event Action<ZoneArena> AnyEntered;
     public static event Action<ZoneArena> AnyCleared;
-    // [변경] 연출용 (ZoneFx): 적 등장 위치 / 웨이브 마지막 적이 쓰러진 위치 · 구역 마지막 웨이브인지
+    // 연출용 (ZoneFx): 적 등장 위치 / 웨이브 마지막 적이 쓰러진 위치 · 구역 마지막 웨이브인지
     public static event Action<Vector3> AnyEnemySpawned;
     public static event Action<ZoneArena, Vector3, bool> AnyWaveCleared;
     public static ZoneArena Fighting { get; private set; } // 지금 전투 중인 구역 (없으면 null)
@@ -71,7 +87,15 @@ public class ZoneArena : MonoBehaviour
     public string DisplayNumber => theme != null ? theme.displayNumber : "";
     public string DisplayName => theme != null && !string.IsNullOrEmpty(theme.displayName) ? theme.displayName : name;
     public int CurrentWave => waveIndex;
-    public int WaveCount => waves.Count;
+    public int WaveCount => endless ? 0 : waves.Count;
+    // 시련 기록 (PlayerPrefs, 버틴 웨이브 수)
+    const string BestKey = "TrialBestWave";
+    public bool Endless => endless;
+    // [변경] 성능: HUD가 매 프레임 읽으므로 처음 한 번만 PlayerPrefs에서 읽고 메모리 값 사용
+    static int trialBest = -1;
+    public static int TrialBest => trialBest >= 0 ? trialBest : trialBest = PlayerPrefs.GetInt(BestKey, 0);
+    public static int LastTrialReached { get; private set; }
+    public static event Action<int, bool> AnyTrialEnded; // 버틴 웨이브, 신기록 여부
     public int AliveCount
     {
         get
@@ -96,9 +120,9 @@ public class ZoneArena : MonoBehaviour
         // 미리 둔 적은 이 구역 소속으로 묶고, 테스트용 자동 부활을 끔
         foreach (EnemySwordsman e in FindObjectsByType<EnemySwordsman>(FindObjectsSortMode.None))
         {
-            if (FlatDistance(e.transform.position) > radius + 2f) continue;
+            if (FlatDistance(e.transform.position) > radius + 2f || e.IsTrainer) continue; // 수련용 적은 제외
             e.DisableRespawn();
-            e.Died += OnEnemyDied; // [변경]
+            e.Died += OnEnemyDied;
             preplaced.Add(e);
         }
 
@@ -142,7 +166,7 @@ public class ZoneArena : MonoBehaviour
             e.Alert();
             current.Add(e);
         }
-        waveTimer = current.Count == 0 && waves.Count > 0 ? firstWaveDelay : 0f;
+        waveTimer = current.Count == 0 && (waves.Count > 0 || endless) ? firstWaveDelay : 0f;
         if (logState) Debug.Log($"[Zone] {name} 전투 시작 · 웨이브 {waves.Count}개");
     }
 
@@ -152,14 +176,22 @@ public class ZoneArena : MonoBehaviour
         if (waveTimer > 0f)
         {
             waveTimer -= Time.deltaTime;
-            if (waveTimer <= 0f) SpawnWave(waves[waveIndex++]);
+            if (waveTimer <= 0f) SpawnWave(endless ? BuildEndlessWave(waveIndex++) : waves[waveIndex++]);
             return;
         }
 
         if (!AllDefeated()) return;
 
-        if (waveIndex < waves.Count) waveTimer = current.Count > 0 ? waveInterval : firstWaveDelay;
+        if (endless || waveIndex < waves.Count) waveTimer = current.Count > 0 ? waveInterval : firstWaveDelay; // 시련은 클리어 없음
         else Clear();
+    }
+
+    // 핵심: n번째(0부터) 시련 웨이브 구성. 적 수는 천천히 늘고 상한에서 멈추며, 늘어난 자리를 정예가 채움
+    Wave BuildEndlessWave(int n)
+    {
+        int total = Mathf.Min(endlessMaxCount, endlessBaseCount + Mathf.FloorToInt(n * countPerWave));
+        int elites = endlessElite != null && eliteEvery > 0 ? Mathf.Min(total / 2, (n + 1) / eliteEvery) : 0;
+        return new Wave { enemyPrefab = endlessEnemy, count = Mathf.Max(1, total - elites), elitePrefab = endlessElite, eliteCount = elites };
     }
 
     // 플레이어 반대편 벽 쪽에 부채꼴로 세움 → 등 뒤에서 갑자기 나오지 않게
@@ -176,19 +208,32 @@ public class ZoneArena : MonoBehaviour
         float baseAngle = Mathf.Atan2(toPlayer.z, toPlayer.x) + Mathf.PI;
         float step = spawnSpread * Mathf.Deg2Rad;
 
-        for (int i = 0; i < wave.count; i++)
+        // 기본 적 사이 가운데 자리에 정예를 끼워 넣음
+        var prefabs = new List<GameObject>();
+        for (int i = 0; i < wave.count; i++) prefabs.Add(wave.enemyPrefab);
+        if (wave.elitePrefab != null && wave.elitePrefab.GetComponent<EnemySwordsman>() != null)
+            for (int i = 0; i < wave.eliteCount; i++) prefabs.Insert(prefabs.Count / 2, wave.elitePrefab);
+
+        int total = prefabs.Count;
+        for (int i = 0; i < total; i++)
         {
-            float a = baseAngle + (i - (wave.count - 1) * 0.5f) * step;
+            float a = baseAngle + (i - (total - 1) * 0.5f) * step;
             Vector3 pos = transform.position + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * spawnRadius;
             pos.y = GroundY(pos);
 
             Vector3 look = transform.position - pos;
             look.y = 0f;
-            GameObject go = Instantiate(wave.enemyPrefab, pos, Quaternion.LookRotation(look.normalized, Vector3.up));
+            GameObject go = Instantiate(prefabs[i], pos, Quaternion.LookRotation(look.normalized, Vector3.up));
             var enemy = go.GetComponent<EnemySwordsman>();
             enemy.DisableRespawn();
+            enemy.MarkTemporary(); // [변경] 쓰러지면 가라앉아 사라짐 (미리 둔 적은 재시작 때 되살려야 하므로 제외)
+            if (endless) // 웨이브 번호(0부터)만큼 배율
+            {
+                int n = waveIndex - 1;
+                enemy.ApplyScaling(1f + healthPerWave * n, 1f + damagePerWave * n, 1f + xpPerWave * n);
+            }
             enemy.Alert();
-            enemy.HoldFor(spawnHold); // [변경]
+            enemy.HoldFor(spawnHold);
             enemy.Died += OnEnemyDied;
             AnyEnemySpawned?.Invoke(pos);
             spawned.Add(enemy);
@@ -196,7 +241,7 @@ public class ZoneArena : MonoBehaviour
         }
 
         WaveStarted?.Invoke(waveIndex);
-        if (logState) Debug.Log($"[Zone] {name} {waveIndex}/{waves.Count} 웨이브 · 적 {wave.count}명");
+        if (logState) Debug.Log($"[Zone] {name} {waveIndex}/{waves.Count} 웨이브 · 적 {total}명 (정예 {total - wave.count})");
     }
 
     float GroundY(Vector3 pos)
@@ -215,11 +260,11 @@ public class ZoneArena : MonoBehaviour
         if (logState) Debug.Log($"[Zone] {name} 클리어 · 출구 열림");
     }
 
-    // [변경] 지금 무리의 마지막 적이 쓰러진 순간 → 마무리 연출 신호 (웨이브 진행은 UpdateWaves가 담당)
+    // 지금 무리의 마지막 적이 쓰러진 순간 → 마무리 연출 신호 (웨이브 진행은 UpdateWaves가 담당)
     void OnEnemyDied(EnemySwordsman enemy)
     {
         if (state != State.Fighting || !current.Contains(enemy) || !AllDefeated()) return;
-        AnyWaveCleared?.Invoke(this, enemy.transform.position, waveIndex >= waves.Count);
+        AnyWaveCleared?.Invoke(this, enemy.transform.position, !endless && waveIndex >= waves.Count);
     }
 
     bool AllDefeated()
@@ -233,6 +278,7 @@ public class ZoneArena : MonoBehaviour
     void OnPlayerDied()
     {
         if (state != State.Fighting || respawning) return;
+        if (endless) RecordTrial();
         StartCoroutine(RespawnRoutine());
     }
 
@@ -246,6 +292,29 @@ public class ZoneArena : MonoBehaviour
         TeleportPlayer();
         if (playerHealth != null) playerHealth.Revive();
         respawning = false;
+    }
+
+    // 쓰러진 웨이브는 못 버틴 것으로 보고 직전 웨이브까지를 기록
+    void RecordTrial()
+    {
+        int reached = Mathf.Max(0, waveIndex - 1);
+        bool best = reached > TrialBest;
+        if (best)
+        {
+            PlayerPrefs.SetInt(BestKey, reached);
+            PlayerPrefs.Save();
+            trialBest = reached; // [변경]
+        }
+        LastTrialReached = reached;
+        AnyTrialEnded?.Invoke(reached, best);
+        if (logState) Debug.Log($"[Zone] 시련 종료 · {reached}웨이브 돌파{(best ? " (신기록)" : "")} · 최고 {TrialBest}");
+    }
+
+    [ContextMenu("Reset Trial Best")]
+    void ResetTrialBest()
+    {
+        PlayerPrefs.DeleteKey(BestKey);
+        trialBest = 0; // [변경]
     }
 
     // 웨이브로 만든 적은 지우고, 미리 둔 적은 처음 자리로 되돌린 뒤 대기 상태로

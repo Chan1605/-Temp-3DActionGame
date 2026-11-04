@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f17a27452b0c73489b9c0018725e944, type: 3}
+  m_Name: Swordsman_Elite
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyData
+  maxHealth: 120
+  detectRange: 15
+  attackRange: 2.2
+  walkSpeed: 1.6
+  runSpeed: 4.6
+  runDistance: 5
+  turnSpeed: 540
+  firstAttack: {fileID: 11400000, guid: 689ebf4172526944aafa030afad40acd, type: 2}
+  windupTime: 0.3
+  attackCooldown: 1
+  armorDuringSwing: 1
+  armorWholeSwing: 1
+  lightStunTime: 0.3
+  heavyStunTime: 0.6
+  heavyDamageThreshold: 18
+  lightKnockback: 0.15
+  heavyKnockback: 0.6
+  parryStunTime: 1
+  respawnTime: 3
+  xpReward: 25

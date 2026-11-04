@@ -42,14 +42,17 @@ public class ParryFx : MonoBehaviour
     [SerializeField] float vignette = 0.35f;
     [SerializeField] Color vignetteColor = new Color(0.55f, 0.03f, 0.03f);
     [SerializeField] float saturation = -50f;
-    [SerializeField] float flashExposure = 1.2f;
+    // [변경] 간파 순간 화면이 0.5초 가까이 하얗게 덮여 정작 순간이 안 보였음 → 섬광 낮추고 낙뢰는 뇌락 전용
+    [SerializeField] float flashPeak = 0.5f;
+    [SerializeField] bool kanpaStrike;
+    [SerializeField, Range(0.1f, 1f)] float strikeGlowScale = 0.5f; // 낙뢰 번짐 폭 배율 (카메라 가까이서 화면을 덮지 않게)
     [SerializeField] float flashTime = 0.05f;
 
     [Header("Shock Ring")]
     [SerializeField] Material fxMaterial; // Afterimage.mat (URP Unlit 가산)
     [SerializeField] Color innerRingColor = new Color(1f, 0.95f, 0.9f, 1f);
     [SerializeField] Color outerRingColor = new Color(1f, 0.15f, 0.1f, 0.8f);
-    // [변경] 간파 전용 색: 패링(붉은색)과 한눈에 구분되게 청백 번개 계열
+    // 간파 전용 색: 패링(붉은색)과 한눈에 구분되게 청백 번개 계열
     [SerializeField] Color kanpaInnerRingColor = new Color(0.9f, 0.97f, 1f, 1f);
     [SerializeField] Color kanpaOuterRingColor = new Color(0.35f, 0.65f, 1f, 0.85f);
     [SerializeField] Color kanpaVignetteColor = new Color(0.03f, 0.12f, 0.45f);
@@ -93,6 +96,21 @@ public class ParryFx : MonoBehaviour
     AudioSource audioSource;
     LightningBoltPrefabScriptBase strikeBolt;
 
+    // 뇌락: 입력 창 동안 칼에 잔번개, 착지 순간 금빛 충격 + 낙뢰 2줄
+    [Header("뇌락")]
+    [SerializeField] Color smashRingColor = new Color(1f, 0.82f, 0.35f, 0.9f);
+    [SerializeField] float smashRingSize = 4.5f;
+    [SerializeField] float smashPunch = 0.25f;
+    [SerializeField] float bladeSparkInterval = 0.06f;
+    [SerializeField] LightningBoltStyle bladeSparkStyle = new LightningBoltStyle
+    {
+        width = new Vector2(0.015f, 0.03f), duration = new Vector2(0.05f, 0.08f), generations = 4, chaos = 0.35f,
+        intensity = 2.5f, glowIntensity = 1.5f, glowWidth = 4f, lightRange = 3f, lightIntensity = 1.5f, lightPercent = 0.3f
+    };
+    LightningBoltPrefabScriptBase bladeBolt;
+    BoxCollider blade;
+    Coroutine bladeRoutine;
+
     Volume volumeFx;
     ChromaticAberration ca;
     Vignette vig;
@@ -116,20 +134,40 @@ public class ParryFx : MonoBehaviour
         audioSource.playOnAwake = false;
         audioSource.spatialBlend = 0f;
 
-        strikeBolt = LightningFactory.Create(boltPrefab, "ParryStrikeLightning", strikeStyle);
+        // [변경] 저장된 스타일은 그대로 두고 번짐 폭·밝기만 줄인 복사본으로 생성
+        var strike = JsonUtility.FromJson<LightningBoltStyle>(JsonUtility.ToJson(strikeStyle));
+        strike.glowWidth *= strikeGlowScale;
+        strike.glowIntensity *= Mathf.Lerp(0.6f, 1f, strikeGlowScale);
+        strikeBolt = LightningFactory.Create(boltPrefab, "ParryStrikeLightning", strike);
+        bladeBolt = LightningFactory.Create(boltPrefab, "KanpaBladeLightning", bladeSparkStyle);
+        WeaponHitbox weapon = GetComponentInChildren<WeaponHitbox>(true);
+        if (weapon != null) blade = weapon.GetComponent<BoxCollider>();
         if (screenPulse) CreateVolume();
     }
 
     void OnEnable()
     {
         if (parry != null) parry.Clashed += OnParryClashed;
-        if (kanpa != null) kanpa.Clashed += OnKanpaClashed;
+        if (kanpa != null)
+        {
+            kanpa.Clashed += OnKanpaClashed;
+            kanpa.FollowReady += OnFollowReady;
+            kanpa.FollowClosed += OnFollowClosed;
+            kanpa.SmashLanded += OnSmashLanded;
+        }
     }
 
     void OnDisable()
     {
         if (parry != null) parry.Clashed -= OnParryClashed;
-        if (kanpa != null) kanpa.Clashed -= OnKanpaClashed;
+        if (kanpa != null)
+        {
+            kanpa.Clashed -= OnKanpaClashed;
+            kanpa.FollowReady -= OnFollowReady;
+            kanpa.FollowClosed -= OnFollowClosed;
+            kanpa.SmashLanded -= OnSmashLanded;
+        }
+        bladeRoutine = null;
         if (timeRoutine != null) StopCoroutine(timeRoutine);
         timeRoutine = null;
         ReleaseTime();
@@ -142,15 +180,15 @@ public class ParryFx : MonoBehaviour
         if (volumeFx != null && volumeFx.sharedProfile != null) Destroy(volumeFx.sharedProfile);
     }
 
-    // [변경] 색 묶음을 넘겨 패링=붉은색, 간파=청백
+    // 색 묶음을 넘겨 패링=붉은색, 간파=청백
     void OnParryClashed(GameObject enemy, Vector3 point) =>
         Play(enemy, point, parryStrength, parryStrike, null, innerRingColor, outerRingColor, vignetteColor);
     void OnKanpaClashed(GameObject enemy, Vector3 point) =>
-        Play(enemy, point, 1f, true, kanpaClip, kanpaInnerRingColor, kanpaOuterRingColor, kanpaVignetteColor);
+        Play(enemy, point, 1f, kanpaStrike, kanpaClip, kanpaInnerRingColor, kanpaOuterRingColor, kanpaVignetteColor); // [변경] 낙뢰는 뇌락에서
 
     // strength(0~1)로 패링·간파 크기를 구분
     void Play(GameObject enemy, Vector3 point, float strength, bool strike, AudioClip extraClip,
-        Color inner, Color outer, Color vignetteTint) // [변경]
+        Color inner, Color outer, Color vignetteTint)
     {
         // 적이 아직 공격 자세일 때 호출되므로 잔상은 가장 먼저 굽는다
         if (enemyGhost) SpawnGhost(enemy, point);
@@ -172,7 +210,7 @@ public class ParryFx : MonoBehaviour
 
         pulseStart = Time.unscaledTime;
         pulseHold = hold;
-        SpawnRing(point, inner, innerRingSize * size, innerRingTime, 0.06f); // [변경]
+        SpawnRing(point, inner, innerRingSize * size, innerRingTime, 0.06f);
         SpawnRing(point, outer, outerRingSize * size, outerRingTime, 0.22f * size);
         if (vig != null) vig.color.value = vignetteTint;
 
@@ -286,12 +324,61 @@ public class ParryFx : MonoBehaviour
 
         float w = e < pulseHold ? 1f : 1f - Mathf.Clamp01((e - pulseHold) / fade);
         volumeFx.weight = w;
-        colorAdjust.postExposure.value = e < flashTime ? flashExposure * (1f - e / flashTime) : 0f;
+        colorAdjust.postExposure.value = e < flashTime ? flashPeak * (1f - e / flashTime) : 0f; // [변경]
 
         if (w <= 0f) pulseStart = -1f;
     }
 
     // ===== 충격 링 =====
+    // ===== 뇌락 ===== [변경]
+    void OnFollowReady(float duration)
+    {
+        if (bladeRoutine != null) StopCoroutine(bladeRoutine);
+        if (blade != null && bladeBolt != null) bladeRoutine = StartCoroutine(BladeSparks(duration));
+    }
+
+    void OnFollowClosed(bool used)
+    {
+        if (bladeRoutine != null) StopCoroutine(bladeRoutine);
+        bladeRoutine = null;
+    }
+
+    // 칼날(히트박스 긴 축)을 따라 짧은 번개를 계속 튀김 → "지금 한 번 더"라는 신호
+    IEnumerator BladeSparks(float duration)
+    {
+        float end = Time.unscaledTime + duration;
+        while (Time.unscaledTime < end)
+        {
+            Vector3 size = blade.size;
+            int axis = size.x >= size.y && size.x >= size.z ? 0 : size.y >= size.z ? 1 : 2;
+            Vector3 half = Vector3.zero;
+            half[axis] = size[axis] * 0.5f;
+            Vector3 a = blade.transform.TransformPoint(blade.center - half);
+            Vector3 b = blade.transform.TransformPoint(blade.center + half);
+            Vector3 p = Vector3.Lerp(a, b, Random.value);
+            bladeBolt.Trigger(p, p + Random.onUnitSphere * 0.35f);
+            yield return new WaitForSecondsRealtime(bladeSparkInterval);
+        }
+        bladeRoutine = null;
+    }
+
+    void OnSmashLanded(Vector3 center)
+    {
+        Vector3 ground = center + Vector3.up * 0.2f;
+        if (strikeBolt != null)
+        {
+            strikeBolt.Trigger(center + Vector3.up * strikeHeight, center); // [변경] 2줄 → 1줄
+        }
+        SpawnRing(ground, smashRingColor, smashRingSize, 0.35f, 0.25f);
+        SpawnRing(ground, innerRingColor, smashRingSize * 0.6f, 0.2f, 0.08f);
+        if (followCamera != null)
+        {
+            followCamera.Punch(smashPunch, 0.03f, 0.12f, 0.3f, 0f);
+            followCamera.Shake(0.22f, 0.25f);
+        }
+        if (impactClip != null) audioSource.PlayOneShot(impactClip, volume);
+    }
+
     void SpawnRing(Vector3 center, Color c, float size, float life, float width)
     {
         if (fxMaterial == null) return;

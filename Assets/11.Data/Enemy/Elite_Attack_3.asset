@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bdcce19ed15436f42bb717ba566e667c, type: 3}
+  m_Name: Elite_Attack_3
+  m_EditorClassIdentifier: Assembly-CSharp::AttackData
+  clip: {fileID: 7400000, guid: e80e11e5aaa5d9f46a2f3a228b6cc110, type: 2}
+  stateName: Attack_3
+  damage: 22
+  postureDamage: 11
+  parryable: 1
+  weight: 1
+  hitStart: 0.316
+  hitEnd: 0.422
+  inputOpen: 0.2
+  comboTransition: 0.5
+  recoveryEnd: 0.9
+  moveCancelStart: 0.5
+  stepDistance: 0.8
+  stepEnd: 0.3
+  nextLight: {fileID: 0}
+  nextHeavy: {fileID: 0}

@@ -24,9 +24,10 @@ public class PlayerSkill : MonoBehaviour
     [SerializeField] PlayerCombat combat;
     [SerializeField] ThirdPersonCamera followCamera;
     [SerializeField] TrailRenderer dashTrail;
-    [SerializeField] PlayerStats stats; // [변경] 있으면 일섬 피해에도 공격력·치명타 적용
+    [SerializeField] PlayerStats stats; // 있으면 일섬 피해에도 공격력·치명타 적용
     [SerializeField] PlayerThunder thunder; // 있으면 뇌기 소모형 일섬 + 표식된 적만 즉사·연쇄
 
+    [SerializeField] float aimTurnSpeed = 720f; // [변경] 자세·차지 중 고정한 대상을 따라 도는 속도(도/초, 실제 시간)
     [SerializeField] bool hideBodyWhileDashing = true;
     [SerializeField] LayerMask obstacleMask = ~0;
 
@@ -51,6 +52,7 @@ public class PlayerSkill : MonoBehaviour
     bool killsApplied;
     float cooldownTimer;
     float hitStopTimer;
+    IDamageable aimTarget; // [변경] Q를 누른 순간 자동으로 고른 대상 (방향키와 무관)
 
     float savedTimeScale = 1f;
     bool timeScaleOverridden;
@@ -164,6 +166,8 @@ public class PlayerSkill : MonoBehaviour
         dashCount = 0;
         pendingHits.Clear();
 
+        aimTarget = FindTarget(transform.position, transform.forward, data.RangeAt(data.MaxChargeLevel), 360f, false); // [변경] 주변 360° 자동 선택
+        FaceAimTarget(true, 0f); // [변경] 누른 순간 그 대상 쪽으로 바로 돌아서 차징 자세
         animator.CrossFadeInFixedTime(stanceHash, 0.05f, 0, 0f);
         HoldStarted?.Invoke();
     }
@@ -172,6 +176,7 @@ public class PlayerSkill : MonoBehaviour
     void UpdateHolding(float dt)
     {
         holdTime += dt;
+        FaceAimTarget(true, dt); // [변경] 자세·차지 중에는 고정한 대상을 자동으로 따라 돎
 
         int level = holdTime < data.ChargeStartTime
             ? 0
@@ -195,19 +200,38 @@ public class PlayerSkill : MonoBehaviour
         if (!skillAction.action.IsPressed()) Release();
     }
 
+    // [변경] 핵심: 방향키를 보지 않고 자동 조준. 누를 때 고른 대상(표식 우선 → 가까운 순)을 바라보고,
+    // 그 대상이 쓰러지면 다시 고름. 대상이 없으면 지금 방향 유지
+    void FaceAimTarget(bool snap, float dt)
+    {
+        if (!IsValidTarget(aimTarget))
+            aimTarget = FindTarget(transform.position, transform.forward, data.RangeAt(data.MaxChargeLevel), 360f, false);
+        if (aimTarget == null) return;
+
+        Vector3 to = Flat(((Component)aimTarget).transform.position - transform.position);
+        if (to.sqrMagnitude < 0.0001f) return;
+
+        Quaternion want = Quaternion.LookRotation(to.normalized, Vector3.up);
+        transform.rotation = snap ? want : Quaternion.RotateTowards(transform.rotation, want, aimTurnSpeed * dt);
+    }
+
     void Release()
     {
         RestoreTimeScale();
         HoldEnded?.Invoke();
         if (UsesGauge) thunder.TrySpend(thunder.SkillCost(chargeLevel)); // 놓는 순간 단계별 비용 차감
 
-        Vector3 dir = locomotion != null ? locomotion.GetInputDirection() : Vector3.zero;
-        if (dir.sqrMagnitude < 0.0001f) dir = transform.forward;
-
+        // [변경] 바라보던 대상이 이번 단계 사거리 안이면 그 대상에게, 아니면 정면 원뿔에서 다시 찾고 없으면 정면으로 헛돌진
+        Vector3 dir = transform.forward;
         float range = data.RangeAt(chargeLevel);
-        IDamageable target = FindTarget(transform.position, dir, range, data.SearchAngle, false); // 첫 대상은 표식 우선, 없으면 아무나
+        IDamageable target = IsValidTarget(aimTarget) && Flat(((Component)aimTarget).transform.position - transform.position).magnitude <= range
+            ? aimTarget
+            : FindTarget(transform.position, dir, range, data.SearchAngle, false);
+        aimTarget = null;
         StartDash(target, dir);
     }
+
+    bool IsValidTarget(IDamageable t) => t != null && (t as Object) != null && t.CanBeTargeted; // [변경]
 
     void StartDash(IDamageable target, Vector3 fallbackDir)
     {
@@ -336,7 +360,7 @@ public class PlayerSkill : MonoBehaviour
                 HitPoint = hit.Point,
                 Direction = hit.Direction
             };
-            if (stats != null) info = stats.Modify(info); // [변경]
+            if (stats != null) info = stats.Modify(info);
             hit.Target.ReceiveDamage(info);
             applied++;
             TargetCut?.Invoke(((Component)hit.Target).transform.position);

@@ -15,12 +15,16 @@ public class SwordTrail : MonoBehaviour
     [SerializeField] BoxCollider blade;
     [SerializeField] Transform handReference;
     [SerializeField] Material material;
-    // [변경] 칼끝 쪽 35%만 남기고 짧게 → 판처럼 보이지 않고 검광처럼 보이게. 밝기는 머티리얼 HDR 색으로 올림
+    // 칼끝 쪽 35%만 남기고 짧게 → 판처럼 보이지 않고 검광처럼 보이게. 밝기는 머티리얼 HDR 색으로 올림
     [SerializeField] Color color = new Color(0.35f, 0.65f, 1f, 0.9f);
     [SerializeField] float lifetime = 0.1f;
     [SerializeField, Range(0f, 0.9f)] float baseRatio = 0.65f;
     [SerializeField] int subdivisions = 4;
     [SerializeField] int maxSamples = 40;
+    // [변경] 공속 2배 이후 같은 0.1초 동안 칼이 두 배로 돌아 궤적이 큰 부채꼴이 됨 → 공속만큼 수명을 줄이고 더 투명하게
+    [SerializeField, Range(0f, 1f)] float opacity = 0.55f;
+    [SerializeField] bool scaleWithAttackSpeed = true;
+    PlayerStats stats;
 
     readonly List<Sample> samples = new List<Sample>();
     readonly List<Vector3> vertices = new List<Vector3>();
@@ -38,6 +42,7 @@ public class SwordTrail : MonoBehaviour
     {
         if (blade == null) blade = GetComponent<BoxCollider>();
         if (handReference == null && blade != null) handReference = blade.transform.parent;
+        stats = GetComponentInParent<PlayerStats>(); // [변경]
 
         mesh = new Mesh { name = "SwordTrail" };
         mesh.MarkDynamic();
@@ -69,7 +74,7 @@ public class SwordTrail : MonoBehaviour
         clock += Time.deltaTime;
         if (emitting) AddSample();
 
-        while (samples.Count > 0 && clock - samples[0].Time > lifetime) samples.RemoveAt(0);
+        while (samples.Count > 0 && clock - samples[0].Time > Life) samples.RemoveAt(0); // [변경]
         BuildMesh();
     }
 
@@ -129,8 +134,8 @@ public class SwordTrail : MonoBehaviour
                 Vector3 tipPos = CatmullRom(p0.Tip, p1.Tip, p2.Tip, p3.Tip, u);
                 float time = Mathf.Lerp(p1.Time, p2.Time, u);
 
-                float life = 1f - Mathf.Clamp01((clock - time) / lifetime);
-                float alpha = color.a * life * life;
+                float life = 1f - Mathf.Clamp01((clock - time) / Life);
+                float alpha = color.a * opacity * life * life; // [변경]
 
                 vertices.Add(basePos);
                 vertices.Add(tipPos);
@@ -150,6 +155,8 @@ public class SwordTrail : MonoBehaviour
         mesh.SetTriangles(triangles, 0);
         mesh.RecalculateBounds();
     }
+
+    float Life => scaleWithAttackSpeed && stats != null ? lifetime / Mathf.Max(1f, stats.AttackSpeed) : lifetime; // [변경]
 
     static Vector3 CatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
     {

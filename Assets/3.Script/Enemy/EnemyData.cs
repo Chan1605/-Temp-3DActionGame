@@ -20,7 +20,7 @@ public class EnemyData : ScriptableObject
     [SerializeField] float windupTime = 0.5f;
     [SerializeField] float attackCooldown = 1.5f;
     [SerializeField] bool armorDuringSwing = true;
-    // [변경] true면 칼을 휘두르기 시작한 순간부터 연타가 끝날 때까지 아머 → □로는 못 끊고 △ 간파로 맞받아야 함. 예고(Windup) 중에는 경직됨
+    // true면 칼을 휘두르기 시작한 순간부터 연타가 끝날 때까지 아머 → □로는 못 끊고 △ 간파로 맞받아야 함. 예고(Windup) 중에는 경직됨
     [SerializeField] bool armorWholeSwing = true;
 
     [Header("Hit Reaction")]
@@ -33,6 +33,7 @@ public class EnemyData : ScriptableObject
 
     [Header("Death")]
     [SerializeField] float respawnTime = 3f;
+    [SerializeField] int xpReward = 10; // [변경] 구역 적을 처치하면 플레이어가 받는 경험치
 
     public float MaxHealth => maxHealth;
 
@@ -47,7 +48,7 @@ public class EnemyData : ScriptableObject
     public float WindupTime => windupTime;
     public float AttackCooldown => attackCooldown;
     public bool ArmorDuringSwing => armorDuringSwing;
-    public bool ArmorWholeSwing => armorWholeSwing; // [변경]
+    public bool ArmorWholeSwing => armorWholeSwing;
 
     public float LightStunTime => lightStunTime;
     public float HeavyStunTime => heavyStunTime;
@@ -57,4 +58,5 @@ public class EnemyData : ScriptableObject
     public float ParryStunTime => parryStunTime;
 
     public float RespawnTime => respawnTime;
+    public int XpReward => xpReward; // [변경]
 }

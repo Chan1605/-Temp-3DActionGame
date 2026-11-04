@@ -13,6 +13,8 @@ public static class ZoneGenerator
     const string DataFolder = "Assets/11.Data/Zone";
     const string Zone1ThemePath = DataFolder + "/Zone1_Sanmun.asset";
     const string Zone2ThemePath = DataFolder + "/Zone2_Forest.asset";
+    const string Zone3ThemePath = DataFolder + "/Zone3_Trial.asset"; // 시련의 터 (끝없는 웨이브)
+    const string ElitePrefabPath = "Assets/2.Model/Prefabs/Swordsman_Elite.prefab";
     const string PackRoot = "Assets/ThirdParty/Toon Fantasy Nature/";
     const string MaterialFolder = "Assets/6.Materials";
     const string GeneratedName = "Generated";
@@ -28,6 +30,7 @@ public static class ZoneGenerator
     {
         (Zone1ThemePath, CreateZone1Theme, new[] { 2, 3 }, "구역 1", "산문"),
         (Zone2ThemePath, CreateZone2Theme, new[] { 2, 3, 3 }, "구역 2", "안개 낀 숲길"),
+        (Zone3ThemePath, CreateZone3Theme, new int[0], "시련", "시련의 터"), // 웨이브는 ZoneArena가 끝없이 생성
     };
 
     static System.Random rng;
@@ -36,11 +39,15 @@ public static class ZoneGenerator
 
     // 구역 메뉴: 전체 / 개별. 어느 쪽이든 먼저 전체 위치를 다시 계산함
     [MenuItem("Tools/Map/Generate All Zones")]
-    public static void GenerateAll() // [변경] Polish Pass에서도 호출
+    public static void GenerateAll() // Polish Pass에서도 호출
     {
         ZoneTheme[] themes = LoadAllThemes();
         if (themes == null) return;
-        for (int i = 0; i < themes.Length; i++) Generate(themes[i], i == 0, i == 0, i == themes.Length - 1, Zones[i].waves);
+        for (int i = 0; i < themes.Length; i++)
+        {
+            Generate(themes[i], i == 0, i == 0, i == themes.Length - 1, Zones[i].waves);
+            if (Zones[i].path == Zone3ThemePath) ConfigureTrial(themes[i]);
+        }
     }
 
     [MenuItem("Tools/Map/Generate Zone 1 (Sanmun)")]
@@ -48,6 +55,33 @@ public static class ZoneGenerator
 
     [MenuItem("Tools/Map/Generate Zone 2 (Forest)")]
     static void GenerateZone2() => GenerateSingle(1);
+
+    [MenuItem("Tools/Map/Generate Zone 3 (Trial)")]
+    static void GenerateZone3() => GenerateSingle(2);
+
+    // [변경] 크래시 원인: 소품 2,287개를 정적 배칭하면 플레이 시작 때 나무마다 정점을 월드 좌표로 복제해 합친 거대한 메시가 생겨
+    // GPU 공유 메모리(16GB)를 다 써서 D3D12 장치가 끊김 → 정적 배칭을 쓰지 않고, 이미 붙은 표시는 이 메뉴로 지움
+    [MenuItem("Tools/Map/Clear Generated Static")]
+    static void ClearAllStatic()
+    {
+        int total = 0;
+        foreach (var (path, _, _, _, _) in Zones)
+        {
+            var theme = AssetDatabase.LoadAssetAtPath<ZoneTheme>(path);
+            GameObject root = theme != null ? GameObject.Find(theme.zoneName) : null;
+            Transform generated = root != null ? root.transform.Find(GeneratedName) : null;
+            if (generated == null) continue;
+            foreach (Transform t in generated.GetComponentsInChildren<Transform>(true))
+            {
+                StaticEditorFlags flags = GameObjectUtility.GetStaticEditorFlags(t.gameObject);
+                if ((flags & StaticEditorFlags.BatchingStatic) == 0) continue;
+                GameObjectUtility.SetStaticEditorFlags(t.gameObject, flags & ~StaticEditorFlags.BatchingStatic);
+                total++;
+            }
+            EditorSceneManager.MarkSceneDirty(root.scene);
+        }
+        Debug.Log($"[ZoneGenerator] 정적 배칭 표시 해제 {total}개 · 씬을 저장한 뒤 플레이하세요");
+    }
 
     [MenuItem("Tools/Map/Clear All Generated")]
     static void ClearAll()
@@ -65,7 +99,28 @@ public static class ZoneGenerator
     static void GenerateSingle(int index)
     {
         ZoneTheme[] themes = LoadAllThemes();
-        if (themes != null) Generate(themes[index], index == 0, index == 0, index == themes.Length - 1, Zones[index].waves);
+        if (themes == null) return;
+        Generate(themes[index], index == 0, index == 0, index == themes.Length - 1, Zones[index].waves);
+        if (Zones[index].path == Zone3ThemePath) ConfigureTrial(themes[index]);
+    }
+
+    // 시련의 터: 끝없는 웨이브 켜고 기본 적·정예 프리팹 연결 (수치는 ZoneArena 인스펙터에서 조절)
+    static void ConfigureTrial(ZoneTheme theme)
+    {
+        GameObject root = GameObject.Find(theme.zoneName);
+        ZoneArena arena = root != null ? root.GetComponent<ZoneArena>() : null;
+        if (arena == null) return;
+
+        var so = new SerializedObject(arena);
+        so.FindProperty("endless").boolValue = true;
+        so.FindProperty("xpPerWave").floatValue = 0.05f;
+        so.FindProperty("endlessEnemy").objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(EnemyPrefabPath);
+        so.FindProperty("endlessElite").objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(ElitePrefabPath);
+        so.ApplyModifiedProperties();
+
+        if (so.FindProperty("endlessElite").objectReferenceValue == null)
+            Debug.LogWarning("[ZoneGenerator] 정예 프리팹이 없어 시련에 정예가 나오지 않습니다. Tools/Setup/Elite Swordsman을 먼저 실행하세요.");
+        EditorSceneManager.MarkSceneDirty(root.scene);
     }
 
     static ZoneTheme[] LoadAllThemes()
@@ -709,6 +764,51 @@ public static class ZoneGenerator
         };
 
         return SaveTheme(theme, Zone2ThemePath);
+    }
+
+    // 시련의 터: 해 질 녘 붉은 하늘 아래 넓게 트인 바위 분지. 나무는 성기게, 안쪽 바위는 적게(다수전 공간 확보)
+    static ZoneTheme CreateZone3Theme()
+    {
+        ZoneTheme theme = NewTheme("Zone_3_Trial");
+        if (theme == null) return null;
+
+        theme.seed = 3;
+        theme.terrainSize = 110f;
+        theme.combatRadius = 18f;
+        theme.wallRadius = 21f;
+        theme.hillHeight = 14f;
+        theme.hillNoise = 6f;
+        theme.hillWidth = 16f;
+
+        theme.groundLayer = Load<TerrainLayer>("Terrain/Layer_TFF_Terrain_Grass_2A_D.terrainlayer");
+        theme.arenaLayer = Load<TerrainLayer>("Terrain/Layer_TFF_Terrain_Dirt_Road_1A_D.terrainlayer");
+        theme.roadLayer = Load<TerrainLayer>("Terrain/Layer_TFF_Terrain_Earth_1A_D.terrainlayer");
+
+        theme.wallRocks = Prefabs("Rocks", "TFF_Rock_Large_");
+        theme.wallRockSize = new Vector2(5f, 8f);
+        theme.innerRocks = Prefabs("Rocks", "TFF_Rock_Small_");
+        theme.innerRockCount = 4;
+        theme.trees = Prefabs("Vegetation/Trees", "TFF_Pine_Tree_");
+        theme.treeMinDistance = 6f;
+        theme.treeMaxCount = 120;
+        theme.arenaCover = Prefabs("Vegetation/Plants", "TFF_Grass_Patch_");
+        theme.arenaCoverCount = 20;
+        theme.outerCover = Prefabs("Vegetation/Plants", "TFF_Bush_0");
+        theme.outerCoverCount = 60;
+        theme.pathStones = Prefabs("Rocks", "TFF_Stone_Slab_");
+
+        theme.skybox = Load<Material>("Skyboxes/TFF_Skybox_Day_01A.mat");
+        theme.fogColor = new Color(0.62f, 0.42f, 0.42f);
+        theme.fogDensity = 0.014f;
+        theme.sunColor = new Color(1f, 0.62f, 0.42f);
+        theme.sunEuler = new Vector3(14f, -60f, 0f);
+        theme.groundParticles = new[] { Load<GameObject>("Particles/TFF_Fog_01A.prefab") };
+        theme.groundParticleCount = 6;
+        theme.overheadParticles = new GameObject[0];
+        theme.gateColor = new Color(0.35f, 0.12f, 0.45f);
+        theme.barrierColor = new Color(0.7f, 0.45f, 1f, 0.35f);
+
+        return SaveTheme(theme, Zone3ThemePath);
     }
 
     static T Load<T>(string relative) where T : Object

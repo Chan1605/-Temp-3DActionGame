@@ -19,7 +19,7 @@ public class PlayerChargeAttack : MonoBehaviour
     [SerializeField] PlayerCombat combat;
     [SerializeField] PlayerLocomotion locomotion;
     [SerializeField] PlayerParry parry;
-    [SerializeField] PlayerKanpa kanpa; // [변경]
+    [SerializeField] PlayerKanpa kanpa;
     [SerializeField] PlayerDodge dodge;
     [SerializeField] PlayerSkill skill;
     [SerializeField] PlayerHealth health;
@@ -41,8 +41,8 @@ public class PlayerChargeAttack : MonoBehaviour
     bool charging;
     float chargeTime;
     int level;
-    bool heavyQueued;          // [변경] 콤보 중 누른 순간 이미 △를 예약했으면 뗄 때 다시 넣지 않음
-    AttackData pressedDuring;  // [변경] 누를 때 진행 중이던 공격 → △로 넘어가기 전엔 차지로 끊지 않음
+    bool heavyQueued;          // 콤보 중 누른 순간 이미 △를 예약했으면 뗄 때 다시 넣지 않음
+    AttackData pressedDuring;  // 누를 때 진행 중이던 공격 → △로 넘어가기 전엔 차지로 끊지 않음
 
     public bool IsHeld => pressed && !consumed;
     public bool IsCharging => charging;
@@ -94,7 +94,14 @@ public class PlayerChargeAttack : MonoBehaviour
         heavyQueued = false;
         pressedDuring = null;
 
-        // [변경] 콤보 중이면 패링 대신 △를 누른 순간 바로 예약 (뗄 때까지 기다리면 간파 타이밍이 밀림)
+        // [변경] 간파 직후 창이 열려 있으면 이번 우클릭은 뇌락으로 소비 (강공격·차지·패링보다 우선)
+        if (kanpa != null && kanpa.TryFollowUp())
+        {
+            consumed = true;
+            return;
+        }
+
+        // 콤보 중이면 패링 대신 △를 누른 순간 바로 예약 (뗄 때까지 기다리면 간파 타이밍이 밀림)
         if (kanpa != null && kanpa.HandlesPress)
         {
             consumed = false;
@@ -115,7 +122,7 @@ public class PlayerChargeAttack : MonoBehaviour
         if (charging) Release();
         else if (!consumed && !heavyQueued && combat != null) combat.PressHeavy(); // 짧게 누름 → 강공격 (콤보 버퍼로 들어감)
         consumed = false;
-        heavyQueued = false; // [변경]
+        heavyQueued = false;
     }
 
     void Update()
@@ -156,7 +163,7 @@ public class PlayerChargeAttack : MonoBehaviour
         if (health != null && (health.IsStunned || health.IsDead)) return false;
         // 콤보 중이면 판정이 끝난 뒤부터 차지로 끊고 들어감
         if (combat == null || !combat.IsAttacking) return true;
-        if (heavyQueued && combat.CurrentAttack == pressedDuring) return false; // [변경] 예약한 △가 나가기 전에는 차지 금지
+        if (heavyQueued && combat.CurrentAttack == pressedDuring) return false; // 예약한 △가 나가기 전에는 차지 금지
         return combat.CanMoveCancel;
     }
 

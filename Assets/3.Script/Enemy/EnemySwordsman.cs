@@ -37,6 +37,7 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
     [SerializeField] float comboTellTime = 0.25f; // 연타 다음 타 직전 예고 발광 시간(적 시간 기준)
     [SerializeField] bool showWindupTell; // 잡몹은 예고 없음이 기본 (보스는 잡기·특수기만 예고 예정)
     [SerializeField] bool showComboTell;
+    [SerializeField] bool trainer; // 간파 수련용: 구역 전투에 끼지 않음 (튜토리얼 배치용)
 
     [SerializeField] float gravity = -20f;
     [SerializeField] float knockbackTime = 0.15f;
@@ -79,6 +80,40 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
     public bool IsWindingUp => state == State.Windup;
     public bool IsSwinging => swingActive;
     public event System.Action<EnemySwordsman> Died;
+    // 경험치용 전역 처치 이벤트. 부활하는 테스트용 적은 제외 (무한 경험치 방지)
+    public static event System.Action<EnemySwordsman> AnyKilled;
+    public bool IsTrainer => trainer;
+
+    // [변경] 웨이브로 나온 적: 쓰러지고 corpseDelay 뒤 땅으로 가라앉아 사라짐 (시체 누적 → 가독성·성능 저하 방지)
+    bool temporary;
+    const float CorpseDelay = 2f;
+    const float CorpseSinkTime = 1f;
+    public void MarkTemporary() => temporary = true;
+
+    System.Collections.IEnumerator SinkAndDestroy()
+    {
+        yield return new WaitForSeconds(CorpseDelay);
+        Vector3 from = transform.position;
+        for (float t = 0f; t < CorpseSinkTime; t += Time.deltaTime)
+        {
+            transform.position = from + Vector3.down * (1.5f * t / CorpseSinkTime);
+            yield return null;
+        }
+        Destroy(gameObject);
+    }
+    public int XpReward => data != null ? Mathf.RoundToInt(data.XpReward * xpScale) : 0; // 시련 배율 반영
+
+    // 시련 모드: 웨이브가 오를수록 체력·공격력·경험치 배율. 생성 직후(Start 전) 호출
+    float healthScale = 1f, damageScale = 1f, xpScale = 1f;
+    public void ApplyScaling(float health, float damage, float xp)
+    {
+        healthScale = Mathf.Max(0.1f, health);
+        damageScale = Mathf.Max(0.1f, damage);
+        xpScale = Mathf.Max(0f, xp);
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics() => AnyKilled = null;
 
     // ===== 구역(ZoneArena)용 =====
     public void DisableRespawn() => respawnEnabled = false;
@@ -128,7 +163,7 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null) target = player.transform;
 
-        health = data != null ? data.MaxHealth : 1f;
+        health = data != null ? data.MaxHealth * healthScale : 1f;
         ApplyColor(bodyTint);
     }
 
@@ -258,7 +293,7 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
     {
         if (state == State.Dead) return HitResult.Ignored;
 
-        DamageEvents.Raise(transform.position + Vector3.up * 2f, info); // [변경] 데미지 숫자
+        DamageEvents.Raise(transform.position + Vector3.up * 2f, info); // 데미지 숫자
         health -= info.Damage;
 
         if (info.InstantKill || health <= 0f)
@@ -269,7 +304,7 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
         }
 
         // 휘두르는 중에는 경직 없이 맞기만 함 (토글로 비교)
-        if (data.ArmorDuringSwing && IsArmored()) // 판정 중 → 휘두르는 내내(옵션)
+        if (data.ArmorDuringSwing && IsArmored() && !info.BreakArmor) // // 판정 중 → 휘두르는 내내(옵션)
         {
             Flash(armorColor);
             Log($"아머 피격 {info.Damage} (체력 {health})");
@@ -329,13 +364,15 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
         SetState(State.Dead);
         Log("사망");
         Died?.Invoke(this);
+        if (!respawnEnabled) AnyKilled?.Invoke(this);
+        if (temporary) StartCoroutine(SinkAndDestroy()); // [변경]
     }
 
     void Respawn()
     {
         transform.SetPositionAndRotation(homePosition, homeRotation);
         controller.enabled = true;
-        health = data.MaxHealth;
+        health = data.MaxHealth * healthScale;
         verticalVelocity = 0f;
         attackReadyTime = localTime + 1f;
 
@@ -351,7 +388,7 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
         weapon.BeginSwing(new DamageInfo
         {
             Attacker = gameObject,
-            Damage = currentAttack.Damage,
+            Damage = currentAttack.Damage * damageScale,
             PostureDamage = currentAttack.PostureDamage,
             Parryable = currentAttack.Parryable
         });
@@ -434,8 +471,13 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
         ApplyColor(bodyTint);
     }
 
+    // [변경] 성능: 같은 색이면 건너뜀 (예전엔 적마다 매 프레임 PropertyBlock을 다시 넣었음)
+    Color appliedColor = new Color(-1f, -1f, -1f, -1f);
+
     void ApplyColor(Color color)
     {
+        if (color == appliedColor) return;
+        appliedColor = color;
         foreach (Renderer r in bodyRenderers)
         {
             if (r == null) continue;

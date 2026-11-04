@@ -533,6 +533,8 @@ MonoBehaviour:
   lightAttackAction: {fileID: 1120369429361536294, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   lightStarter: {fileID: 11400000, guid: e48cc411e3e8c1f4da88da5c4547be0e, type: 2}
   heavyStarter: {fileID: 11400000, guid: 29867278508338c41aee8014d75f0a5f, type: 2}
+  runStarter: {fileID: 11400000, guid: 92bfc9c24c936414bb808d8e95f1489e, type: 2}
+  runAttackSpeed: 7
   animator: {fileID: 9054350018550051993}
   weapon: {fileID: 8066946278627523393}
   locomotion: {fileID: 8946055058242759463}
@@ -1144,6 +1146,10 @@ MonoBehaviour:
   critChancePerLevel: 0.03
   critDamagePerLevel: 0.1
   levelUpOnZoneClear: 1
+  useXp: 1
+  xpBase: 30
+  xpStep: 15
+  waveClearXp: 15
   maxAttackSpeed: 2.8
   logStats: 1
 --- !u!1 &1515010326207606855

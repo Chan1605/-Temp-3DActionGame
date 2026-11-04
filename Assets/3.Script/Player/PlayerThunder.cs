@@ -18,7 +18,7 @@ public class PlayerThunder : MonoBehaviour
     [SerializeField] WeaponHitbox weapon;
     [SerializeField] PlayerCombat combat;
     [SerializeField] PlayerParry parry;
-    [SerializeField] PlayerKanpa kanpa; // [변경]
+    [SerializeField] PlayerKanpa kanpa;
     [SerializeField] PlayerDodge dodge;
 
     [Header("Gauge")]
@@ -47,9 +47,11 @@ public class PlayerThunder : MonoBehaviour
     [SerializeField] SpreadMode spread = SpreadMode.AreaAndTransfer;
     [SerializeField] float finisherRadius = 3.5f;
     [SerializeField] float parryRadius = 3f;
-    // [변경] 간파: 비용 없이 뇌기 획득 + 대상 가득 + 확산 모드와 상관없이 주변 +1
+    // 간파: 비용 없이 뇌기 획득 + 대상 가득 + 확산 모드와 상관없이 주변 +1
     [SerializeField] float kanpaGain = 0.5f;
     [SerializeField] float kanpaRadius = 3.5f;
+    [SerializeField] int smashMarks = 2;      // [변경] 뇌락 착지: 반경 안 적 뇌인 +2
+    [SerializeField] float smashRadius = 3f;
     [SerializeField] float transferRadius = 3f;
 
     [Header("Skill Damage")]
@@ -84,7 +86,8 @@ public class PlayerThunder : MonoBehaviour
     {
         if (weapon != null) weapon.OnHit += OnWeaponHit;
         if (parry != null) parry.Parried += OnParried;
-        if (kanpa != null) kanpa.Countered += OnKanpa; // [변경]
+        if (kanpa != null) kanpa.Countered += OnKanpa;
+        if (kanpa != null) kanpa.SmashLanded += OnSmashLanded; // [변경]
         if (dodge != null) dodge.JustDodged += OnJustDodged;
     }
 
@@ -92,7 +95,8 @@ public class PlayerThunder : MonoBehaviour
     {
         if (weapon != null) weapon.OnHit -= OnWeaponHit;
         if (parry != null) parry.Parried -= OnParried;
-        if (kanpa != null) kanpa.Countered -= OnKanpa; // [변경]
+        if (kanpa != null) kanpa.Countered -= OnKanpa;
+        if (kanpa != null) kanpa.SmashLanded -= OnSmashLanded; // [변경]
         if (dodge != null) dodge.JustDodged -= OnJustDodged;
     }
 
@@ -172,7 +176,6 @@ public class PlayerThunder : MonoBehaviour
         if (spread != SpreadMode.None) AddMarksAround(enemy.transform.position, parryRadius, 1, mark);
     }
 
-    // [변경]
     void OnKanpa(GameObject enemy)
     {
         ThunderMark mark = enemy.GetComponentInParent<ThunderMark>();
@@ -184,6 +187,13 @@ public class PlayerThunder : MonoBehaviour
         int n = AddMarksAround(enemy.transform.position, kanpaRadius, 1, mark);
         Add(kanpaGain);
         if (logThunder) Debug.Log($"[Thunder] 간파 · 대상 가득, 주변 {n}명 +1, 뇌기 +{kanpaGain}");
+    }
+
+    // [변경]
+    void OnSmashLanded(Vector3 center)
+    {
+        int n = AddMarksAround(center, smashRadius, smashMarks, null);
+        if (logThunder) Debug.Log($"[Thunder] 뇌락 · 주변 {n}명 뇌인 +{smashMarks}");
     }
 
     void OnJustDodged() => Add(justDodgeGain);
