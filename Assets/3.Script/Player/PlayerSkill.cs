@@ -24,6 +24,7 @@ public class PlayerSkill : MonoBehaviour
     [SerializeField] PlayerCombat combat;
     [SerializeField] ThirdPersonCamera followCamera;
     [SerializeField] TrailRenderer dashTrail;
+    [SerializeField] PlayerThunder thunder; // [변경] 있으면 뇌기 소모형 일섬 + 표식된 적만 즉사·연쇄
 
     [SerializeField] bool hideBodyWhileDashing = true;
     [SerializeField] LayerMask obstacleMask = ~0;
@@ -55,6 +56,9 @@ public class PlayerSkill : MonoBehaviour
 
     public bool IsActive => phase != Phase.Ready;
     public bool IsInvulnerable => phase == Phase.Dashing;
+    // HUD 쿨타임 표시용 (1 = 방금 사용, 0 = 사용 가능)
+    public float CooldownRatio => data != null && data.Cooldown > 0f ? Mathf.Clamp01(cooldownTimer / data.Cooldown) : 0f;
+    bool UsesGauge => thunder != null && thunder.UseGaugeForSkill; // [변경]
 
     // 이펙트(PlayerVfx)용 이벤트: 돌진 시작·끝 지점, 일괄 베기로 베인 대상 위치
     public event System.Action<Vector3, Vector3> Dashed;
@@ -72,6 +76,7 @@ public class PlayerSkill : MonoBehaviour
         if (locomotion == null) locomotion = GetComponent<PlayerLocomotion>();
         if (combat == null) combat = GetComponent<PlayerCombat>();
         if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
+        if (thunder == null) thunder = GetComponent<PlayerThunder>(); // [변경]
 
         bodyRenderers = CollectBodyRenderers();
 
@@ -124,13 +129,22 @@ public class PlayerSkill : MonoBehaviour
 
     void TryBegin()
     {
-        if (cooldownTimer > 0f)
+        // [변경] 뇌기 소모형: 즉발 비용(2칸)이 없으면 시작 안 함. 쿨타임은 쓰지 않음
+        if (UsesGauge)
+        {
+            if (thunder.MaxAffordableLevel(0) < 0)
+            {
+                Debug.Log($"[Skill] 뇌기 부족 ({thunder.Gauge:0.0} / {thunder.SkillCost(0)})");
+                return;
+            }
+        }
+        else if (cooldownTimer > 0f)
         {
             Debug.Log($"[Skill] 쿨타임 {cooldownTimer:F1}초");
             return;
         }
 
-        if (locomotion != null && !locomotion.IsGrounded) return; // [변경] 공중 일섬은 v1 범위 밖
+        if (locomotion != null && !locomotion.IsGrounded) return; // 공중 일섬은 v1 범위 밖
 
         // 콤보 중에는 다음 타 전환 구간 이후에만 캔슬해서 들어감
         if (combat != null)
@@ -160,6 +174,7 @@ public class PlayerSkill : MonoBehaviour
         int level = holdTime < data.ChargeStartTime
             ? 0
             : Mathf.Min(data.MaxChargeLevel, 1 + (int)((holdTime - data.ChargeStartTime) / data.ChargeLevelTime));
+        if (UsesGauge) level = Mathf.Min(level, Mathf.Max(0, thunder.MaxAffordableLevel(data.MaxChargeLevel))); // [변경] 뇌기만큼만 차지
 
         if (level > chargeLevel)
         {
@@ -182,12 +197,13 @@ public class PlayerSkill : MonoBehaviour
     {
         RestoreTimeScale();
         HoldEnded?.Invoke();
+        if (UsesGauge) thunder.TrySpend(thunder.SkillCost(chargeLevel)); // [변경] 놓는 순간 단계별 비용 차감
 
         Vector3 dir = locomotion != null ? locomotion.GetInputDirection() : Vector3.zero;
         if (dir.sqrMagnitude < 0.0001f) dir = transform.forward;
 
         float range = data.RangeAt(chargeLevel);
-        IDamageable target = FindTarget(transform.position, dir, range, data.SearchAngle);
+        IDamageable target = FindTarget(transform.position, dir, range, data.SearchAngle, false); // [변경] 첫 대상은 표식 우선, 없으면 아무나
         StartDash(target, dir);
     }
 
@@ -266,7 +282,7 @@ public class PlayerSkill : MonoBehaviour
 
         if (skillAction.action.WasPressedThisFrame())
         {
-            IDamageable next = FindTarget(transform.position, transform.forward, data.ChainRange, 360f);
+            IDamageable next = FindTarget(transform.position, transform.forward, data.ChainRange, 360f, UsesGauge); // [변경] 연쇄는 표식된 적만
             if (next != null)
             {
                 StartDash(next, transform.forward);
@@ -305,14 +321,16 @@ public class PlayerSkill : MonoBehaviour
         {
             if (hit.Target == null || (hit.Target as Object) == null) continue;
 
+            // [변경] 핵심: 뇌인 3칸(표식)이면 즉사, 아니면 큰 피해만. 쿨타임형(A/B)이면 예전처럼 데이터 값 그대로
+            bool marked = !UsesGauge || PlayerThunder.IsMarked((Component)hit.Target);
             hit.Target.ReceiveDamage(new DamageInfo
             {
                 Attacker = gameObject,
-                Damage = data.Damage,
+                Damage = marked ? data.Damage : thunder.UnmarkedSkillDamage,
                 PostureDamage = data.PostureDamage,
                 Parryable = false,
                 Weight = AttackWeight.Skill,
-                InstantKill = data.InstantKill,
+                InstantKill = marked && data.InstantKill,
                 HitPoint = hit.Point,
                 Direction = hit.Direction
             });
@@ -345,14 +363,16 @@ public class PlayerSkill : MonoBehaviour
         if (combat != null) combat.InputLocked = false;
         if (animator != null) animator.CrossFadeInFixedTime(LocomotionHash, 0.2f, 0, 0f);
 
-        cooldownTimer = data.Cooldown;
+        cooldownTimer = UsesGauge ? 0f : data.Cooldown; // [변경]
     }
 
-    IDamageable FindTarget(Vector3 origin, Vector3 preferDir, float range, float maxAngle)
+    // [변경] 표식된 적을 먼저 고르고(같은 조건이면 가까운 순), markedOnly면 표식된 적만
+    IDamageable FindTarget(Vector3 origin, Vector3 preferDir, float range, float maxAngle, bool markedOnly)
     {
         int count = Physics.OverlapSphereNonAlloc(origin, range, overlapBuffer, ~0, QueryTriggerInteraction.Ignore);
         IDamageable best = null;
         float bestDist = float.MaxValue;
+        bool bestMarked = false;
         Vector3 forward = Flat(preferDir).normalized;
 
         for (int i = 0; i < count; i++)
@@ -368,10 +388,15 @@ public class PlayerSkill : MonoBehaviour
             if (dist < 0.01f) continue;
             if (maxAngle < 360f && Vector3.Angle(forward, to) > maxAngle * 0.5f) continue;
 
-            if (dist < bestDist)
+            bool marked = UsesGauge && PlayerThunder.IsMarked((Component)candidate); // [변경]
+            if (markedOnly && !marked) continue;
+            if (bestMarked && !marked) continue;
+
+            if (dist < bestDist || (marked && !bestMarked))
             {
                 bestDist = dist;
                 best = candidate;
+                bestMarked = marked;
             }
         }
 

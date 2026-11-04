@@ -5,10 +5,11 @@ using UnityEngine;
 // 전투 이벤트를 받아 이펙트만 담당. 전투·스킬 코드는 이 컴포넌트를 모름 (이벤트로만 연결)
 public class PlayerVfx : MonoBehaviour
 {
-    // [변경] 스타일 클래스는 LightningFactory.cs의 LightningBoltStyle로 이동 (HitFeedback과 공용)
+    // 스타일 클래스는 LightningFactory.cs의 LightningBoltStyle로 이동 (HitFeedback과 공용)
 
     [SerializeField] PlayerCombat combat;
     [SerializeField] PlayerSkill skill;
+    [SerializeField] PlayerChargeAttack heavyCharge; // [변경] 우클릭 차지도 Q 차지와 같은 번개 연출
     [SerializeField] SwordTrail trail;
     [SerializeField] BoxCollider blade;
     [SerializeField] GameObject boltPrefab;
@@ -22,11 +23,11 @@ public class PlayerVfx : MonoBehaviour
 
     [Header("Blade")]
     [SerializeField] float bladeInterval = 0.035f;
-    [SerializeField] LightningBoltStyle bladeStyle = DefaultBladeStyle(); // [변경] 타입 이름만 변경 (저장된 값은 유지)
+    [SerializeField] LightningBoltStyle bladeStyle = DefaultBladeStyle(); // 타입 이름만 변경 (저장된 값은 유지)
 
     [Header("Dash")]
     [SerializeField] float dashHeight = 1f;
-    [SerializeField] LightningBoltStyle dashStyle = DefaultDashStyle(); // [변경] 타입 이름만 변경 (저장된 값은 유지)
+    [SerializeField] LightningBoltStyle dashStyle = DefaultDashStyle(); // 타입 이름만 변경 (저장된 값은 유지)
 
     [Header("Strike")]
     [SerializeField] float strikeHeight = 12f;
@@ -34,7 +35,7 @@ public class PlayerVfx : MonoBehaviour
     [SerializeField] float strikeFlickerDelay = 0.07f;
     [SerializeField] int impactArcs = 4;
     [SerializeField] float impactRadius = 1.6f;
-    [SerializeField] LightningBoltStyle strikeStyle = DefaultStrikeStyle(); // [변경] 타입 이름만 변경 (저장된 값은 유지)
+    [SerializeField] LightningBoltStyle strikeStyle = DefaultStrikeStyle(); // 타입 이름만 변경 (저장된 값은 유지)
 
     // Q 차지: 자세에서는 칼날이 약하게 튀고, 단계가 오를수록 빈도가 늘고 땅에서 칼로 번개가 끌려 올라옴
     [Header("Charge")]
@@ -42,7 +43,7 @@ public class PlayerVfx : MonoBehaviour
     [SerializeField] float[] chargeGroundInterval = { 0f, 0.18f, 0.08f };
     [SerializeField] float chargeGroundRadius = 1.3f;
     [SerializeField] int levelUpArcs = 5;
-    [SerializeField] LightningBoltStyle chargeStyle = DefaultChargeStyle(); // [변경] 타입 이름만 변경 (저장된 값은 유지)
+    [SerializeField] LightningBoltStyle chargeStyle = DefaultChargeStyle(); // 타입 이름만 변경 (저장된 값은 유지)
 
     LightningBoltPrefabScriptBase bladeBolt;
     LightningBoltPrefabScriptBase dashBolt;
@@ -61,6 +62,7 @@ public class PlayerVfx : MonoBehaviour
     {
         if (combat == null) combat = GetComponent<PlayerCombat>();
         if (skill == null) skill = GetComponent<PlayerSkill>();
+        if (heavyCharge == null) heavyCharge = GetComponent<PlayerChargeAttack>(); // [변경]
 
         bladeBolt = CreateBolt("BladeLightning", bladeStyle);
         dashBolt = CreateBolt("DashLightning", dashStyle);
@@ -83,6 +85,12 @@ public class PlayerVfx : MonoBehaviour
             skill.ChargeLevelChanged += OnChargeLevelChanged;
             skill.HoldEnded += OnHoldEnded;
         }
+        if (heavyCharge != null) // [변경]
+        {
+            heavyCharge.ChargeStarted += OnHoldStarted;
+            heavyCharge.ChargeLevelChanged += OnHeavyChargeLevel;
+            heavyCharge.ChargeEnded += OnHoldEnded;
+        }
     }
 
     void OnDisable()
@@ -99,6 +107,12 @@ public class PlayerVfx : MonoBehaviour
             skill.HoldStarted -= OnHoldStarted;
             skill.ChargeLevelChanged -= OnChargeLevelChanged;
             skill.HoldEnded -= OnHoldEnded;
+        }
+        if (heavyCharge != null) // [변경]
+        {
+            heavyCharge.ChargeStarted -= OnHoldStarted;
+            heavyCharge.ChargeLevelChanged -= OnHeavyChargeLevel;
+            heavyCharge.ChargeEnded -= OnHoldEnded;
         }
         OnSwingFinished();
         OnHoldEnded();
@@ -190,6 +204,9 @@ public class PlayerVfx : MonoBehaviour
         for (int i = 0; i < levelUpArcs; i++) chargeBolt.Trigger(RandomGroundPoint(), Vector3.Lerp(hilt, tip, Random.value));
     }
 
+    // [변경] 우클릭 차지는 1~3단계, Q 차지 연출은 0~2단계 기준이라 한 칸 내려서 전달
+    void OnHeavyChargeLevel(int level) => OnChargeLevelChanged(level - 1);
+
     void OnHoldEnded()
     {
         charging = false;
@@ -273,7 +290,7 @@ public class PlayerVfx : MonoBehaviour
 #endif
     }
 
-    // [변경] 생성 로직은 LightningFactory로 이동
+    // 생성 로직은 LightningFactory로 이동
     LightningBoltPrefabScriptBase CreateBolt(string objectName, LightningBoltStyle style) =>
         LightningFactory.Create(boltPrefab, objectName, style);
 

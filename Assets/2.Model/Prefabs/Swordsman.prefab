@@ -83,6 +83,9 @@ GameObject:
   - component: {fileID: 965816109012478863}
   - component: {fileID: 3765957252116868629}
   - component: {fileID: 5534474880986429457}
+  - component: {fileID: 509245509165097808}
+  - component: {fileID: 3539112373543434406}
+  - component: {fileID: 3444569854744704481}
   m_Layer: 0
   m_Name: Swordsman
   m_TagString: Untagged
@@ -146,14 +149,124 @@ MonoBehaviour:
   data: {fileID: 11400000, guid: 684e140e9495e1746931308ce94f0ede, type: 2}
   animator: {fileID: 2604788797897919701}
   weapon: {fileID: 2622804920670666963}
-  bodyTint: {r: 0.35, g: 0.35, b: 0.4, a: 1}
+  bodyTint: {r: 0.44, g: 0.4, b: 0.54, a: 1}
   windupColor: {r: 1, g: 1, b: 1, a: 1}
   hitColor: {r: 1, g: 0.25, b: 0.2, a: 1}
   parryColor: {r: 1, g: 0.95, b: 0.6, a: 1}
   hitFlashTime: 0.1
+  comboTellTime: 0.25
+  showWindupTell: 0
+  showComboTell: 0
   gravity: -20
   knockbackTime: 0.15
   logState: 0
+  threatRangeMargin: 1
+  threatAngle: 60
+--- !u!114 &509245509165097808
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6766439865391952310}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67a5fc50cb592fe4f95457eb6d66e520, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SickscoreGames.HUDNavigationSystem.HUDNavigationElement
+  Settings: {fileID: 11400000, guid: bb50d266144d56248b3544543cc7ca60, type: 2}
+  Prefabs:
+    RadarPrefab: {fileID: 0}
+    CompassBarPrefab: {fileID: 0}
+    IndicatorPrefab: {fileID: 0}
+    MinimapPrefab: {fileID: 0}
+  hideInRadar: 0
+  ignoreRadarRadius: 0
+  ignoreRadarScaling: 0
+  ignoreRadarFading: 0
+  rotateWithGameObject: 1
+  useRadarHeightSystem: 1
+  hideInCompassBar: 0
+  ignoreCompassBarRadius: 0
+  useCompassBarDistanceText: 1
+  compassBarDistanceTextFormat: '{0}m'
+  showIndicator: 1
+  showOffscreenIndicator: 1
+  ignoreIndicatorRadius: 1
+  ignoreIndicatorHideDistance: 0
+  ignoreIndicatorScaling: 0
+  ignoreIndicatorFading: 0
+  useIndicatorDistanceText: 1
+  showOffscreenIndicatorDistance: 0
+  indicatorOnscreenDistanceTextFormat: '{0}m'
+  indicatorOffscreenDistanceTextFormat: '{0}'
+  hideInMinimap: 0
+  ignoreMinimapRadius: 0
+  ignoreMinimapScaling: 0
+  ignoreMinimapFading: 0
+  rotateWithGameObjectMM: 1
+  useMinimapHeightSystem: 1
+  OnElementReady:
+    m_PersistentCalls:
+      m_Calls: []
+  OnElementUpdate:
+    m_PersistentCalls:
+      m_Calls: []
+  OnAppear:
+    m_PersistentCalls:
+      m_Calls: []
+  OnDisappear:
+    m_PersistentCalls:
+      m_Calls: []
+  OnEnterRadius:
+    m_PersistentCalls:
+      m_Calls: []
+  OnLeaveRadius:
+    m_PersistentCalls:
+      m_Calls: []
+  IsActive: 1
+  Radar: {fileID: 0}
+  CompassBar: {fileID: 0}
+  Indicator: {fileID: 0}
+  Minimap: {fileID: 0}
+  IsInRadarRadius: 0
+  IsInCompassBarRadius: 0
+  IsInIndicatorRadius: 0
+  IsInMinimapRadius: 0
+--- !u!114 &3539112373543434406
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6766439865391952310}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb192e69d257e7641a2cc19d9310ccbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NavTarget
+  color: {r: 1, g: 0.32, b: 0.25, a: 1}
+--- !u!114 &3444569854744704481
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6766439865391952310}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b38e7ec5300f8a4db3f84cfca21d02c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ThunderMark
+  maxMarks: 3
+  decayDelay: 5
+  decayInterval: 1.5
+  iconHeight: 2.4
+  iconSize: 0.2
+  iconSpacing: 0.28
+  emptyColor: {r: 0.15, g: 0.17, b: 0.22, a: 1}
+  filledColor: {r: 0.45, g: 0.85, b: 1, a: 1}
+  fullColor: {r: 1, g: 0.95, b: 0.55, a: 1}
 --- !u!1001 &8452275966492799300
 PrefabInstance:
   m_ObjectHideFlags: 0

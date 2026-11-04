@@ -34,8 +34,8 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
     [SerializeField] Color parryColor = new Color(1f, 0.95f, 0.6f);
     [SerializeField] float hitFlashTime = 0.1f;
     [SerializeField] float comboTellTime = 0.25f; // 연타 다음 타 직전 예고 발광 시간(적 시간 기준)
-    [SerializeField] bool showWindupTell; // [변경] 잡몹은 예고 없음이 기본 (보스는 잡기·특수기만 예고 예정)
-    [SerializeField] bool showComboTell;  // [변경]
+    [SerializeField] bool showWindupTell; // 잡몹은 예고 없음이 기본 (보스는 잡기·특수기만 예고 예정)
+    [SerializeField] bool showComboTell;
 
     [SerializeField] float gravity = -20f;
     [SerializeField] float knockbackTime = 0.15f;
@@ -71,10 +71,43 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
 
     Vector3 homePosition;
     Quaternion homeRotation;
+    bool respawnEnabled = true; // 구역 웨이브로 나온 적은 부활하지 않음
+    bool alerted;               // 감지 거리와 상관없이 플레이어를 쫓음
 
     public bool CanBeTargeted => state != State.Dead;
     public bool IsWindingUp => state == State.Windup;
     public bool IsSwinging => swingActive;
+    public event System.Action<EnemySwordsman> Died;
+
+    // ===== 구역(ZoneArena)용 =====
+    public void DisableRespawn() => respawnEnabled = false;
+
+    public void Alert()
+    {
+        alerted = true;
+        if (state == State.Idle) SetState(State.Chase);
+    }
+
+    // 등장 직후 잠깐 무방비 (낙뢰와 함께 나타나 자리 잡는 시간). 경직 상태를 재사용하고 끝나면 추적
+    public void HoldFor(float seconds)
+    {
+        if (state == State.Dead) return;
+        moveSpeed = 0f;
+        stunDuration = seconds;
+        attackReadyTime = localTime + seconds + 0.5f;
+        SetState(State.Stun);
+    }
+
+    // 플레이어가 죽어 구역을 다시 시작할 때: 살아 있든 죽었든 처음 자리·체력으로
+    public void ResetToHome()
+    {
+        if (swingActive) EndSwing();
+        currentAttack = null;
+        knockbackTimer = 0f;
+        alerted = false;
+        controller.enabled = false;
+        Respawn();
+    }
 
     void Awake()
     {
@@ -127,14 +160,14 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
     void UpdateIdle()
     {
         moveSpeed = 0f;
-        if (DistanceToTarget() <= data.DetectRange) SetState(State.Chase);
+        if (alerted || DistanceToTarget() <= data.DetectRange) SetState(State.Chase);
     }
 
     // 사거리 밖이면 다가가고, 사거리 안에서 쿨타임이 끝나면 예고 동작으로 들어감
     void UpdateChase(float dt)
     {
         float dist = DistanceToTarget();
-        if (dist > data.DetectRange * 1.2f)
+        if (!alerted && dist > data.DetectRange * 1.2f)
         {
             SetState(State.Idle);
             return;
@@ -217,7 +250,7 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
 
     void UpdateDead()
     {
-        if (stateTime >= data.RespawnTime) Respawn();
+        if (respawnEnabled && stateTime >= data.RespawnTime) Respawn();
     }
 
     public HitResult ReceiveDamage(DamageInfo info)
@@ -282,6 +315,7 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
         animator.CrossFadeInFixedTime(DeathHash, 0.05f, 0, 0f);
         SetState(State.Dead);
         Log("사망");
+        Died?.Invoke(this);
     }
 
     void Respawn()
@@ -434,6 +468,15 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
         Vector3 to = Flat(targetPosition - transform.position);
         if (to.magnitude > data.AttackRange + threatRangeMargin) return false;
         return Vector3.Angle(transform.forward, to) <= threatAngle;
+    }
+
+    // [변경] 간파 v2용: 적 시간을 실제 시간으로 환산
+    public float SecondsUntilHit()
+    {
+        if (data == null || state == State.Dead) return -1f;
+        float untilHit = TimeUntilHit();
+        if (untilHit < 0f) return -1f;
+        return untilHit / Mathf.Max(CombatTime.EnemyScale, 0.01f);
     }
 
     // 현재 타의 판정이 켜진 뒤 지난 적 시간(초). 판정 전이면 0

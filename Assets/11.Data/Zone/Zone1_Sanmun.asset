@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ZoneTheme
   zoneName: Zone_1_Sanmun
   seed: 1
+  origin: {x: 0, y: 0, z: 0}
+  displayNumber: "\uAD6C\uC5ED 1"
+  displayName: "\uC0B0\uBB38"
   combatRadius: 16
   wallRadius: 19
   gateHalfWidth: 3.5
-  terrainSize: 140
+  terrainSize: 110
   hillHeight: 10
   hillNoise: 4
   hillWidth: 22

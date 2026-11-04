@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// 간파(기본형): 적 공격이 곧 들어오는 순간 우클릭하면 받아치고 반격. 아니면 PlayerGuard가 가드로 이어감.
+// 간파: 적 공격이 곧 들어오는 순간 우클릭하면 받아치고 반격. 아니면 강공격·차지로 이어감
+// [변경] v2(clashStyle): 누른 순간엔 무적 + 반격 모션만, 칼이 부딪히는 프레임에 경직·피해·연출을 한 번에 (오공식)
 public class PlayerParry : MonoBehaviour
 {
     static readonly int LocomotionHash = Animator.StringToHash("Locomotion");
@@ -16,6 +17,7 @@ public class PlayerParry : MonoBehaviour
     [SerializeField] PlayerDodge dodge;
     [SerializeField] PlayerAfterimage afterimage;
     [SerializeField] ThirdPersonCamera followCamera;
+    [SerializeField] PlayerThunder thunder; // 간파 비용(뇌기 1칸)
 
     // 간파 타이밍: 적 판정 시작 window초 전부터 판정 시작 후 lateWindow초까지 우클릭하면 성공
     [Header("Judge")]
@@ -29,7 +31,13 @@ public class PlayerParry : MonoBehaviour
     [SerializeField] float counterDamage = 30f;
     [SerializeField] float counterPostureDamage = 40f;
 
-    [Header("Feedback")]
+    // [변경] v2: 부딪히는 시점 = 적 판정 시작까지 남은 시간을 이 범위로 자름. 반격 클립은 그만큼 앞을 건너뛰고 재생해 칼이 닿는 프레임을 맞춤
+    [Header("Clash (v2)")]
+    [SerializeField] bool clashStyle = true;
+    [SerializeField] float minClashDelay = 0.06f;
+    [SerializeField] float maxClashDelay = 0.2f;
+
+    [Header("Feedback (v1)")]
     [SerializeField] float freezeScale = 0.05f;
     [SerializeField] float freezeTime = 0.15f;
     [SerializeField] float shakeStrength = 0.2f;
@@ -46,6 +54,7 @@ public class PlayerParry : MonoBehaviour
     public bool IsActive => active;
     public bool IsInvulnerable => active;
     public event Action<GameObject> Parried;
+    public event Action<GameObject, Vector3> Clashed; // [변경] v2 부딪힌 순간 (적, 접촉 지점). 적이 아직 공격 자세일 때 호출
 
     void Awake()
     {
@@ -57,6 +66,7 @@ public class PlayerParry : MonoBehaviour
         if (dodge == null) dodge = GetComponent<PlayerDodge>();
         if (afterimage == null) afterimage = GetComponent<PlayerAfterimage>();
         if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
+        if (thunder == null) thunder = GetComponent<PlayerThunder>();
     }
 
     void OnDisable()
@@ -64,20 +74,30 @@ public class PlayerParry : MonoBehaviour
         if (active) End(true);
     }
 
-    // PlayerGuard가 우클릭을 누른 순간 먼저 호출. true면 간파 발동, false면 가드 자세로
+    // PlayerChargeAttack이 우클릭을 누른 순간 먼저 호출. true면 간파 발동, false면 강공격(탭)·차지(홀드)로
     public bool TryParry()
     {
         if (active) return true;
         if (locomotion != null && !locomotion.IsGrounded) return false;
         if (skill != null && skill.IsActive) return false;
-        if (dodge != null && dodge.IsDodging && !dodge.CanCancel) return false; // [변경] 회피 후반이면 간파로 끊고 들어감
+        if (dodge != null && dodge.IsDodging && !dodge.CanCancel) return false; // 회피 후반이면 간파로 끊고 들어감
         if (health != null && health.IsStunned) return false;
+        if (thunder != null && !thunder.CanSpend(thunder.ParryCost)) return false; // 뇌기가 없으면 간파 대신 강공격
 
         IAttackThreat found = FindThreat();
         if (found == null) return false;
 
+        // [변경] v2는 경직을 부딪히는 순간으로 미룸
+        if (clashStyle)
+        {
+            if (thunder != null) thunder.TrySpend(thunder.ParryCost);
+            BeginClash(found);
+            return true;
+        }
+
         HitResult result = found.ReceiveParry(gameObject);
         if (result != HitResult.Countered) return false;
+        if (thunder != null) thunder.TrySpend(thunder.ParryCost);
 
         Begin(found);
         return true;
@@ -112,24 +132,7 @@ public class PlayerParry : MonoBehaviour
 
     void Begin(IAttackThreat threat)
     {
-        target = threat;
-        active = true;
-        counterApplied = false;
-        timer = 0f;
-
-        if (combat != null)
-        {
-            combat.CancelAttack();
-            combat.InputLocked = true;
-        }
-        if (dodge != null && dodge.IsDodging) dodge.Interrupt(); // [변경] 잠금·애니메이션은 간파가 이어받음
-        if (locomotion != null) locomotion.MovementLocked = true;
-
-        Vector3 to = ((Component)threat).transform.position - transform.position;
-        to.y = 0f;
-        if (to.sqrMagnitude > 0.0001f) transform.rotation = Quaternion.LookRotation(to.normalized, Vector3.up);
-
-        animator.CrossFadeInFixedTime(CounterHash, 0.03f, 0, 0f);
+        StartCounter(threat, 0f);
 
         // 받아친 순간: 적만 거의 멈춤 + 카메라 흔들림 + 짧은 잔상
         CombatTime.SlowEnemies(freezeScale, freezeTime, 0.05f);
@@ -138,6 +141,60 @@ public class PlayerParry : MonoBehaviour
 
         Parried?.Invoke(((Component)threat).gameObject);
         if (logParry) Debug.Log($"[Parry] 간파 성공 · {((Component)threat).name}");
+    }
+
+    // [변경] 공용 시작부: 잠금 · 적 방향 회전 · 반격 모션(startTime초부터 재생)
+    void StartCounter(IAttackThreat threat, float startTime)
+    {
+        target = threat;
+        active = true;
+        counterApplied = false;
+        timer = startTime;
+
+        if (combat != null)
+        {
+            combat.CancelAttack();
+            combat.InputLocked = true;
+        }
+        if (dodge != null && dodge.IsDodging) dodge.Interrupt(); // 잠금·애니메이션은 간파가 이어받음
+        if (locomotion != null) locomotion.MovementLocked = true;
+
+        Vector3 to = ((Component)threat).transform.position - transform.position;
+        to.y = 0f;
+        if (to.sqrMagnitude > 0.0001f) transform.rotation = Quaternion.LookRotation(to.normalized, Vector3.up);
+
+        animator.CrossFadeInFixedTime(CounterHash, 0.03f, 0, startTime);
+    }
+
+    // [변경] v2: 칼이 닿는 시각(counterHitTime)이 적 판정 시작과 겹치도록 클립 앞부분을 건너뜀
+    void BeginClash(IAttackThreat threat)
+    {
+        float until = threat.SecondsUntilHit();
+        float delay = Mathf.Clamp(until < 0f ? 0f : until, minClashDelay, maxClashDelay);
+        StartCounter(threat, Mathf.Max(0f, counterHitTime - delay));
+        if (logParry) Debug.Log($"[Parry] 간파 입력 · 충돌까지 {delay:F2}초");
+    }
+
+    // [변경] v2 핵심: 연출(Clashed) → 적 경직 → 표식·스파크(Parried) → 반격 피해를 같은 프레임에
+    void Clash()
+    {
+        if (target == null || (target as UnityEngine.Object) == null) return;
+
+        GameObject enemy = ((Component)target).gameObject;
+        Vector3 point = Vector3.Lerp(transform.position, enemy.transform.position, 0.5f) + Vector3.up * 1.2f;
+        Clashed?.Invoke(enemy, point);
+        if (afterimage != null) afterimage.Spawn();
+
+        HitResult result = target.ReceiveParry(gameObject);
+        if (result != HitResult.Countered)
+        {
+            if (logParry) Debug.Log($"[Parry] 충돌 시점에 간파 불가 ({result}) · {enemy.name}");
+            return;
+        }
+
+        Parried?.Invoke(enemy);
+        ApplyCounter();
+        if (logParry) Debug.Log($"[Parry] 간파 성공(v2) · {enemy.name}");
     }
 
     void Update()
@@ -156,7 +213,8 @@ public class PlayerParry : MonoBehaviour
         if (!counterApplied && timer >= counterHitTime)
         {
             counterApplied = true;
-            ApplyCounter();
+            if (clashStyle) Clash(); // [변경]
+            else ApplyCounter();
         }
 
         if (timer >= duration) End(true);

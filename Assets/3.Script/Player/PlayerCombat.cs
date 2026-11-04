@@ -8,7 +8,7 @@ public class PlayerCombat : MonoBehaviour
 
     [FormerlySerializedAs("attackAction")]
     [SerializeField] InputActionReference lightAttackAction;
-    [SerializeField] InputActionReference heavyAttackAction;
+    // [변경] 우클릭(강공격·간파·차지)은 PlayerChargeAttack이 받아서 탭이면 PressHeavy()로 넘겨줌
 
     [SerializeField] AttackData lightStarter;
     [SerializeField] AttackData heavyStarter;
@@ -16,7 +16,6 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] Animator animator;
     [SerializeField] WeaponHitbox weapon;
     [SerializeField] PlayerLocomotion locomotion;
-    // parry 필드 제거 — 간파는 PlayerGuard가 우클릭으로 시도
     [SerializeField] PlayerTargeting targeting; // P2 소프트 타겟팅
 
     [SerializeField] float attackCrossFade = 0.08f;
@@ -39,6 +38,8 @@ public class PlayerCombat : MonoBehaviour
     bool swingFxActive;
     float stepTraveled;
     float stepTotal; // 이번 공격에서 내딛을 총 거리 (타겟팅 시 끌어당김 포함)
+    float damageMultiplier = 1f; // [변경] 차지 강타 단계별 배율 (일반 공격은 1)
+    int chargeLevel;             // [변경] 0 = 일반 공격
     string route = "";
 
     public bool IsAttacking => current != null;
@@ -46,8 +47,9 @@ public class PlayerCombat : MonoBehaviour
     public float AttackElapsed => current != null ? elapsed : 0f; // 회피가 공격을 끊을 수 있는 시점 판단용
     public bool InputLocked { get; set; }
     public bool CanCancel => current != null && elapsed / current.Duration >= current.ComboTransition;
-    public bool HasBufferedPress => Time.time - lastPressTime <= idleInputBuffer; // [변경] 회피가 공격으로 끊어줄지 판단용
-    public bool CanMoveCancel => current != null && elapsed / current.Duration >= current.MoveCancelStart; // 가드가 공격을 끊을 수 있는 시점
+    public bool HasBufferedPress => Time.time - lastPressTime <= idleInputBuffer; // 회피가 공격으로 끊어줄지 판단용
+    public bool CanMoveCancel => current != null && elapsed / current.Duration >= current.MoveCancelStart; // 차지가 공격을 끊을 수 있는 시점
+    public int CurrentChargeLevel => current != null ? chargeLevel : 0; // [변경] PlayerThunder가 차지 단계별 뇌인 계산에 사용
 
     // 이펙트(PlayerVfx)가 구독하는 이벤트 — 전투 코드는 이펙트를 직접 모름
     public event System.Action<AttackData, AttackInput> AttackStarted;
@@ -65,21 +67,30 @@ public class PlayerCombat : MonoBehaviour
     void OnEnable()
     {
         Subscribe(lightAttackAction, OnLightPressed);
-        Subscribe(heavyAttackAction, OnHeavyPressed);
     }
 
     void OnDisable()
     {
         Unsubscribe(lightAttackAction, OnLightPressed);
-        Unsubscribe(heavyAttackAction, OnHeavyPressed);
         if (IsAttacking) EndCombo(returnCrossFade);
     }
 
     void OnLightPressed(InputAction.CallbackContext ctx) => RegisterPress(AttackInput.Light);
-    void OnHeavyPressed(InputAction.CallbackContext ctx) => RegisterPress(AttackInput.Heavy); // 강공격은 E 전용, 간파는 PlayerGuard(우클릭)로 이동
+    public void PressHeavy() => RegisterPress(AttackInput.Heavy); // [변경] 우클릭을 짧게 눌렀다 뗐을 때 (PlayerChargeAttack이 호출)
+
+    // [변경] 차지 강타: 콤보와 같은 흐름(내딛기·판정·캔슬)으로 재생하되 피해만 단계 배율을 곱함
+    public void StartChargedAttack(AttackData attack, float multiplier, int level)
+    {
+        if (attack == null) return;
+        if (IsAttacking) CancelAttack();
+        lastPressInput = AttackInput.Heavy;
+        StartAttack(attack, true);
+        damageMultiplier = multiplier;
+        chargeLevel = level;
+    }
 
     // 버퍼는 마지막 입력 하나만 기억: □ 누르고 바로 △ 누르면 △가 우선
-    // [변경] 잠겨 있을 때(회피·피격·간파 중)도 기록 → 풀리는 순간 버퍼 안의 입력이 바로 나감
+    // 잠겨 있을 때(회피·피격·간파 중)도 기록 → 풀리는 순간 버퍼 안의 입력이 바로 나감
     void RegisterPress(AttackInput input)
     {
         lastPressTime = Time.time;
@@ -92,7 +103,7 @@ public class PlayerCombat : MonoBehaviour
 
         if (!IsAttacking)
         {
-            if (HasBufferedPress && IsGrounded()) // [변경] // 공중에서는 공격 시작 안 함 (착지 직전 입력은 버퍼로 착지 후 나감)
+            if (HasBufferedPress && IsGrounded()) // 공중에서는 공격 시작 안 함 (착지 직전 입력은 버퍼로 착지 후 나감)
             {
                 AttackData starter = lastPressInput == AttackInput.Light ? lightStarter : heavyStarter;
                 if (starter != null) StartAttack(starter, true);
@@ -140,6 +151,8 @@ public class PlayerCombat : MonoBehaviour
 
         AttackInput input = lastPressInput;
         current = attack;
+        damageMultiplier = 1f; // [변경]
+        chargeLevel = 0;
         elapsed = 0f;
         stepTraveled = 0f;
         attackStartTime = Time.time;
@@ -237,8 +250,8 @@ public class PlayerCombat : MonoBehaviour
         weapon.BeginSwing(new DamageInfo
         {
             Attacker = gameObject,
-            Damage = attack.Damage,
-            PostureDamage = attack.PostureDamage,
+            Damage = attack.Damage * damageMultiplier, // [변경]
+            PostureDamage = attack.PostureDamage * damageMultiplier,
             Parryable = attack.Parryable,
             Weight = attack.Weight
         });

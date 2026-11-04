@@ -14,7 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ZoneTheme
   zoneName: Zone_2_Forest
   seed: 2
-  origin: {x: 0, y: 0, z: 125}
+  origin: {x: 0, y: 0, z: 110}
+  displayNumber: "\uAD6C\uC5ED 2"
+  displayName: "\uC548\uAC1C \uB080 \uC232\uAE38"
   combatRadius: 16
   wallRadius: 19
   gateHalfWidth: 3.5
@@ -108,8 +110,8 @@ MonoBehaviour:
   pathStoneSpacing: 2.4
   skybox: {fileID: 2100000, guid: 9873fbde6fe03504a9da2612241c5d71, type: 2}
   fog: 1
-  fogColor: {r: 0.6, g: 0.68, b: 0.7, a: 1}
-  fogDensity: 0.02
+  fogColor: {r: 0.68, g: 0.74, b: 0.76, a: 1}
+  fogDensity: 0.012
   sunColor: {r: 0.85, g: 0.9, b: 1, a: 1}
   sunEuler: {x: 28, y: 20, z: 0}
   groundParticles:

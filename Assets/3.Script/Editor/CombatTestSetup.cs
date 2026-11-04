@@ -110,7 +110,7 @@ public static class CombatTestSetup
 
         var combatSo = new SerializedObject(GetOrAdd<PlayerCombat>(player));
         combatSo.FindProperty("lightAttackAction").objectReferenceValue = FindAction("Attack");
-        combatSo.FindProperty("heavyAttackAction").objectReferenceValue = FindAction("HeavyAttack");
+        // [변경] 강공격 입력은 PlayerChargeAttack이 받음 (Tools/Setup/Charge Attack에서 연결)
         combatSo.FindProperty("lightStarter").objectReferenceValue = attacks[LightStarter];
         combatSo.FindProperty("heavyStarter").objectReferenceValue = attacks[HeavyStarter];
         combatSo.FindProperty("animator").objectReferenceValue = animator;
@@ -122,7 +122,7 @@ public static class CombatTestSetup
 
         EditorSceneManager.MarkSceneDirty(player.scene);
         Selection.activeGameObject = player;
-        Debug.Log($"[CombatSetup] 완료 · 공격 노드 {Nodes.Length}개, □=좌클릭/Square, △=E/Triangle"); // [변경] 강공격 키를 E로
+        Debug.Log($"[CombatSetup] 완료 · 공격 노드 {Nodes.Length}개, □=좌클릭/Square, △=E/Triangle"); // 강공격 키를 E로
     }
 
     // 팩의 모든 클립이 Loop Time 켜짐 상태라 1회성 공격 클립만 끔

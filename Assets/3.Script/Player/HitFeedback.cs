@@ -27,7 +27,7 @@ public class HitFeedback : MonoBehaviour
     [SerializeField] WeaponHitbox weapon;
     [SerializeField] PlayerParry parry;
     [SerializeField] PlayerHealth health;
-    [SerializeField] PlayerGuard guard; // [변경]
+    // [변경] 가드 제거로 guard 참조와 막기 스파크 삭제
     [SerializeField] PlayerSkill skill;
     [SerializeField] ThirdPersonCamera followCamera;
 
@@ -51,11 +51,7 @@ public class HitFeedback : MonoBehaviour
     [SerializeField] int playerSparkCount = 4;
     [SerializeField] float playerSparkRadius = 0.6f;
 
-    // [변경] 가드로 막았을 때: 칼끼리 부딪힌 짧은 스파크
-    [Header("Block")]
-    [SerializeField] int blockSparkCount = 4;
-    [SerializeField] float blockSparkRadius = 0.5f;
-    [SerializeField] float blockHitStop = 0.03f;
+    // 가드로 막았을 때: 칼끼리 부딪힌 짧은 스파크
 
     // ===== 번개 스파크 =====
     [Header("Lightning Sparks")]
@@ -81,7 +77,6 @@ public class HitFeedback : MonoBehaviour
         if (weapon == null) weapon = GetComponentInChildren<WeaponHitbox>();
         if (parry == null) parry = GetComponent<PlayerParry>();
         if (health == null) health = GetComponent<PlayerHealth>();
-        if (guard == null) guard = GetComponent<PlayerGuard>(); // [변경]
         if (skill == null) skill = GetComponent<PlayerSkill>();
         if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
 
@@ -96,7 +91,6 @@ public class HitFeedback : MonoBehaviour
         if (weapon != null) weapon.OnHit += OnWeaponHit;
         if (parry != null) parry.Parried += OnParried;
         if (health != null) health.Damaged += OnPlayerDamaged;
-        if (guard != null) guard.Blocked += OnBlocked; // [변경]
     }
 
     void OnDisable()
@@ -104,7 +98,6 @@ public class HitFeedback : MonoBehaviour
         if (weapon != null) weapon.OnHit -= OnWeaponHit;
         if (parry != null) parry.Parried -= OnParried;
         if (health != null) health.Damaged -= OnPlayerDamaged;
-        if (guard != null) guard.Blocked -= OnBlocked; // [변경]
         EndHitStop();
     }
 
@@ -149,14 +142,6 @@ public class HitFeedback : MonoBehaviour
         if (UsePrefab) Spawn(playerHitEffect, point, Quaternion.identity, playerHitScale);
         if (UseSparks) Sparks(playerSparkBolt, point, -info.Direction, playerSparkCount, playerSparkRadius, 0f, info.Direction);
         HitStop(playerHitStop);
-    }
-
-    // [변경] 공격자 쪽으로 튀는 파란 스파크 (붉은 피격 스파크와 구분)
-    void OnBlocked(DamageInfo info)
-    {
-        Vector3 point = info.HitPoint.sqrMagnitude > 0.0001f ? info.HitPoint : transform.position + Vector3.up * 1.2f;
-        if (UseSparks) Sparks(sparkBolt, point, -info.Direction, blockSparkCount, blockSparkRadius, 0f, info.Direction);
-        HitStop(blockHitStop);
     }
 
     WeightSetting Find(AttackWeight weight)

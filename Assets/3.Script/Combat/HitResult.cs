@@ -2,6 +2,5 @@ public enum HitResult
 {
     Hit,
     Countered,
-    Ignored,
-    Blocked // [변경] 플레이어 가드로 막힘
+    Ignored // [변경] 가드 제거로 Blocked 삭제
 }

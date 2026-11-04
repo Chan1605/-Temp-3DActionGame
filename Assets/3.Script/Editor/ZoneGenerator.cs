@@ -7,37 +7,40 @@ using UnityEngine.Rendering;
 
 // 규칙 기반 구역 생성: ZoneTheme 값으로 지형·바위 벽·나무·문·분위기를 만든다.
 // 생성물은 <구역>/Generated 아래에만 두고 다시 생성할 때 통째로 교체 → 직접 배치한 오브젝트는 <구역> 아래 다른 자식에 두면 유지됨
-// [변경] 구역들은 한 씬에서 북쪽(+Z)으로 지형 크기만큼 이어 붙임. 입구(남)·출구(북) 길이 그대로 구역 사이 연결 길이 됨
+// 구역들은 한 씬에서 북쪽(+Z)으로 지형 크기만큼 이어 붙임. 입구(남)·출구(북) 길이 그대로 구역 사이 연결 길이 됨
 public static class ZoneGenerator
 {
     const string DataFolder = "Assets/11.Data/Zone";
     const string Zone1ThemePath = DataFolder + "/Zone1_Sanmun.asset";
-    const string Zone2ThemePath = DataFolder + "/Zone2_Forest.asset"; // [변경]
+    const string Zone2ThemePath = DataFolder + "/Zone2_Forest.asset";
     const string PackRoot = "Assets/ThirdParty/Toon Fantasy Nature/";
     const string MaterialFolder = "Assets/6.Materials";
     const string GeneratedName = "Generated";
-    // [변경] 이웃 구역과 맞닿는 지형 가장자리 높이. 모든 구역이 같은 값을 써야 이음새가 안 생김
+    const string EnemyPrefabPath = "Assets/2.Model/Prefabs/Swordsman.prefab"; // 웨이브 기본 적
+    // 이웃 구역과 맞닿는 지형 가장자리 높이. 모든 구역이 같은 값을 써야 이음새가 안 생김
     const float SeamHeight = 8f;
     const float SeamBand = 8f;
 
-    // [변경] 구역 순서 = 배치 순서 (구역 3·보스는 테마만 추가하면 됨)
-    static readonly (string path, System.Func<ZoneTheme> create)[] Zones =
+    // 구역 순서 = 배치 순서 (구역 3·보스는 테마만 추가하면 됨)
+    // waves: 웨이브별 검병 수 (기획서 20번: 구역 1은 2웨이브, 2·3은 3웨이브). ZoneArena의 웨이브가 비어 있을 때만 채움
+    // number·title: HUD 구역 배너 문구 (테마에 비어 있을 때만 채움)
+    static readonly (string path, System.Func<ZoneTheme> create, int[] waves, string number, string title)[] Zones =
     {
-        (Zone1ThemePath, CreateZone1Theme),
-        (Zone2ThemePath, CreateZone2Theme),
+        (Zone1ThemePath, CreateZone1Theme, new[] { 2, 3 }, "구역 1", "산문"),
+        (Zone2ThemePath, CreateZone2Theme, new[] { 2, 3, 3 }, "구역 2", "안개 낀 숲길"),
     };
 
     static System.Random rng;
-    static Vector3 origin; // [변경] 지금 생성 중인 구역의 중심
+    static Vector3 origin; // 지금 생성 중인 구역의 중심
     static readonly Dictionary<GameObject, Bounds> boundsCache = new Dictionary<GameObject, Bounds>();
 
-    // [변경] 구역 메뉴: 전체 / 개별. 어느 쪽이든 먼저 전체 위치를 다시 계산함
+    // 구역 메뉴: 전체 / 개별. 어느 쪽이든 먼저 전체 위치를 다시 계산함
     [MenuItem("Tools/Map/Generate All Zones")]
-    static void GenerateAll()
+    public static void GenerateAll() // [변경] Polish Pass에서도 호출
     {
         ZoneTheme[] themes = LoadAllThemes();
         if (themes == null) return;
-        for (int i = 0; i < themes.Length; i++) Generate(themes[i], i == 0, i == 0, i == themes.Length - 1);
+        for (int i = 0; i < themes.Length; i++) Generate(themes[i], i == 0, i == 0, i == themes.Length - 1, Zones[i].waves);
     }
 
     [MenuItem("Tools/Map/Generate Zone 1 (Sanmun)")]
@@ -49,7 +52,7 @@ public static class ZoneGenerator
     [MenuItem("Tools/Map/Clear All Generated")]
     static void ClearAll()
     {
-        foreach (var (path, _) in Zones)
+        foreach (var (path, _, _, _, _) in Zones)
         {
             var theme = AssetDatabase.LoadAssetAtPath<ZoneTheme>(path);
             GameObject root = theme != null ? GameObject.Find(theme.zoneName) : null;
@@ -62,7 +65,7 @@ public static class ZoneGenerator
     static void GenerateSingle(int index)
     {
         ZoneTheme[] themes = LoadAllThemes();
-        if (themes != null) Generate(themes[index], index == 0, index == 0, index == themes.Length - 1);
+        if (themes != null) Generate(themes[index], index == 0, index == 0, index == themes.Length - 1, Zones[index].waves);
     }
 
     static ZoneTheme[] LoadAllThemes()
@@ -73,6 +76,14 @@ public static class ZoneGenerator
             themes[i] = AssetDatabase.LoadAssetAtPath<ZoneTheme>(Zones[i].path);
             if (themes[i] == null) themes[i] = Zones[i].create();
             if (themes[i] == null) return null;
+
+
+            if (string.IsNullOrEmpty(themes[i].displayName))
+            {
+                themes[i].displayNumber = Zones[i].number;
+                themes[i].displayName = Zones[i].title;
+                EditorUtility.SetDirty(themes[i]);
+            }
         }
 
         // 앞 구역 지형 끝에 다음 구역 지형이 바로 붙도록 중심을 계산
@@ -88,8 +99,8 @@ public static class ZoneGenerator
         return themes;
     }
 
-    // [변경] capSouth/capNorth: 이웃 구역이 없는 쪽 길 끝만 막음 (구역 사이 길은 열어 둠)
-    public static void Generate(ZoneTheme theme, bool applyAtmosphere = true, bool capSouth = true, bool capNorth = true)
+    // capSouth/capNorth: 이웃 구역이 없는 쪽 길 끝만 막음 (구역 사이 길은 열어 둠)
+    public static void Generate(ZoneTheme theme, bool applyAtmosphere = true, bool capSouth = true, bool capNorth = true, int[] defaultWaves = null)
     {
         rng = new System.Random(theme.seed);
         boundsCache.Clear();
@@ -102,7 +113,7 @@ public static class ZoneGenerator
             Undo.RegisterCreatedObjectUndo(root, "Create Zone");
         }
         Undo.RecordObject(root.transform, "Zone Origin");
-        root.transform.position = origin; // [변경]
+        root.transform.position = origin;
 
         Transform old = root.transform.Find(GeneratedName);
         if (old != null) Undo.DestroyObjectImmediate(old.gameObject);
@@ -120,8 +131,9 @@ public static class ZoneGenerator
         }
 
         Terrain terrain = BuildTerrain(theme, generated.transform);
-        BuildInvisibleWall(theme, generated.transform, capSouth, capNorth); // [변경]
+        BuildInvisibleWall(theme, generated.transform, capSouth, capNorth);
         (GameObject entrance, GameObject exit) = BuildGates(theme, generated.transform, terrain);
+        Transform respawn = BuildRespawnPoint(theme, generated.transform, terrain);
 
         int wallRocks = PlaceWallRocks(theme, Group(generated, "WallRocks"), terrain);
         int innerRocks = PlaceInnerRocks(theme, Group(generated, "InnerRocks"), terrain);
@@ -129,7 +141,7 @@ public static class ZoneGenerator
         int cover = PlaceCover(theme, Group(generated, "Cover"), terrain);
         int stones = PlacePathStones(theme, Group(generated, "PathStones"), terrain);
         PlaceParticles(theme, Group(generated, "Particles"), terrain);
-        if (applyAtmosphere) ApplyAtmosphere(theme); // [변경]
+        if (applyAtmosphere) ApplyAtmosphere(theme);
 
         ZoneArena arena = root.GetComponent<ZoneArena>();
         if (arena == null) arena = Undo.AddComponent<ZoneArena>(root);
@@ -137,8 +149,10 @@ public static class ZoneGenerator
         so.FindProperty("radius").floatValue = theme.combatRadius;
         so.FindProperty("entranceBarrier").objectReferenceValue = entrance;
         so.FindProperty("exitBarrier").objectReferenceValue = exit;
-        so.FindProperty("theme").objectReferenceValue = theme; // [변경]
+        so.FindProperty("theme").objectReferenceValue = theme;
         so.FindProperty("atmosphereRadius").floatValue = theme.wallRadius + 10f;
+        so.FindProperty("respawnPoint").objectReferenceValue = respawn;
+        FillDefaultWaves(so.FindProperty("waves"), defaultWaves);
         so.ApplyModifiedProperties();
 
         EditorSceneManager.MarkSceneDirty(root.scene);
@@ -158,7 +172,7 @@ public static class ZoneGenerator
         float noise = Mathf.PerlinNoise(x * 0.045f + t.seed * 13.1f, z * 0.045f + t.seed * 7.3f);
         float h = rise * (t.hillHeight + noise * t.hillNoise);
 
-        // [변경] 가장자리 SeamBand 구간은 공통 높이로 모아서 이웃 구역 지형과 높이를 맞춤
+        // 가장자리 SeamBand 구간은 공통 높이로 모아서 이웃 구역 지형과 높이를 맞춤
         float toEdge = t.terrainSize * 0.5f - Mathf.Max(Mathf.Abs(x), Mathf.Abs(z));
         h = Mathf.Lerp(SeamHeight, h, Mathf.Clamp01(toEdge / SeamBand));
 
@@ -179,7 +193,7 @@ public static class ZoneGenerator
         }
 
         const int res = 129;
-        float maxHeight = Mathf.Max(t.hillHeight + t.hillNoise, SeamHeight) + 2f; // [변경]
+        float maxHeight = Mathf.Max(t.hillHeight + t.hillNoise, SeamHeight) + 2f;
         data.heightmapResolution = res;
         data.size = new Vector3(t.terrainSize, maxHeight, t.terrainSize);
 
@@ -201,7 +215,7 @@ public static class ZoneGenerator
         GameObject go = Terrain.CreateTerrainGameObject(data);
         go.name = "Terrain";
         go.transform.SetParent(parent, false);
-        go.transform.position = origin + new Vector3(-half, 0f, -half); // [변경]
+        go.transform.position = origin + new Vector3(-half, 0f, -half);
         return go.GetComponent<Terrain>();
     }
 
@@ -266,7 +280,7 @@ public static class ZoneGenerator
         float end = t.terrainSize * 0.5f - 3f;
         foreach (float side in new[] { -1f, 1f })
         {
-            if (side < 0f ? !capSouth : !capNorth) continue; // [변경]
+            if (side < 0f ? !capSouth : !capNorth) continue;
             var cap = new GameObject(side < 0f ? "Wall_SouthEnd" : "Wall_NorthEnd");
             cap.transform.SetParent(wall.transform, false);
             cap.transform.localPosition = new Vector3(0f, 3f, side * end);
@@ -290,7 +304,7 @@ public static class ZoneGenerator
         var gate = new GameObject(name);
         gate.transform.SetParent(parent, false);
         Vector3 basePos = new Vector3(0f, 0f, side * t.wallRadius);
-        basePos.y = GroundY(terrain, origin + basePos); // [변경]
+        basePos.y = GroundY(terrain, origin + basePos);
         gate.transform.localPosition = basePos;
 
         float w = t.gateHalfWidth;
@@ -302,6 +316,35 @@ public static class ZoneGenerator
         GameObject barrier = Part(gate.transform, "Barrier", new Vector3(0f, 2.5f, 0f), new Vector3(w * 2f, 5f, 0.3f), barrierMat, true);
         barrier.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
         return barrier;
+    }
+
+    // 부활 위치: 입구 문 바깥 길 위, 아레나(북쪽)를 바라봄
+    static Transform BuildRespawnPoint(ZoneTheme t, Transform parent, Terrain terrain)
+    {
+        var point = new GameObject("RespawnPoint");
+        point.transform.SetParent(parent, false);
+        Vector3 local = new Vector3(0f, 0f, -(t.wallRadius + 3f));
+        local.y = GroundY(terrain, origin + local) + 0.1f;
+        point.transform.localPosition = local;
+        point.transform.localRotation = Quaternion.identity;
+        return point.transform;
+    }
+
+    // 웨이브는 인스펙터에서 조절하는 값이라 비어 있을 때만 기본값을 넣음 (다시 생성해도 덮어쓰지 않음)
+    static void FillDefaultWaves(SerializedProperty list, int[] counts)
+    {
+        if (list == null || list.arraySize > 0 || counts == null) return;
+
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(EnemyPrefabPath);
+        if (prefab == null) Debug.LogWarning($"[ZoneGenerator] {EnemyPrefabPath}가 없어 웨이브 적 프리팹을 비워 둡니다. Swordsman 셋업을 먼저 실행하세요.");
+
+        list.arraySize = counts.Length;
+        for (int i = 0; i < counts.Length; i++)
+        {
+            SerializedProperty wave = list.GetArrayElementAtIndex(i);
+            wave.FindPropertyRelative("enemyPrefab").objectReferenceValue = prefab;
+            wave.FindPropertyRelative("count").intValue = counts[i];
+        }
     }
 
     static GameObject Part(Transform parent, string name, Vector3 localPos, Vector3 scale, Material mat, bool keepCollider)
@@ -437,7 +480,7 @@ public static class ZoneGenerator
             foreach (GameObject prefab in t.overheadParticles.Where(p => p != null))
             {
                 var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
-                go.transform.position = origin + new Vector3(0f, 9f, 0f); // [변경]
+                go.transform.position = origin + new Vector3(0f, 9f, 0f);
             }
         }
     }
@@ -455,7 +498,7 @@ public static class ZoneGenerator
             if (source > 0.001f) scale = size / source;
         }
 
-        pos += origin; // [변경] 배치 계산은 구역 중심 기준, 실제 위치는 월드
+        pos += origin; // 배치 계산은 구역 중심 기준, 실제 위치는 월드
         pos.y = GroundY(terrain, pos) - sink;
         go.transform.position = pos;
         go.transform.rotation = Quaternion.Euler(0f, RangeF(0f, 360f), 0f);
@@ -574,7 +617,7 @@ public static class ZoneGenerator
     }
 
     // ===== 구역별 기본값 (에셋이 없을 때 한 번만 만듦) =====
-    // [변경] 공통 준비를 분리
+    // 공통 준비를 분리
     static ZoneTheme NewTheme(string zoneName)
     {
         if (AssetDatabase.LoadAssetAtPath<Object>(PackRoot.TrimEnd('/')) == null)
@@ -599,7 +642,7 @@ public static class ZoneGenerator
 
     static ZoneTheme CreateZone1Theme()
     {
-        ZoneTheme theme = NewTheme("Zone_1_Sanmun"); // [변경]
+        ZoneTheme theme = NewTheme("Zone_1_Sanmun");
         if (theme == null) return null;
 
         theme.groundLayer = Load<TerrainLayer>("Terrain/Layer_TFF_Terrain_Grass_1A_D.terrainlayer");
@@ -617,10 +660,10 @@ public static class ZoneGenerator
         theme.groundParticles = new[] { Load<GameObject>("Particles/TFF_Fog_01A.prefab") };
         theme.overheadParticles = new[] { Load<GameObject>("Particles/TFF_Falling_Leaves_01A.prefab") };
 
-        return SaveTheme(theme, Zone1ThemePath); // [변경]
+        return SaveTheme(theme, Zone1ThemePath);
     }
 
-    // [변경] 구역 2: 안개 낀 소나무 숲길. 나무를 빽빽하게, 안개를 진하게, 해는 낮고 차갑게
+    // 구역 2: 안개 낀 소나무 숲길. 나무를 빽빽하게, 안개를 진하게, 해는 낮고 차갑게
     static ZoneTheme CreateZone2Theme()
     {
         ZoneTheme theme = NewTheme("Zone_2_Forest");

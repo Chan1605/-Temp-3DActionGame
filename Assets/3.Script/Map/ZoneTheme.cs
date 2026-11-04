@@ -6,8 +6,11 @@ public class ZoneTheme : ScriptableObject
 {
     public string zoneName = "Zone_1_Sanmun";
     public int seed = 1;
-    // [변경] 구역 중심 위치. Generate All Zones가 구역 순서대로 북쪽(+Z)에 이어 붙이며 자동으로 채움
+    // 구역 중심 위치. Generate All Zones가 구역 순서대로 북쪽(+Z)에 이어 붙이며 자동으로 채움
     public Vector3 origin;
+    // [변경] HUD 구역 배너 문구 (예: "구역 1" / "산문")
+    public string displayNumber = "";
+    public string displayName = "";
 
     [Header("Arena")]
     public float combatRadius = 16f;   // 이 안은 장애물 없이 비워 둠
