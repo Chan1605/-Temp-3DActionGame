@@ -8,15 +8,18 @@ public class PlayerCombat : MonoBehaviour
 
     [FormerlySerializedAs("attackAction")]
     [SerializeField] InputActionReference lightAttackAction;
-    // [변경] 우클릭(강공격·간파·차지)은 PlayerChargeAttack이 받아서 탭이면 PressHeavy()로 넘겨줌
+    // 우클릭(강공격·간파·차지)은 PlayerChargeAttack이 받아서 탭이면 PressHeavy()로 넘겨줌
 
     [SerializeField] AttackData lightStarter;
     [SerializeField] AttackData heavyStarter;
+    [SerializeField] AttackData runStarter;      // [변경] 달리는 중 □ → 달리기 공격 (없으면 일반 □)
+    [SerializeField] float runAttackSpeed = 7f;  // 이 속도 이상으로 달리고 있으면 달리기 공격
 
     [SerializeField] Animator animator;
     [SerializeField] WeaponHitbox weapon;
     [SerializeField] PlayerLocomotion locomotion;
     [SerializeField] PlayerTargeting targeting; // P2 소프트 타겟팅
+    [SerializeField] PlayerStats stats;         // 공격 속도 (없으면 1배)
 
     [SerializeField] float attackCrossFade = 0.08f;
     [SerializeField] float returnCrossFade = 0.2f;
@@ -38,18 +41,19 @@ public class PlayerCombat : MonoBehaviour
     bool swingFxActive;
     float stepTraveled;
     float stepTotal; // 이번 공격에서 내딛을 총 거리 (타겟팅 시 끌어당김 포함)
-    float damageMultiplier = 1f; // [변경] 차지 강타 단계별 배율 (일반 공격은 1)
-    int chargeLevel;             // [변경] 0 = 일반 공격
+    float damageMultiplier = 1f; // 차지 강타 단계별 배율 (일반 공격은 1)
+    int chargeLevel;             // 0 = 일반 공격
     string route = "";
 
     public bool IsAttacking => current != null;
+    public bool CurrentIsBranch { get; private set; } // 콤보 분기로 이어진 공격인지 (간파 판정용)
     public AttackData CurrentAttack => current;
     public float AttackElapsed => current != null ? elapsed : 0f; // 회피가 공격을 끊을 수 있는 시점 판단용
     public bool InputLocked { get; set; }
     public bool CanCancel => current != null && elapsed / current.Duration >= current.ComboTransition;
     public bool HasBufferedPress => Time.time - lastPressTime <= idleInputBuffer; // 회피가 공격으로 끊어줄지 판단용
     public bool CanMoveCancel => current != null && elapsed / current.Duration >= current.MoveCancelStart; // 차지가 공격을 끊을 수 있는 시점
-    public int CurrentChargeLevel => current != null ? chargeLevel : 0; // [변경] PlayerThunder가 차지 단계별 뇌인 계산에 사용
+    public int CurrentChargeLevel => current != null ? chargeLevel : 0; // PlayerThunder가 차지 단계별 뇌인 계산에 사용
 
     // 이펙트(PlayerVfx)가 구독하는 이벤트 — 전투 코드는 이펙트를 직접 모름
     public event System.Action<AttackData, AttackInput> AttackStarted;
@@ -62,6 +66,7 @@ public class PlayerCombat : MonoBehaviour
         if (locomotion == null) locomotion = GetComponent<PlayerLocomotion>();
         controller = GetComponent<CharacterController>();
         if (targeting == null) targeting = GetComponent<PlayerTargeting>();
+        if (stats == null) stats = GetComponent<PlayerStats>();
     }
 
     void OnEnable()
@@ -76,9 +81,9 @@ public class PlayerCombat : MonoBehaviour
     }
 
     void OnLightPressed(InputAction.CallbackContext ctx) => RegisterPress(AttackInput.Light);
-    public void PressHeavy() => RegisterPress(AttackInput.Heavy); // [변경] 우클릭을 짧게 눌렀다 뗐을 때 (PlayerChargeAttack이 호출)
+    public void PressHeavy() => RegisterPress(AttackInput.Heavy); // 우클릭을 짧게 눌렀다 뗐을 때 (PlayerChargeAttack이 호출)
 
-    // [변경] 차지 강타: 콤보와 같은 흐름(내딛기·판정·캔슬)으로 재생하되 피해만 단계 배율을 곱함
+    // 차지 강타: 콤보와 같은 흐름(내딛기·판정·캔슬)으로 재생하되 피해만 단계 배율을 곱함
     public void StartChargedAttack(AttackData attack, float multiplier, int level)
     {
         if (attack == null) return;
@@ -105,13 +110,14 @@ public class PlayerCombat : MonoBehaviour
         {
             if (HasBufferedPress && IsGrounded()) // 공중에서는 공격 시작 안 함 (착지 직전 입력은 버퍼로 착지 후 나감)
             {
-                AttackData starter = lastPressInput == AttackInput.Light ? lightStarter : heavyStarter;
+                AttackData starter = lastPressInput == AttackInput.Light ? LightStarter() : heavyStarter; // [변경]
                 if (starter != null) StartAttack(starter, true);
             }
             return;
         }
 
-        elapsed += Time.deltaTime;
+        // 공속 배율만큼 공격 시간이 빨리 흐름. 애니메이션은 같은 배율의 AttackSpeed 파라미터로 맞춤
+        elapsed += Time.deltaTime * AttackSpeed;
         float t = elapsed / current.Duration;
 
         ApplyStep(t);
@@ -124,7 +130,7 @@ public class PlayerCombat : MonoBehaviour
         if (swingFxActive && t >= current.HitEnd + swingFxTail) FinishSwingFx();
 
         // inputOpen 이후 눌린 입력만 인정하고, 그 입력에 연결된 다음 공격이 있으면 comboTransition에 분기
-        bool buffered = lastPressTime >= attackStartTime + current.InputOpen * current.Duration;
+        bool buffered = lastPressTime >= attackStartTime + current.InputOpen * current.Duration / AttackSpeed; // 실제 시간으로 환산
         if (buffered && t >= current.ComboTransition)
         {
             AttackData next = current.GetNext(lastPressInput);
@@ -151,7 +157,8 @@ public class PlayerCombat : MonoBehaviour
 
         AttackInput input = lastPressInput;
         current = attack;
-        damageMultiplier = 1f; // [변경]
+        CurrentIsBranch = !isStarter; // AttackStarted 구독자가 읽을 수 있게 이벤트 전에 설정
+        damageMultiplier = 1f;
         chargeLevel = 0;
         elapsed = 0f;
         stepTraveled = 0f;
@@ -220,6 +227,15 @@ public class PlayerCombat : MonoBehaviour
         AttackSwingFinished?.Invoke();
     }
 
+    // [변경] 달리기 속도가 남아 있을 때 □를 누르면 달리기 공격으로 시작 (잠금 전 속도 기준)
+    AttackData LightStarter()
+    {
+        bool running = runStarter != null && locomotion != null && locomotion.CurrentSpeed >= runAttackSpeed;
+        return running ? runStarter : lightStarter;
+    }
+
+    float AttackSpeed => stats != null ? stats.AttackSpeed : 1f;
+
     bool IsGrounded() => locomotion == null || locomotion.IsGrounded;
 
     bool HasMoveInput() => locomotion != null && locomotion.GetInputDirection().sqrMagnitude > 0.0001f;
@@ -250,7 +266,7 @@ public class PlayerCombat : MonoBehaviour
         weapon.BeginSwing(new DamageInfo
         {
             Attacker = gameObject,
-            Damage = attack.Damage * damageMultiplier, // [변경]
+            Damage = attack.Damage * damageMultiplier,
             PostureDamage = attack.PostureDamage * damageMultiplier,
             Parryable = attack.Parryable,
             Weight = attack.Weight

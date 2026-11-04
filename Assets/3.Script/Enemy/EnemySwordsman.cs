@@ -32,6 +32,7 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
     [SerializeField] Color windupColor = new Color(1.6f, 0.7f, 0.15f);
     [SerializeField] Color hitColor = new Color(1f, 0.25f, 0.2f);
     [SerializeField] Color parryColor = new Color(1f, 0.95f, 0.6f);
+    [SerializeField] Color armorColor = new Color(0.75f, 0.8f, 0.95f); // 아머로 버틴 피격은 회색빛 → "안 먹혔다"가 읽히게
     [SerializeField] float hitFlashTime = 0.1f;
     [SerializeField] float comboTellTime = 0.25f; // 연타 다음 타 직전 예고 발광 시간(적 시간 기준)
     [SerializeField] bool showWindupTell; // 잡몹은 예고 없음이 기본 (보스는 잡기·특수기만 예고 예정)
@@ -257,25 +258,37 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
     {
         if (state == State.Dead) return HitResult.Ignored;
 
+        DamageEvents.Raise(transform.position + Vector3.up * 2f, info); // [변경] 데미지 숫자
         health -= info.Damage;
-        Flash(hitColor);
 
         if (info.InstantKill || health <= 0f)
         {
+            Flash(hitColor);
             Die();
             return HitResult.Hit;
         }
 
         // 휘두르는 중에는 경직 없이 맞기만 함 (토글로 비교)
-        if (data.ArmorDuringSwing && swingActive)
+        if (data.ArmorDuringSwing && IsArmored()) // 판정 중 → 휘두르는 내내(옵션)
         {
+            Flash(armorColor);
             Log($"아머 피격 {info.Damage} (체력 {health})");
             return HitResult.Hit;
         }
 
+        Flash(hitColor);
+
         bool heavy = info.Weight != AttackWeight.Light || info.Damage >= data.HeavyDamageThreshold; // 무게 우선, 피해량은 보조
         EnterStun(heavy, info.Direction);
         return HitResult.Hit;
+    }
+
+    // 공격 상태에서 이번 타 판정이 끝나기 전이거나 다음 타로 이어질 예정이면 아머 (예고 단계는 제외)
+    bool IsArmored()
+    {
+        if (swingActive) return true;
+        if (!data.ArmorWholeSwing || state != State.Attack || currentAttack == null) return false;
+        return stateTime <= currentAttack.HitEnd * currentAttack.Duration || WillChain();
     }
 
     // 경직 시간을 직접 받을 수 있게 하고, 이미 경직 중이면 남은 시간보다 짧아지지 않게 함
@@ -470,7 +483,7 @@ public class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저�
         return Vector3.Angle(transform.forward, to) <= threatAngle;
     }
 
-    // [변경] 간파 v2용: 적 시간을 실제 시간으로 환산
+    // 간파 v2용: 적 시간을 실제 시간으로 환산
     public float SecondsUntilHit()
     {
         if (data == null || state == State.Dead) return -1f;

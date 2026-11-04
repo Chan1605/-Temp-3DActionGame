@@ -5,15 +5,21 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-// 간파 v2 연출: PlayerParry.Clashed 한 번에 시간 정지→슬로→복귀, 펀치 줌, 화면 펄스, 충격 링, 적 잔상, 낙뢰, 소리를 묶어서 낸다
+// 패링·간파 연출: PlayerParry.Clashed / PlayerKanpa.Clashed 한 번에 시간 정지→슬로→복귀, 펀치 줌, 화면 펄스, 충격 링, 적 잔상, 낙뢰, 소리를 묶어서 낸다
 // 전투 로직은 모름. 끄면(enabled=false) 간파 판정은 그대로 두고 연출만 빠짐
 public class ParryFx : MonoBehaviour
 {
     static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
     [SerializeField] PlayerParry parry;
+    [SerializeField] PlayerKanpa kanpa;
     [SerializeField] PlayerSkill skill;
     [SerializeField] ThirdPersonCamera followCamera;
+
+    // 패링은 간파보다 작게: 슬로 길이·줌·링 크기에 곱함. 낙뢰는 간파 전용(기본)
+    [Header("Parry vs Kanpa")]
+    [SerializeField, Range(0f, 1f)] float parryStrength = 0.6f;
+    [SerializeField] bool parryStrike;
 
     [Header("Time (실제 시간)")]
     [SerializeField] bool useTime = true;
@@ -43,6 +49,10 @@ public class ParryFx : MonoBehaviour
     [SerializeField] Material fxMaterial; // Afterimage.mat (URP Unlit 가산)
     [SerializeField] Color innerRingColor = new Color(1f, 0.95f, 0.9f, 1f);
     [SerializeField] Color outerRingColor = new Color(1f, 0.15f, 0.1f, 0.8f);
+    // [변경] 간파 전용 색: 패링(붉은색)과 한눈에 구분되게 청백 번개 계열
+    [SerializeField] Color kanpaInnerRingColor = new Color(0.9f, 0.97f, 1f, 1f);
+    [SerializeField] Color kanpaOuterRingColor = new Color(0.35f, 0.65f, 1f, 0.85f);
+    [SerializeField] Color kanpaVignetteColor = new Color(0.03f, 0.12f, 0.45f);
     [SerializeField] float innerRingSize = 2.6f;
     [SerializeField] float outerRingSize = 3.6f;
     [SerializeField] float innerRingTime = 0.22f;
@@ -68,6 +78,7 @@ public class ParryFx : MonoBehaviour
     [Header("Sound")]
     [SerializeField] AudioClip clashClip;  // 높은 금속음
     [SerializeField] AudioClip impactClip; // 낮은 쿵
+    [SerializeField] AudioClip kanpaClip;  // 간파에만 겹쳐 재생 (예: 천둥·여운)
     [SerializeField, Range(0f, 1f)] float volume = 0.9f;
 
     class Ring { public LineRenderer Line; public Vector3 Center; public float Age, Life, Size; public Color Color; }
@@ -90,10 +101,12 @@ public class ParryFx : MonoBehaviour
     Coroutine timeRoutine;
     float ownedScale = -1f; // 마지막으로 이 스크립트가 넣은 timeScale. -1이면 시간을 쥐고 있지 않음
     float pulseStart = -1f;
+    float pulseHold;
 
     void Awake()
     {
         if (parry == null) parry = GetComponent<PlayerParry>();
+        if (kanpa == null) kanpa = GetComponent<PlayerKanpa>();
         if (skill == null) skill = GetComponent<PlayerSkill>();
         if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
         cam = Camera.main;
@@ -109,12 +122,14 @@ public class ParryFx : MonoBehaviour
 
     void OnEnable()
     {
-        if (parry != null) parry.Clashed += OnClashed;
+        if (parry != null) parry.Clashed += OnParryClashed;
+        if (kanpa != null) kanpa.Clashed += OnKanpaClashed;
     }
 
     void OnDisable()
     {
-        if (parry != null) parry.Clashed -= OnClashed;
+        if (parry != null) parry.Clashed -= OnParryClashed;
+        if (kanpa != null) kanpa.Clashed -= OnKanpaClashed;
         if (timeRoutine != null) StopCoroutine(timeRoutine);
         timeRoutine = null;
         ReleaseTime();
@@ -127,7 +142,15 @@ public class ParryFx : MonoBehaviour
         if (volumeFx != null && volumeFx.sharedProfile != null) Destroy(volumeFx.sharedProfile);
     }
 
-    void OnClashed(GameObject enemy, Vector3 point)
+    // [변경] 색 묶음을 넘겨 패링=붉은색, 간파=청백
+    void OnParryClashed(GameObject enemy, Vector3 point) =>
+        Play(enemy, point, parryStrength, parryStrike, null, innerRingColor, outerRingColor, vignetteColor);
+    void OnKanpaClashed(GameObject enemy, Vector3 point) =>
+        Play(enemy, point, 1f, true, kanpaClip, kanpaInnerRingColor, kanpaOuterRingColor, kanpaVignetteColor);
+
+    // strength(0~1)로 패링·간파 크기를 구분
+    void Play(GameObject enemy, Vector3 point, float strength, bool strike, AudioClip extraClip,
+        Color inner, Color outer, Color vignetteTint) // [변경]
     {
         // 적이 아직 공격 자세일 때 호출되므로 잔상은 가장 먼저 굽는다
         if (enemyGhost) SpawnGhost(enemy, point);
@@ -135,24 +158,29 @@ public class ParryFx : MonoBehaviour
         if (useTime)
         {
             if (timeRoutine != null) StopCoroutine(timeRoutine);
-            timeRoutine = StartCoroutine(TimeCurve());
+            timeRoutine = StartCoroutine(TimeCurve(slowTime * strength));
         }
 
-        float hold = useTime ? freezeTime + slowTime : 0.2f;
+        float hold = useTime ? freezeTime + slowTime * strength : 0.2f;
+        float size = Mathf.Lerp(0.5f, 1f, strength);
         if (followCamera != null)
         {
-            followCamera.Punch(punchAmount, punchIn, hold, punchOut, Random.value < 0.5f ? -punchRoll : punchRoll);
+            float roll = punchRoll * strength;
+            followCamera.Punch(punchAmount * strength, punchIn, hold, punchOut, Random.value < 0.5f ? -roll : roll);
             followCamera.Shake(shake, 0.1f);
         }
 
         pulseStart = Time.unscaledTime;
-        SpawnRing(point, innerRingColor, innerRingSize, innerRingTime, 0.06f);
-        SpawnRing(point, outerRingColor, outerRingSize, outerRingTime, 0.22f);
+        pulseHold = hold;
+        SpawnRing(point, inner, innerRingSize * size, innerRingTime, 0.06f); // [변경]
+        SpawnRing(point, outer, outerRingSize * size, outerRingTime, 0.22f * size);
+        if (vig != null) vig.color.value = vignetteTint;
 
-        if (strikeBolt != null) strikeBolt.Trigger(enemy.transform.position + Vector3.up * strikeHeight, enemy.transform.position);
+        if (strike && strikeBolt != null) strikeBolt.Trigger(enemy.transform.position + Vector3.up * strikeHeight, enemy.transform.position);
 
         if (clashClip != null) audioSource.PlayOneShot(clashClip, volume);
-        if (impactClip != null) audioSource.PlayOneShot(impactClip, volume);
+        if (impactClip != null) audioSource.PlayOneShot(impactClip, volume * Mathf.Lerp(0.6f, 1f, strength));
+        if (extraClip != null) audioSource.PlayOneShot(extraClip, volume);
     }
 
     void Update()
@@ -166,7 +194,7 @@ public class ParryFx : MonoBehaviour
     // ===== 시간 =====
     // 핵심: 다른 쪽(일섬·히트스톱·구역 연출)이 이미 시간을 쥐고 있으면 손대지 않고,
     // 도중에 일섬이 시작돼 값을 바꾸면 그쪽이 끝날 때까지 기다렸다가 우리가 넣은 값일 때만 1로 되돌린다
-    IEnumerator TimeCurve()
+    IEnumerator TimeCurve(float slowDuration)
     {
         if (ownedScale < 0f)
         {
@@ -179,7 +207,7 @@ public class ParryFx : MonoBehaviour
         if (!StillOwned()) { yield return WaitAndRelease(); yield break; }
 
         SetTime(slowScale);
-        yield return new WaitForSecondsRealtime(slowTime);
+        yield return new WaitForSecondsRealtime(slowDuration);
 
         for (float t = 0f; t < recoverTime; t += Time.unscaledDeltaTime)
         {
@@ -254,10 +282,9 @@ public class ParryFx : MonoBehaviour
         if (volumeFx == null || pulseStart < 0f) return;
 
         float e = Time.unscaledTime - pulseStart;
-        float hold = useTime ? freezeTime + slowTime : 0.2f;
         float fade = Mathf.Max(recoverTime, 0.15f);
 
-        float w = e < hold ? 1f : 1f - Mathf.Clamp01((e - hold) / fade);
+        float w = e < pulseHold ? 1f : 1f - Mathf.Clamp01((e - pulseHold) / fade);
         volumeFx.weight = w;
         colorAdjust.postExposure.value = e < flashTime ? flashExposure * (1f - e / flashTime) : 0f;
 

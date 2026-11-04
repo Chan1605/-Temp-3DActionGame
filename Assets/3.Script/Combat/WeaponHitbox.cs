@@ -16,6 +16,8 @@ public class WeaponHitbox : MonoBehaviour
     bool active;
 
     public event Action<IDamageable, DamageInfo, HitResult> OnHit;
+    // [변경] 대상마다 피해를 한 번 더 가공 (PlayerStats: 공격력 배율 · 치명타). 비어 있으면 그대로
+    public Func<DamageInfo, DamageInfo> ModifyDamage { get; set; }
 
     void Awake()
     {
@@ -64,6 +66,7 @@ public class WeaponHitbox : MonoBehaviour
             DamageInfo info = pendingInfo;
             info.HitPoint = col.ClosestPoint(center);
             info.Direction = Vector3.ProjectOnPlane(col.transform.position - owner.position, Vector3.up).normalized;
+            if (ModifyDamage != null) info = ModifyDamage(info); // [변경]
 
             HitResult result = target.ReceiveDamage(info);
             OnHit?.Invoke(target, info, result);

@@ -3,7 +3,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 // 우클릭 하나로 세 가지 (가드 대신):
-//  누른 순간 적 공격 직전이면 → 간파
+//  누른 순간 적 공격 직전이면 → 패링 (대기·이동 중)
+//  [변경] 콤보 중 누르면      → △를 바로 예약, △ 초반에 적 공격이 닿으면 간파 (PlayerKanpa)
 //  짧게 눌렀다 떼면       → 강공격 △ (콤보 분기: □□△, □□□△ …)
 //  길게 누르고 있으면     → 차지 자세, 단계(1~3)가 오르다 떼는 순간 차지 강타 (오공 차지 공격 느낌)
 public class PlayerChargeAttack : MonoBehaviour
@@ -18,6 +19,7 @@ public class PlayerChargeAttack : MonoBehaviour
     [SerializeField] PlayerCombat combat;
     [SerializeField] PlayerLocomotion locomotion;
     [SerializeField] PlayerParry parry;
+    [SerializeField] PlayerKanpa kanpa; // [변경]
     [SerializeField] PlayerDodge dodge;
     [SerializeField] PlayerSkill skill;
     [SerializeField] PlayerHealth health;
@@ -39,6 +41,8 @@ public class PlayerChargeAttack : MonoBehaviour
     bool charging;
     float chargeTime;
     int level;
+    bool heavyQueued;          // [변경] 콤보 중 누른 순간 이미 △를 예약했으면 뗄 때 다시 넣지 않음
+    AttackData pressedDuring;  // [변경] 누를 때 진행 중이던 공격 → △로 넘어가기 전엔 차지로 끊지 않음
 
     public bool IsHeld => pressed && !consumed;
     public bool IsCharging => charging;
@@ -57,6 +61,7 @@ public class PlayerChargeAttack : MonoBehaviour
         if (combat == null) combat = GetComponent<PlayerCombat>();
         if (locomotion == null) locomotion = GetComponent<PlayerLocomotion>();
         if (parry == null) parry = GetComponent<PlayerParry>();
+        if (kanpa == null) kanpa = GetComponent<PlayerKanpa>();
         if (dodge == null) dodge = GetComponent<PlayerDodge>();
         if (skill == null) skill = GetComponent<PlayerSkill>();
         if (health == null) health = GetComponent<PlayerHealth>();
@@ -86,6 +91,19 @@ public class PlayerChargeAttack : MonoBehaviour
     {
         pressed = true;
         holdTime = 0f;
+        heavyQueued = false;
+        pressedDuring = null;
+
+        // [변경] 콤보 중이면 패링 대신 △를 누른 순간 바로 예약 (뗄 때까지 기다리면 간파 타이밍이 밀림)
+        if (kanpa != null && kanpa.HandlesPress)
+        {
+            consumed = false;
+            heavyQueued = true;
+            pressedDuring = combat.CurrentAttack;
+            combat.PressHeavy();
+            return;
+        }
+
         consumed = parry != null && parry.TryParry();
     }
 
@@ -95,8 +113,9 @@ public class PlayerChargeAttack : MonoBehaviour
         pressed = false;
 
         if (charging) Release();
-        else if (!consumed && combat != null) combat.PressHeavy(); // 짧게 누름 → 강공격 (콤보 버퍼로 들어감)
+        else if (!consumed && !heavyQueued && combat != null) combat.PressHeavy(); // 짧게 누름 → 강공격 (콤보 버퍼로 들어감)
         consumed = false;
+        heavyQueued = false; // [변경]
     }
 
     void Update()
@@ -136,7 +155,9 @@ public class PlayerChargeAttack : MonoBehaviour
         if (dodge != null && dodge.IsDodging && !dodge.CanCancel) return false;
         if (health != null && (health.IsStunned || health.IsDead)) return false;
         // 콤보 중이면 판정이 끝난 뒤부터 차지로 끊고 들어감
-        return combat == null || !combat.IsAttacking || combat.CanMoveCancel;
+        if (combat == null || !combat.IsAttacking) return true;
+        if (heavyQueued && combat.CurrentAttack == pressedDuring) return false; // [변경] 예약한 △가 나가기 전에는 차지 금지
+        return combat.CanMoveCancel;
     }
 
     bool IsInterrupted()

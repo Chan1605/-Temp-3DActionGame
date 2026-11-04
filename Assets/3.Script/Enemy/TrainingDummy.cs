@@ -59,6 +59,7 @@ public class TrainingDummy : MonoBehaviour, IDamageable
             totalDamage = 0f;
         }
 
+        DamageEvents.Raise(transform.position + Vector3.up * (halfHeight + 0.3f), info); // [변경] 데미지 숫자
         lastHitTime = Time.time;
         hitCount++;
         totalDamage += info.Damage;

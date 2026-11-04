@@ -426,7 +426,12 @@ GameObject:
   - component: {fileID: 3880032383890577890}
   - component: {fileID: 2319970398063733898}
   - component: {fileID: 2336979120302626365}
-  - component: {fileID: 3089636979221752952}
+  - component: {fileID: 2626228166261145733}
+  - component: {fileID: 8397257810525060709}
+  - component: {fileID: 5087689224789762330}
+  - component: {fileID: 6301437402645275699}
+  - component: {fileID: 8781555882832531804}
+  - component: {fileID: 7268560931724845920}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -526,13 +531,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat
   lightAttackAction: {fileID: 1120369429361536294, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-  heavyAttackAction: {fileID: -7650533636076920138, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   lightStarter: {fileID: 11400000, guid: e48cc411e3e8c1f4da88da5c4547be0e, type: 2}
   heavyStarter: {fileID: 11400000, guid: 29867278508338c41aee8014d75f0a5f, type: 2}
   animator: {fileID: 9054350018550051993}
   weapon: {fileID: 8066946278627523393}
   locomotion: {fileID: 8946055058242759463}
   targeting: {fileID: 0}
+  stats: {fileID: 7268560931724845920}
   attackCrossFade: 0.08
   returnCrossFade: 0.2
   moveCancelCrossFade: 0.12
@@ -559,6 +564,8 @@ MonoBehaviour:
   combat: {fileID: 3750847782795144091}
   followCamera: {fileID: 0}
   dashTrail: {fileID: 1737536271964613677}
+  stats: {fileID: 7268560931724845920}
+  thunder: {fileID: 8397257810525060709}
   hideBodyWhileDashing: 1
   obstacleMask:
     serializedVersion: 2
@@ -584,7 +591,7 @@ MonoBehaviour:
   skill: {fileID: 3070939792974395059}
   dodge: {fileID: 118300998889972725}
   parry: {fileID: 4353746522782798047}
-  guard: {fileID: 3089636979221752952}
+  kanpa: {fileID: 8781555882832531804}
   followCamera: {fileID: 0}
 --- !u!114 &118300998889972725
 MonoBehaviour:
@@ -605,7 +612,7 @@ MonoBehaviour:
   skill: {fileID: 3070939792974395059}
   health: {fileID: 4005965994054678145}
   parry: {fileID: 4353746522782798047}
-  guard: {fileID: 3089636979221752952}
+  charge: {fileID: 5087689224789762330}
   afterimage: {fileID: 4503054392510635615}
   followCamera: {fileID: 0}
   distance: 4
@@ -670,6 +677,7 @@ MonoBehaviour:
   dodge: {fileID: 118300998889972725}
   afterimage: {fileID: 4503054392510635615}
   followCamera: {fileID: 0}
+  thunder: {fileID: 8397257810525060709}
   window: 0.2
   lateWindow: 0.2
   searchRadius: 4
@@ -677,6 +685,9 @@ MonoBehaviour:
   duration: 0.85
   counterDamage: 30
   counterPostureDamage: 40
+  clashStyle: 1
+  minClashDelay: 0.06
+  maxClashDelay: 0.2
   freezeScale: 0.05
   freezeTime: 0.15
   shakeStrength: 0.2
@@ -695,6 +706,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerVfx
   combat: {fileID: 3750847782795144091}
   skill: {fileID: 3070939792974395059}
+  heavyCharge: {fileID: 5087689224789762330}
   trail: {fileID: 6587575302745953988}
   blade: {fileID: 8589396617217203519}
   boltPrefab: {fileID: 1600819035976254, guid: 9bcfdd98d29605342a31a197383939a1, type: 3}
@@ -826,8 +838,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HitFeedback
   weapon: {fileID: 8066946278627523393}
   parry: {fileID: 4353746522782798047}
+  kanpa: {fileID: 8781555882832531804}
   health: {fileID: 4005965994054678145}
-  guard: {fileID: 3089636979221752952}
   skill: {fileID: 3070939792974395059}
   followCamera: {fileID: 0}
   enableHitStop: 1
@@ -868,9 +880,6 @@ MonoBehaviour:
   playerHitStop: 0.05
   playerSparkCount: 4
   playerSparkRadius: 0.6
-  blockSparkCount: 4
-  blockSparkRadius: 0.5
-  blockHitStop: 0.03
   boltPrefab: {fileID: 1600819035976254, guid: 9bcfdd98d29605342a31a197383939a1, type: 3}
   sparkSpread: 0.9
   sparkStyle:
@@ -927,7 +936,7 @@ MonoBehaviour:
     lightIntensity: 1
     lightPercent: 0.06
     lightColor: {r: 1, g: 0.3, b: 0.5, a: 1}
---- !u!114 &3089636979221752952
+--- !u!114 &2626228166261145733
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -936,26 +945,207 @@ MonoBehaviour:
   m_GameObject: {fileID: 1391606783692858250}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c4bb892a4e2a6c348bbbc7c06d40083d, type: 3}
+  m_Script: {fileID: 11500000, guid: c1d204e3674d92d46820131cf7f92657, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerGuard
-  guardAction: {fileID: -2004706293986608252, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-  animator: {fileID: 9054350018550051993}
-  locomotion: {fileID: 8946055058242759463}
+  m_EditorClassIdentifier: Assembly-CSharp::SickscoreGames.HUDNavigationSystem.HNSPlayerController
+--- !u!114 &8397257810525060709
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8be33da74893f5747847c657b04c79be, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerThunder
+  weapon: {fileID: 8066946278627523393}
   combat: {fileID: 3750847782795144091}
   parry: {fileID: 4353746522782798047}
+  kanpa: {fileID: 8781555882832531804}
+  dodge: {fileID: 118300998889972725}
+  maxGauge: 4
+  startGauge: 0
+  lightHitGain: 0.2
+  heavyHitGain: 0.4
+  justDodgeGain: 1
+  markCompleteGain: 0.3
+  useGaugeForSkill: 1
+  skillCost:
+  - 2
+  - 3
+  - 4
+  parryCost: 1
+  lightHitMarks: 1
+  heavyHitMarks: 2
+  chargeMarks: 020000000300000003000000
+  chargeFullRadius: 3
+  chargeFullMarks: 2
+  chargeGainPerLevel: 0.3
+  spread: 2
+  finisherRadius: 3.5
+  parryRadius: 3
+  kanpaGain: 0.5
+  kanpaRadius: 3.5
+  transferRadius: 3
+  unmarkedSkillDamage: 30
+  logThunder: 1
+--- !u!114 &5087689224789762330
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64cbbe809d09a2a4cbbf25efc3d3778e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerChargeAttack
+  heavyAction: {fileID: -7650533636076920138, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  releaseAttack: {fileID: 11400000, guid: 9ef43b5cf6769ef4e89eacd635e1ccdd, type: 2}
+  animator: {fileID: 9054350018550051993}
+  combat: {fileID: 3750847782795144091}
+  locomotion: {fileID: 8946055058242759463}
+  parry: {fileID: 4353746522782798047}
+  kanpa: {fileID: 8781555882832531804}
   dodge: {fileID: 118300998889972725}
   skill: {fileID: 3070939792974395059}
   health: {fileID: 4005965994054678145}
   followCamera: {fileID: 0}
-  guardAngle: 120
-  chipDamageRatio: 0.2
-  pushBack: 0.4
-  blockStunTime: 0.3
-  shakeStrength: 0.05
-  startCrossFade: 0.08
-  endCrossFade: 0.15
-  logGuard: 1
+  holdThreshold: 0.2
+  levelTimes:
+  - 0
+  - 0.55
+  - 1.15
+  damageMultipliers:
+  - 1.4
+  - 2
+  - 3
+  turnSpeed: 360
+  logCharge: 1
+--- !u!114 &6301437402645275699
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 112fb0e3a080a404594f0e3580f8aec6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ParryFx
+  parry: {fileID: 4353746522782798047}
+  kanpa: {fileID: 8781555882832531804}
+  skill: {fileID: 3070939792974395059}
+  followCamera: {fileID: 0}
+  parryStrength: 0.6
+  parryStrike: 0
+  useTime: 1
+  freezeScale: 0.02
+  freezeTime: 0.07
+  slowScale: 0.2
+  slowTime: 0.35
+  recoverTime: 0.25
+  punchAmount: 0.35
+  punchIn: 0.04
+  punchOut: 0.35
+  punchRoll: 4
+  shake: 0.05
+  screenPulse: 1
+  chromatic: 0.8
+  vignette: 0.35
+  vignetteColor: {r: 0.55, g: 0.03, b: 0.03, a: 1}
+  saturation: -50
+  flashExposure: 1.2
+  flashTime: 0.05
+  fxMaterial: {fileID: 2100000, guid: 33ad016f89be9cf4685ac61475198500, type: 2}
+  innerRingColor: {r: 1, g: 0.95, b: 0.9, a: 1}
+  outerRingColor: {r: 1, g: 0.15, b: 0.1, a: 0.8}
+  kanpaInnerRingColor: {r: 0.9, g: 0.97, b: 1, a: 1}
+  kanpaOuterRingColor: {r: 0.35, g: 0.65, b: 1, a: 0.85}
+  kanpaVignetteColor: {r: 0.03, g: 0.12, b: 0.45, a: 1}
+  innerRingSize: 2.6
+  outerRingSize: 3.6
+  innerRingTime: 0.22
+  outerRingTime: 0.45
+  enemyGhost: 1
+  ghostColor: {r: 0.85, g: 0.92, b: 1, a: 0.7}
+  ghostLifetime: 0.5
+  ghostGrow: 0.08
+  ghostDrift: 0.5
+  boltPrefab: {fileID: 1600819035976254, guid: 9bcfdd98d29605342a31a197383939a1, type: 3}
+  strikeHeight: 12
+  strikeStyle:
+    width: {x: 0.18, y: 0.26}
+    duration: {x: 0.3, y: 0.4}
+    count: {x: 2, y: 3}
+    generations: 6
+    chaos: 0.2
+    forkedness: 0.6
+    growth: 0
+    intensity: 3
+    glowIntensity: 2.5
+    glowWidth: 8
+    jitter: 0
+    trunkColor: {r: 1, g: 1, b: 1, a: 1}
+    glowColor: {r: 0.45, g: 0.6, b: 1, a: 1}
+    lightRange: 14
+    lightIntensity: 4
+    lightPercent: 1
+    lightColor: {r: 0.6, g: 0.75, b: 1, a: 1}
+  clashClip: {fileID: 0}
+  impactClip: {fileID: 0}
+  kanpaClip: {fileID: 0}
+  volume: 0.9
+--- !u!114 &8781555882832531804
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f1218ff935e3aac44b538869714f48d6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerKanpa
+  combat: {fileID: 3750847782795144091}
+  afterimage: {fileID: 4503054392510635615}
+  window: 0.3
+  comboOnly: 1
+  counterDamage: 40
+  counterPostureDamage: 60
+  logKanpa: 1
+--- !u!114 &7268560931724845920
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8985ca5de3b143b47ba2fd77dea997d2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerStats
+  weapon: {fileID: 0}
+  animator: {fileID: 0}
+  attackPower: 1
+  attackSpeed: 2
+  critChance: 0.1
+  critDamage: 1.5
+  level: 1
+  maxLevel: 10
+  powerPerLevel: 0.1
+  speedPerLevel: 0.04
+  critChancePerLevel: 0.03
+  critDamagePerLevel: 0.1
+  levelUpOnZoneClear: 1
+  maxAttackSpeed: 2.8
+  logStats: 1
 --- !u!1 &1515010326207606855
 GameObject:
   m_ObjectHideFlags: 0

@@ -18,6 +18,7 @@ public class PlayerThunder : MonoBehaviour
     [SerializeField] WeaponHitbox weapon;
     [SerializeField] PlayerCombat combat;
     [SerializeField] PlayerParry parry;
+    [SerializeField] PlayerKanpa kanpa; // [변경]
     [SerializeField] PlayerDodge dodge;
 
     [Header("Gauge")]
@@ -36,7 +37,7 @@ public class PlayerThunder : MonoBehaviour
     [Header("Marks")]
     [SerializeField] int lightHitMarks = 1;
     [SerializeField] int heavyHitMarks = 2;
-    // [변경] 차지 강타 단계별 뇌인 (1·2·3단계). 3단계는 주변까지 chargeFullMarks만큼
+    // 차지 강타 단계별 뇌인 (1·2·3단계). 3단계는 주변까지 chargeFullMarks만큼
     [SerializeField] int[] chargeMarks = { 2, 3, 3 };
     [SerializeField] float chargeFullRadius = 3f;
     [SerializeField] int chargeFullMarks = 2;
@@ -46,6 +47,9 @@ public class PlayerThunder : MonoBehaviour
     [SerializeField] SpreadMode spread = SpreadMode.AreaAndTransfer;
     [SerializeField] float finisherRadius = 3.5f;
     [SerializeField] float parryRadius = 3f;
+    // [변경] 간파: 비용 없이 뇌기 획득 + 대상 가득 + 확산 모드와 상관없이 주변 +1
+    [SerializeField] float kanpaGain = 0.5f;
+    [SerializeField] float kanpaRadius = 3.5f;
     [SerializeField] float transferRadius = 3f;
 
     [Header("Skill Damage")]
@@ -71,6 +75,7 @@ public class PlayerThunder : MonoBehaviour
         if (weapon == null) weapon = GetComponentInChildren<WeaponHitbox>();
         if (combat == null) combat = GetComponent<PlayerCombat>();
         if (parry == null) parry = GetComponent<PlayerParry>();
+        if (kanpa == null) kanpa = GetComponent<PlayerKanpa>();
         if (dodge == null) dodge = GetComponent<PlayerDodge>();
         gauge = Mathf.Clamp(startGauge, 0f, maxGauge);
     }
@@ -79,6 +84,7 @@ public class PlayerThunder : MonoBehaviour
     {
         if (weapon != null) weapon.OnHit += OnWeaponHit;
         if (parry != null) parry.Parried += OnParried;
+        if (kanpa != null) kanpa.Countered += OnKanpa; // [변경]
         if (dodge != null) dodge.JustDodged += OnJustDodged;
     }
 
@@ -86,6 +92,7 @@ public class PlayerThunder : MonoBehaviour
     {
         if (weapon != null) weapon.OnHit -= OnWeaponHit;
         if (parry != null) parry.Parried -= OnParried;
+        if (kanpa != null) kanpa.Countered -= OnKanpa; // [변경]
         if (dodge != null) dodge.JustDodged -= OnJustDodged;
     }
 
@@ -132,14 +139,14 @@ public class PlayerThunder : MonoBehaviour
         if (result != HitResult.Hit || info.Attacker != gameObject) return;
 
         bool heavy = info.Weight == AttackWeight.Heavy;
-        int charge = combat != null ? combat.CurrentChargeLevel : 0; // [변경]
+        int charge = combat != null ? combat.CurrentChargeLevel : 0;
         Add((heavy ? heavyHitGain : lightHitGain) + charge * chargeGainPerLevel);
 
         ThunderMark mark = ThunderMark.Of((Component)target);
         int marks = charge > 0 ? chargeMarks[Mathf.Min(charge, chargeMarks.Length) - 1] : heavy ? heavyHitMarks : lightHitMarks;
         AddMarks(mark, marks);
 
-        // [변경] 풀차지(마지막 단계)는 맞은 적 주변까지 표식 → 무리를 한 번에 새기는 수단
+        // 풀차지(마지막 단계)는 맞은 적 주변까지 표식 → 무리를 한 번에 새기는 수단
         if (charge >= chargeMarks.Length)
         {
             int n = AddMarksAround(((Component)target).transform.position, chargeFullRadius, chargeFullMarks, mark);
@@ -163,6 +170,20 @@ public class PlayerThunder : MonoBehaviour
             mark.Fill();
         }
         if (spread != SpreadMode.None) AddMarksAround(enemy.transform.position, parryRadius, 1, mark);
+    }
+
+    // [변경]
+    void OnKanpa(GameObject enemy)
+    {
+        ThunderMark mark = enemy.GetComponentInParent<ThunderMark>();
+        if (mark != null)
+        {
+            Subscribe(mark);
+            mark.Fill();
+        }
+        int n = AddMarksAround(enemy.transform.position, kanpaRadius, 1, mark);
+        Add(kanpaGain);
+        if (logThunder) Debug.Log($"[Thunder] 간파 · 대상 가득, 주변 {n}명 +1, 뇌기 +{kanpaGain}");
     }
 
     void OnJustDodged() => Add(justDodgeGain);

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bdcce19ed15436f42bb717ba566e667c, type: 3}
+  m_Name: Run_Attack
+  m_EditorClassIdentifier: Assembly-CSharp::AttackData
+  clip: {fileID: 7400000, guid: 565887332f81fe9498198cd4ca7e804c, type: 2}
+  stateName: Run_Attack
+  damage: 14
+  postureDamage: 8
+  parryable: 1
+  weight: 0
+  hitStart: 0.1
+  hitEnd: 0.198
+  inputOpen: 0.1
+  comboTransition: 0.5
+  recoveryEnd: 0.9
+  moveCancelStart: 0.5
+  stepDistance: 1.6
+  stepEnd: 0.35
+  nextLight: {fileID: 11400000, guid: ab5b968234b59054480efa1d408fff5e, type: 2}
+  nextHeavy: {fileID: 11400000, guid: c6462277285aaf14f9629f9928a2c3e9, type: 2}

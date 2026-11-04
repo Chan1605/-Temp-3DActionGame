@@ -26,8 +26,9 @@ public class HitFeedback : MonoBehaviour
 
     [SerializeField] WeaponHitbox weapon;
     [SerializeField] PlayerParry parry;
+    [SerializeField] PlayerKanpa kanpa; // [변경] 간파도 패링과 같은 사방 스파크
     [SerializeField] PlayerHealth health;
-    // [변경] 가드 제거로 guard 참조와 막기 스파크 삭제
+    // 가드 제거로 guard 참조와 막기 스파크 삭제
     [SerializeField] PlayerSkill skill;
     [SerializeField] ThirdPersonCamera followCamera;
 
@@ -76,6 +77,7 @@ public class HitFeedback : MonoBehaviour
     {
         if (weapon == null) weapon = GetComponentInChildren<WeaponHitbox>();
         if (parry == null) parry = GetComponent<PlayerParry>();
+        if (kanpa == null) kanpa = GetComponent<PlayerKanpa>();
         if (health == null) health = GetComponent<PlayerHealth>();
         if (skill == null) skill = GetComponent<PlayerSkill>();
         if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
@@ -90,6 +92,7 @@ public class HitFeedback : MonoBehaviour
     {
         if (weapon != null) weapon.OnHit += OnWeaponHit;
         if (parry != null) parry.Parried += OnParried;
+        if (kanpa != null) kanpa.Countered += OnParried; // [변경]
         if (health != null) health.Damaged += OnPlayerDamaged;
     }
 
@@ -97,6 +100,7 @@ public class HitFeedback : MonoBehaviour
     {
         if (weapon != null) weapon.OnHit -= OnWeaponHit;
         if (parry != null) parry.Parried -= OnParried;
+        if (kanpa != null) kanpa.Countered -= OnParried; // [변경]
         if (health != null) health.Damaged -= OnPlayerDamaged;
         EndHitStop();
     }

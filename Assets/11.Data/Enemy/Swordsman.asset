@@ -23,9 +23,11 @@ MonoBehaviour:
   windupTime: 0.5
   attackCooldown: 1.5
   armorDuringSwing: 1
+  armorWholeSwing: 1
   lightStunTime: 0.3
   heavyStunTime: 0.6
   heavyDamageThreshold: 18
   lightKnockback: 0.15
   heavyKnockback: 0.6
+  parryStunTime: 1.2
   respawnTime: 3

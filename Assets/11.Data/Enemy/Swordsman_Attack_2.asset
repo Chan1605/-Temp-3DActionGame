@@ -12,13 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bdcce19ed15436f42bb717ba566e667c, type: 3}
   m_Name: Swordsman_Attack_2
   m_EditorClassIdentifier: Assembly-CSharp::AttackData
-  clip: {fileID: 7400000, guid: 0c6c5a44bbc13af4095ea17ce1346dfa, type: 2}
+  clip: {fileID: 7400000, guid: 1426773144ff5f648919aa8a27be4e25, type: 2}
   stateName: Attack_2
   damage: 12
   postureDamage: 6
   parryable: 1
-  hitStart: 0.008301888
-  hitEnd: 0.19981132
+  weight: 0
+  hitStart: 0.11888889
+  hitEnd: 0.2522222
   inputOpen: 0.008301888
   comboTransition: 0.5
   recoveryEnd: 0.9

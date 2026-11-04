@@ -14,7 +14,8 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     [SerializeField] PlayerLocomotion locomotion;
     [SerializeField] PlayerSkill skill;
     [SerializeField] PlayerDodge dodge; // 회피 무적 판정
-    [SerializeField] PlayerParry parry; // 간파 반격 중 무적
+    [SerializeField] PlayerParry parry; // 패링 반격 중 무적
+    [SerializeField] PlayerKanpa kanpa; // [변경] △ 초반에 맞으면 간파
     [SerializeField] ThirdPersonCamera followCamera;
 
     float health;
@@ -39,6 +40,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
         if (skill == null) skill = GetComponent<PlayerSkill>();
         if (dodge == null) dodge = GetComponent<PlayerDodge>();
         if (parry == null) parry = GetComponent<PlayerParry>();
+        if (kanpa == null) kanpa = GetComponent<PlayerKanpa>();
         if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
         health = maxHealth;
     }
@@ -68,8 +70,9 @@ public class PlayerHealth : MonoBehaviour, IDamageable
 
         // 회피 무적 구간이면 무시, 무적이 끝난 회피 후반에 맞으면 회피를 끊고 피격 처리
         if (parry != null && parry.IsInvulnerable) return HitResult.Ignored;
+        if (kanpa != null && kanpa.TryCounter(info)) return HitResult.Countered; // [변경] 피해 없이 적을 경직
 
-        // [변경] 가드 제거 (방어는 회피·간파 두 갈래)
+        // 가드 제거 (방어는 회피·간파 두 갈래)
 
         if (dodge != null && dodge.IsInvulnerable)
         {
