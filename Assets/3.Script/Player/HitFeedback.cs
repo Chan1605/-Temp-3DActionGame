@@ -26,7 +26,7 @@ public class HitFeedback : MonoBehaviour
 
     [SerializeField] WeaponHitbox weapon;
     [SerializeField] PlayerParry parry;
-    [SerializeField] PlayerKanpa kanpa; // [변경] 간파도 패링과 같은 사방 스파크
+    [SerializeField] PlayerKanpa kanpa; // 간파도 패링과 같은 사방 스파크
     [SerializeField] PlayerHealth health;
     // 가드 제거로 guard 참조와 막기 스파크 삭제
     [SerializeField] PlayerSkill skill;
@@ -92,7 +92,7 @@ public class HitFeedback : MonoBehaviour
     {
         if (weapon != null) weapon.OnHit += OnWeaponHit;
         if (parry != null) parry.Parried += OnParried;
-        if (kanpa != null) kanpa.Countered += OnParried; // [변경]
+        if (kanpa != null) kanpa.Countered += OnParried;
         if (health != null) health.Damaged += OnPlayerDamaged;
     }
 
@@ -100,7 +100,7 @@ public class HitFeedback : MonoBehaviour
     {
         if (weapon != null) weapon.OnHit -= OnWeaponHit;
         if (parry != null) parry.Parried -= OnParried;
-        if (kanpa != null) kanpa.Countered -= OnParried; // [변경]
+        if (kanpa != null) kanpa.Countered -= OnParried;
         if (health != null) health.Damaged -= OnPlayerDamaged;
         EndHitStop();
     }
@@ -112,6 +112,11 @@ public class HitFeedback : MonoBehaviour
 
     void OnWeaponHit(IDamageable target, DamageInfo info, HitResult result)
     {
+        if (result == HitResult.Blocked)
+        {
+            OnBlocked(info); // [변경]
+            return;
+        }
         if (result != HitResult.Hit) return;
 
         WeightSetting s = Find(info.Weight);
@@ -123,6 +128,18 @@ public class HitFeedback : MonoBehaviour
         if (UseSparks) Sparks(sparkBolt, info.HitPoint, -dir, s.sparkCount, s.sparkRadius, s.streakLength, dir);
         Shake(s.shake, s.shakeTime);
         HitStop(s.hitStop);
+    }
+
+    // [변경] 방패에 막힘: 약공격 설정의 불꽃을 공격자 쪽으로 튀기고, 히트스톱은 조금 길게 (딱 막히는 느낌)
+    void OnBlocked(DamageInfo info)
+    {
+        WeightSetting s = Find(AttackWeight.Light);
+        if (s == null) return;
+
+        Vector3 dir = info.Direction.sqrMagnitude > 0.0001f ? info.Direction : transform.forward;
+        if (UseSparks) Sparks(sparkBolt, info.HitPoint, -dir, s.sparkCount * 2, s.sparkRadius, s.streakLength, dir);
+        Shake(s.shake * 0.6f, s.shakeTime);
+        HitStop(s.hitStop * 1.5f);
     }
 
     // 간파는 PlayerParry가 이미 적 정지·흔들림을 내므로 여기서는 이펙트만

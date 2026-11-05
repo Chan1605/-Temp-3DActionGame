@@ -41,8 +41,33 @@ public class DamageNumbers : MonoBehaviour
         for (int i = 0; i < poolSize; i++) pool.Add(Create(i));
     }
 
-    void OnEnable() => DamageEvents.Dealt += OnDealt;
-    void OnDisable() => DamageEvents.Dealt -= OnDealt;
+    void OnEnable()
+    {
+        DamageEvents.Dealt += OnDealt;
+        DamageEvents.Labeled += OnLabeled; // [변경]
+    }
+
+    void OnDisable()
+    {
+        DamageEvents.Dealt -= OnDealt;
+        DamageEvents.Labeled -= OnLabeled;
+    }
+
+    // [변경] 글자 알림은 치명타 크기로 조금 더 오래
+    void OnLabeled(Vector3 position, string label, Color color)
+    {
+        Entry e = pool[next];
+        next = (next + 1) % pool.Count;
+        e.Text.text = label;
+        e.Color = color;
+        e.Scale = critScale;
+        e.World = position;
+        e.Age = 0f;
+        e.Life = lifetime * 1.3f;
+        e.Offset = new Vector2(0f, 20f);
+        e.Text.gameObject.SetActive(true);
+        Place(e, 0f);
+    }
 
     void OnDealt(Vector3 position, DamageInfo info)
     {

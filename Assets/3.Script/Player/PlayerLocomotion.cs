@@ -10,6 +10,10 @@ public class PlayerLocomotion : MonoBehaviour
     static readonly int JumpStartHash = Animator.StringToHash("Jump_Start");
     static readonly int JumpLoopHash = Animator.StringToHash("Jump_Loop");
     static readonly int JumpLandHash = Animator.StringToHash("Jump_Land");
+    static readonly int DoubleJumpHash = Animator.StringToHash("Double_Jump");
+    static readonly int MoveXHash = Animator.StringToHash("MoveX");
+    static readonly int MoveZHash = Animator.StringToHash("MoveZ");
+    static readonly int TurnHash = Animator.StringToHash("Turn");
 
     [Header("Input")]
     [SerializeField] InputActionReference moveAction;
@@ -41,7 +45,11 @@ public class PlayerLocomotion : MonoBehaviour
     [SerializeField] float landMoveThreshold = 1.5f;
     [SerializeField] float jumpCrossFade = 0.05f;
     [SerializeField] float landCrossFade = 0.08f;
-    [SerializeField] float jumpBuffer = 0.15f; // [변경] 회피·공격 끝나기 직전에 누른 점프도 나가게
+    [SerializeField] float jumpBuffer = 0.15f; // 회피·공격 끝나기 직전에 누른 점프도 나가게
+    // 공중에서 한 번 더 점프 (턱에서 떨어지는 중에도 사용 가능)
+    [SerializeField] int airJumps = 1;
+    [SerializeField] float doubleJumpHeight = 1.1f;
+    [SerializeField] float doubleJumpMinAirTime = 0.12f; // 점프 직후 연타로 바로 나가지 않게
 
     [Header("Animation")]
     [SerializeField] float walkClipSpeed = 1.6f;
@@ -49,6 +57,14 @@ public class PlayerLocomotion : MonoBehaviour
     [SerializeField] float sprintClipSpeed = 7f;
     [SerializeField] float blendDampTime = 0.08f;
     [SerializeField] Vector2 animSpeedRange = new Vector2(0.7f, 1.6f);
+    // 방향 모션: MoveX/MoveZ = 몸 기준 이동 방향(점프·이단 점프의 앞·뒤·좌·우), Turn = 질주 중 선회 기울기
+    [SerializeField] float leanTurnRate = 300f; // 이 각속도(도/초)로 돌면 끝까지 기울임
+    [SerializeField] float directionDampTime = 0.1f;
+
+    // [변경] 락온 이동: 대상을 바라본 채 입력 방향으로 옆걸음·뒷걸음 (질주하면 풀림)
+    [Header("Strafe (Lock On)")]
+    [SerializeField] float strafeSpeed = 3.6f;
+    [SerializeField] float strafeTurnSmoothTime = 0.08f;
 
     CharacterController controller;
     float currentSpeed;
@@ -56,13 +72,17 @@ public class PlayerLocomotion : MonoBehaviour
     float verticalVelocity;
     float airTime;
     bool airAnim;
-    float lastJumpPress = float.NegativeInfinity; // [변경]
+    float lastJumpPress = float.NegativeInfinity;
+    int airJumpsLeft;
+    bool hasDirectionParams;
+    Vector3 moveHeading = Vector3.forward; // 실제로 움직이는 방향 (락온 중엔 바라보는 방향과 다름)
 
     public float CurrentSpeed => currentSpeed;
     public bool MovementLocked { get; set; }
     // 경사·계단에서 isGrounded가 잠깐 끊겨도 공중으로 치지 않도록 airborneDelay만큼 여유를 둠
     public bool IsGrounded => airTime < airborneDelay;
-    public bool HasBufferedJump => Time.time - lastJumpPress <= jumpBuffer; // [변경]
+    public bool HasBufferedJump => Time.time - lastJumpPress <= jumpBuffer;
+    public Transform StrafeTarget { get; set; } // [변경] PlayerLockOn이 지정
 
     void Awake()
     {
@@ -72,6 +92,7 @@ public class PlayerLocomotion : MonoBehaviour
 
         // RM 클립을 제자리 재생시키고 이동은 CharacterController가 담당
         if (animator != null) animator.applyRootMotion = false;
+        hasDirectionParams = HasParameter(MoveXHash) && HasParameter(MoveZHash) && HasParameter(TurnHash); // 셋업 전이면 건너뜀
     }
 
     void OnEnable()
@@ -95,13 +116,27 @@ public class PlayerLocomotion : MonoBehaviour
         if (MovementLocked)
         {
             currentSpeed = 0f;
-            turnVelocity = 0f; // [변경] 잠금 전 회전 속도가 남아 풀린 직후 휙 도는 것 방지
+            turnVelocity = 0f; // 잠금 전 회전 속도가 남아 풀린 직후 휙 도는 것 방지
         }
         else
         {
             float targetSpeed = moveDir.sqrMagnitude > 0.0001f ? TargetSpeed(Mathf.Clamp01(input.magnitude), sprint) : 0f;
+            bool strafing = StrafeTarget != null && !sprint;
 
-            if (moveDir.sqrMagnitude > 0.0001f)
+            if (strafing)
+            {
+                // [변경] 핵심: 몸은 대상을 향하고, 속도는 입력 방향으로 (옆·뒤 모션은 MoveX/MoveZ 블렌드가 고름)
+                Vector3 to = StrafeTarget.position - transform.position;
+                to.y = 0f;
+                if (to.sqrMagnitude > 0.04f)
+                {
+                    float yaw = Mathf.SmoothDampAngle(transform.eulerAngles.y, Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg, ref turnVelocity, strafeTurnSmoothTime);
+                    transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+                }
+                if (moveDir.sqrMagnitude > 0.0001f) moveHeading = moveDir;
+                targetSpeed = Mathf.Min(targetSpeed, strafeSpeed);
+            }
+            else if (moveDir.sqrMagnitude > 0.0001f)
             {
                 float targetYaw = Mathf.Atan2(moveDir.x, moveDir.z) * Mathf.Rad2Deg;
                 float angleGap = Mathf.Abs(Mathf.DeltaAngle(transform.eulerAngles.y, targetYaw));
@@ -114,6 +149,7 @@ public class PlayerLocomotion : MonoBehaviour
                 float yaw = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetYaw, ref turnVelocity, smooth);
                 transform.rotation = Quaternion.Euler(0f, yaw, 0f);
             }
+            if (!strafing) moveHeading = transform.forward;
 
             float rate = targetSpeed > currentSpeed ? acceleration : deceleration;
             currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, rate * dt);
@@ -121,13 +157,15 @@ public class PlayerLocomotion : MonoBehaviour
 
         // 점프 입력 → 이동 → 착지 판정 순서
         bool wasGrounded = IsGrounded;
-        if (jumpAction != null && jumpAction.action.WasPressedThisFrame()) lastJumpPress = Time.time; // [변경] 버퍼로 기록
+        if (jumpAction != null && jumpAction.action.WasPressedThisFrame()) lastJumpPress = Time.time; // 버퍼로 기록
         if (!MovementLocked && wasGrounded && HasBufferedJump) Jump();
+        else if (!MovementLocked && !wasGrounded && HasBufferedJump && airJumpsLeft > 0 && airTime >= doubleJumpMinAirTime) DoubleJump();
 
         if (controller.isGrounded && verticalVelocity < 0f) verticalVelocity = -2f;
         verticalVelocity += gravity * dt;
 
-        CollisionFlags flags = controller.Move((transform.forward * currentSpeed + Vector3.up * verticalVelocity) * dt);
+        if (MovementLocked) moveHeading = transform.forward;
+        CollisionFlags flags = controller.Move((moveHeading * currentSpeed + Vector3.up * verticalVelocity) * dt); // [변경] 바라보는 방향이 아니라 이동 방향으로
         if ((flags & CollisionFlags.Above) != 0 && verticalVelocity > 0f) verticalVelocity = 0f; // 천장에 닿으면 바로 낙하
 
         UpdateAirState(dt, wasGrounded);
@@ -136,7 +174,7 @@ public class PlayerLocomotion : MonoBehaviour
 
     public Vector3 GetInputDirection() => ToCameraRelative(ReadMoveInput());
 
-    // [변경] 회피 등이 끝날 때 호출: 입력 중이면 목표 속도로 바로 시작하고 블렌드도 즉시 맞춤
+    // 회피 등이 끝날 때 호출: 입력 중이면 목표 속도로 바로 시작하고 블렌드도 즉시 맞춤
     // 바라보는 방향과 입력이 어긋난 만큼은 급선회 규칙(sharpTurnSpeedKeep)대로 줄여서 옆으로 미끄러지지 않게 함
     public void CarryMomentum()
     {
@@ -153,17 +191,31 @@ public class PlayerLocomotion : MonoBehaviour
     // ===== 점프 =====
     void Jump()
     {
-        lastJumpPress = float.NegativeInfinity; // [변경]
+        lastJumpPress = float.NegativeInfinity;
         verticalVelocity = Mathf.Sqrt(2f * jumpHeight * -gravity);
         airTime = airborneDelay;
         airAnim = true;
         if (animator != null) animator.CrossFadeInFixedTime(JumpStartHash, jumpCrossFade, 0, 0f);
     }
 
+    // 이단 점프: 수직 속도를 다시 채우고 전용 모션. 모션이 끝나면 컨트롤러 전환으로 Jump_Loop → 착지는 기존 흐름
+    void DoubleJump()
+    {
+        lastJumpPress = float.NegativeInfinity;
+        airJumpsLeft--;
+        verticalVelocity = Mathf.Sqrt(2f * doubleJumpHeight * -gravity);
+        airAnim = true;
+        if (animator == null) return;
+
+        int hash = animator.HasState(0, DoubleJumpHash) ? DoubleJumpHash : JumpStartHash; // 방향은 MoveX/MoveZ 블렌드가 고름
+        animator.CrossFadeInFixedTime(hash, jumpCrossFade, 0, 0f);
+    }
+
     void UpdateAirState(float dt, bool wasGrounded)
     {
         if (controller.isGrounded) airTime = 0f;
         else airTime += dt;
+        if (controller.isGrounded && verticalVelocity <= 0f) airJumpsLeft = airJumps; // 땅에 닿으면 공중 점프 회복
 
         if (wasGrounded && !IsGrounded)
         {
@@ -196,7 +248,12 @@ public class PlayerLocomotion : MonoBehaviour
     {
         int current = animator.GetCurrentAnimatorStateInfo(0).shortNameHash;
         int next = animator.IsInTransition(0) ? animator.GetNextAnimatorStateInfo(0).shortNameHash : 0;
-        return current == JumpStartHash || current == JumpLoopHash || next == JumpStartHash || next == JumpLoopHash;
+        return IsAirHash(current) || IsAirHash(next); // 이단 점프 포함
+    }
+
+    static bool IsAirHash(int hash)
+    {
+        return hash == JumpStartHash || hash == JumpLoopHash || hash == DoubleJumpHash;
     }
 
     float TargetSpeed(float inputAmount, bool sprint)
@@ -216,6 +273,36 @@ public class PlayerLocomotion : MonoBehaviour
         float clipSpeed = BlendToClipSpeed(animator.GetFloat(MoveBlendHash));
         float playRate = clipSpeed > 0.05f ? Mathf.Clamp(currentSpeed / clipSpeed, animSpeedRange.x, animSpeedRange.y) : 1f;
         animator.SetFloat(MoveAnimSpeedHash, playRate);
+        UpdateDirection(dt);
+    }
+
+    // 핵심: 실제 이동(속도 벡터)을 몸 기준으로 바꿔 넣음 → 지금은 항상 앞(+Z)이지만 락온 옆걸음·뒷걸음이 생기면 그대로 좌·우·뒤 모션
+    // 공중에선 갱신을 멈춰 도약 순간의 방향을 유지 (착지 모션도 그 방향으로)
+    void UpdateDirection(float dt)
+    {
+        if (!hasDirectionParams) return;
+
+        if (IsGrounded)
+        {
+            Vector3 v = controller.velocity;
+            v.y = 0f;
+            Vector3 local = transform.InverseTransformDirection(v) / Mathf.Max(moveSpeed, 0.01f);
+            if (local.sqrMagnitude > 1f) local.Normalize();
+            if (v.sqrMagnitude < 0.04f) local = Vector3.zero; // 0.2m/s 미만은 제자리
+            animator.SetFloat(MoveXHash, local.x, directionDampTime, dt);
+            animator.SetFloat(MoveZHash, local.z, directionDampTime, dt);
+        }
+
+        float lean = currentSpeed > moveSpeed && StrafeTarget == null ? Mathf.Clamp(turnVelocity / leanTurnRate, -1f, 1f) : 0f; // 질주 중에만
+        animator.SetFloat(TurnHash, lean, 0.15f, dt);
+    }
+
+    bool HasParameter(int hash)
+    {
+        if (animator == null) return false;
+        foreach (AnimatorControllerParameter p in animator.parameters)
+            if (p.nameHash == hash) return true;
+        return false;
     }
 
     // 블렌드 트리 임계값: 0 Idle, 1 Walk, 2 Run, 3 Sprint

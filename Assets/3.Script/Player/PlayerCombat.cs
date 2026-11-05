@@ -20,6 +20,7 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] PlayerLocomotion locomotion;
     [SerializeField] PlayerTargeting targeting; // P2 소프트 타겟팅
     [SerializeField] PlayerStats stats;         // 공격 속도 (없으면 1배)
+    [SerializeField] PlayerExecution execution; // [변경] 처형 가능한 적이 앞에 있으면 □가 처형으로
 
     [SerializeField] float attackCrossFade = 0.08f;
     [SerializeField] float returnCrossFade = 0.2f;
@@ -43,6 +44,7 @@ public class PlayerCombat : MonoBehaviour
     float stepTotal; // 이번 공격에서 내딛을 총 거리 (타겟팅 시 끌어당김 포함)
     float damageMultiplier = 1f; // 차지 강타 단계별 배율 (일반 공격은 1)
     int chargeLevel;             // 0 = 일반 공격
+    bool deflected;              // 이번 타가 방패에 막힘 → 다음 타로 이어지지 않음
     string route = "";
 
     public bool IsAttacking => current != null;
@@ -58,7 +60,7 @@ public class PlayerCombat : MonoBehaviour
     // 이펙트(PlayerVfx)가 구독하는 이벤트 — 전투 코드는 이펙트를 직접 모름
     public event System.Action<AttackData, AttackInput> AttackStarted;
     public event System.Action AttackSwingFinished;
-    public event System.Action<AttackData> SwingStarted; // [변경] 판정이 켜지는 순간 (뇌락 착지 효과용)
+    public event System.Action<AttackData> SwingStarted; // 판정이 켜지는 순간 (뇌락 착지 효과용)
 
     void Awake()
     {
@@ -68,20 +70,33 @@ public class PlayerCombat : MonoBehaviour
         controller = GetComponent<CharacterController>();
         if (targeting == null) targeting = GetComponent<PlayerTargeting>();
         if (stats == null) stats = GetComponent<PlayerStats>();
+        if (execution == null) execution = GetComponent<PlayerExecution>();
     }
 
     void OnEnable()
     {
         Subscribe(lightAttackAction, OnLightPressed);
+        if (weapon != null) weapon.OnHit += OnWeaponHit;
     }
 
     void OnDisable()
     {
         Unsubscribe(lightAttackAction, OnLightPressed);
+        if (weapon != null) weapon.OnHit -= OnWeaponHit;
         if (IsAttacking) EndCombo(returnCrossFade);
     }
 
-    void OnLightPressed(InputAction.CallbackContext ctx) => RegisterPress(AttackInput.Light);
+    // □가 방패에 막히면 콤보가 끊김 → 방패병은 △·간파·뒤치기로 상대해야 함
+    void OnWeaponHit(IDamageable target, DamageInfo info, HitResult result)
+    {
+        if (result == HitResult.Blocked && current != null && current.Weight == AttackWeight.Light) deflected = true;
+    }
+
+    void OnLightPressed(InputAction.CallbackContext ctx)
+    {
+        if (execution != null && execution.TryExecute()) return; // [변경]
+        RegisterPress(AttackInput.Light);
+    }
     public void PressHeavy() => RegisterPress(AttackInput.Heavy); // 우클릭을 짧게 눌렀다 뗐을 때 (PlayerChargeAttack이 호출)
 
     // 차지 강타: 콤보와 같은 흐름(내딛기·판정·캔슬)으로 재생하되 피해만 단계 배율을 곱함
@@ -132,7 +147,7 @@ public class PlayerCombat : MonoBehaviour
 
         // inputOpen 이후 눌린 입력만 인정하고, 그 입력에 연결된 다음 공격이 있으면 comboTransition에 분기
         bool buffered = lastPressTime >= attackStartTime + current.InputOpen * current.Duration / AttackSpeed; // 실제 시간으로 환산
-        if (buffered && t >= current.ComboTransition)
+        if (buffered && !deflected && t >= current.ComboTransition)
         {
             AttackData next = current.GetNext(lastPressInput);
             if (next != null)
@@ -161,6 +176,7 @@ public class PlayerCombat : MonoBehaviour
         CurrentIsBranch = !isStarter; // AttackStarted 구독자가 읽을 수 있게 이벤트 전에 설정
         damageMultiplier = 1f;
         chargeLevel = 0;
+        deflected = false;
         elapsed = 0f;
         stepTraveled = 0f;
         attackStartTime = Time.time;
@@ -262,7 +278,7 @@ public class PlayerCombat : MonoBehaviour
     void BeginSwing(AttackData attack)
     {
         swingActive = true;
-        SwingStarted?.Invoke(attack); // [변경]
+        SwingStarted?.Invoke(attack);
         if (weapon == null) return;
 
         weapon.BeginSwing(new DamageInfo
@@ -271,7 +287,8 @@ public class PlayerCombat : MonoBehaviour
             Damage = attack.Damage * damageMultiplier,
             PostureDamage = attack.PostureDamage * damageMultiplier,
             Parryable = attack.Parryable,
-            Weight = attack.Weight
+            Weight = attack.Weight,
+            BreakGuard = chargeLevel >= 2 // 차지 강타 2단계 이상은 방패를 한 번에 깸
         });
     }
 

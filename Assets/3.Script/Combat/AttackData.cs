@@ -10,7 +10,8 @@ public class AttackData : ScriptableObject
     [SerializeField] float damage = 10f;
     [SerializeField] float postureDamage = 5f;
     [SerializeField] bool parryable = true;
-    [SerializeField] AttackWeight weight = AttackWeight.Light; // [변경] P3 무게별 피드백
+    [SerializeField] AttackWeight weight = AttackWeight.Light; // P3 무게별 피드백
+    [SerializeField] bool knockDown; // [변경] 맞으면 넘어짐 (적 공격 전용)
 
     // 모든 타이밍은 클립 길이 기준 정규화 시간(0~1)
     [Header("Timing")]
@@ -40,7 +41,8 @@ public class AttackData : ScriptableObject
     public float Damage => damage;
     public float PostureDamage => postureDamage;
     public bool Parryable => parryable;
-    public AttackWeight Weight => weight; // [변경]
+    public AttackWeight Weight => weight;
+    public bool KnockDown => knockDown;
 
     public float HitStart => hitStart;
     public float HitEnd => hitEnd;

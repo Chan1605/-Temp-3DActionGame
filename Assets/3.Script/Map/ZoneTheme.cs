@@ -8,7 +8,7 @@ public class ZoneTheme : ScriptableObject
     public int seed = 1;
     // 구역 중심 위치. Generate All Zones가 구역 순서대로 북쪽(+Z)에 이어 붙이며 자동으로 채움
     public Vector3 origin;
-    // [변경] HUD 구역 배너 문구 (예: "구역 1" / "산문")
+    // HUD 구역 배너 문구 (예: "구역 1" / "산문")
     public string displayNumber = "";
     public string displayName = "";
 
@@ -48,6 +48,12 @@ public class ZoneTheme : ScriptableObject
     public int arenaCoverCount = 40;
     public GameObject[] outerCover;
     public int outerCoverCount = 80;
+
+    // [변경] 아레나 바깥 대각선 네 곳에 세우는 큰 구조물 (구역 3 폐사찰의 정자 등). 가장 긴 변 기준 크기
+    [Header("Landmarks")]
+    public GameObject[] landmarks;
+    public float landmarkSize = 9f;
+    public float landmarkDistance = 6f; // 벽 반지름 바깥으로 이만큼
 
     [Header("Path")]
     public GameObject[] pathStones;

@@ -432,6 +432,7 @@ GameObject:
   - component: {fileID: 6301437402645275699}
   - component: {fileID: 8781555882832531804}
   - component: {fileID: 7268560931724845920}
+  - component: {fileID: 4498633949859688452}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -545,7 +546,7 @@ MonoBehaviour:
   moveCancelCrossFade: 0.12
   idleInputBuffer: 0.2
   stepWeight: 1
-  logComboRoute: 1
+  logComboRoute: 0
   swingFxTail: 0.06
 --- !u!114 &3070939792974395059
 MonoBehaviour:
@@ -568,6 +569,7 @@ MonoBehaviour:
   dashTrail: {fileID: 1737536271964613677}
   stats: {fileID: 7268560931724845920}
   thunder: {fileID: 8397257810525060709}
+  aimTurnSpeed: 720
   hideBodyWhileDashing: 1
   obstacleMask:
     serializedVersion: 2
@@ -990,6 +992,8 @@ MonoBehaviour:
   parryRadius: 3
   kanpaGain: 0.5
   kanpaRadius: 3.5
+  smashMarks: 2
+  smashRadius: 3
   transferRadius: 3
   unmarkedSkillDamage: 30
   logThunder: 1
@@ -1061,7 +1065,9 @@ MonoBehaviour:
   vignette: 0.35
   vignetteColor: {r: 0.55, g: 0.03, b: 0.03, a: 1}
   saturation: -50
-  flashExposure: 1.2
+  flashPeak: 0.5
+  kanpaStrike: 0
+  strikeGlowScale: 0.5
   flashTime: 0.05
   fxMaterial: {fileID: 2100000, guid: 33ad016f89be9cf4685ac61475198500, type: 2}
   innerRingColor: {r: 1, g: 0.95, b: 0.9, a: 1}
@@ -1102,6 +1108,28 @@ MonoBehaviour:
   impactClip: {fileID: 0}
   kanpaClip: {fileID: 0}
   volume: 0.9
+  smashRingColor: {r: 1, g: 0.82, b: 0.35, a: 0.9}
+  smashRingSize: 4.5
+  smashPunch: 0.25
+  bladeSparkInterval: 0.06
+  bladeSparkStyle:
+    width: {x: 0.015, y: 0.03}
+    duration: {x: 0.05, y: 0.08}
+    count: {x: 1, y: 1}
+    generations: 4
+    chaos: 0.35
+    forkedness: 0.3
+    growth: 0
+    intensity: 2.5
+    glowIntensity: 1.5
+    glowWidth: 4
+    jitter: 0
+    trunkColor: {r: 1, g: 1, b: 1, a: 1}
+    glowColor: {r: 0.45, g: 0.6, b: 1, a: 1}
+    lightRange: 3
+    lightIntensity: 1.5
+    lightPercent: 0.3
+    lightColor: {r: 0.6, g: 0.75, b: 1, a: 1}
 --- !u!114 &8781555882832531804
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1121,6 +1149,11 @@ MonoBehaviour:
   counterDamage: 40
   counterPostureDamage: 60
   logKanpa: 1
+  smashAttack: {fileID: 11400000, guid: 2d37fc39a5ff42f4e8fbd733bb268165, type: 2}
+  followWindow: 0.8
+  smashRadius: 3
+  smashSplashDamage: 15
+  smashPostureDamage: 40
 --- !u!114 &7268560931724845920
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1152,6 +1185,27 @@ MonoBehaviour:
   waveClearXp: 15
   maxAttackSpeed: 2.8
   logStats: 1
+--- !u!114 &4498633949859688452
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 19f022260e83a5543b548024879da5a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerStance
+  animator: {fileID: 9054350018550051993}
+  locomotion: {fileID: 8946055058242759463}
+  sheatheDelay: 5
+  sheatheCrossFade: 0.2
+  returnCrossFade: 0.25
+  sheatheEnd: 0.92
+  startRelaxed: 1
+  stayDrawnInZoneFight: 1
+  logStance: 0
 --- !u!1 &1515010326207606855
 GameObject:
   m_ObjectHideFlags: 0
@@ -1494,6 +1548,8 @@ MonoBehaviour:
   baseRatio: 0.3
   subdivisions: 4
   maxSamples: 40
+  opacity: 0.55
+  scaleWithAttackSpeed: 1
 --- !u!1 &2397380145005194733
 GameObject:
   m_ObjectHideFlags: 0
@@ -2068,7 +2124,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 563129190470504868}
-  m_LocalEulerAnglesHint: {x: -1.8347263, y: 12.514479, z: 158.25023}
+  m_LocalEulerAnglesHint: {x: -1.8347265, y: 12.514479, z: 158.25023}
 --- !u!1 &4212727519411449491
 GameObject:
   m_ObjectHideFlags: 0
@@ -3209,7 +3265,7 @@ Transform:
   - {fileID: 7117908773678089895}
   - {fileID: 4076426485361985546}
   m_Father: {fileID: 5090184323580091682}
-  m_LocalEulerAnglesHint: {x: 89.687836, y: 0.019544046, z: -179.98045}
+  m_LocalEulerAnglesHint: {x: -46.089886, y: 146.55144, z: 17.434725}
 --- !u!1 &7744667127320898915
 GameObject:
   m_ObjectHideFlags: 0

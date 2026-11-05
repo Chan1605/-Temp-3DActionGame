@@ -4,7 +4,7 @@ using UnityEngine;
 // 간파(오공식): 콤보 중 △ 분기 강공격을 휘두르는 초반 window초 안에 적 공격이 들어오면 맞받아 뚫는다
 // 패링(PlayerParry)과 달리 전용 모션 없이 △가 그대로 이어지고, 실패해도 그냥 강공격
 // 판정은 "적 공격이 실제로 몸에 닿는 순간"(PlayerHealth.ReceiveDamage)에서 함 → 연출이 부딪히는 프레임에 터짐
-// [변경] 뇌락(雷落): 간파 성공 뒤 followWindow(실제 시간) 안에 우클릭 → 뛰어올라 내려찍기. 착지 순간 주변 경직 + 뇌인 +2 + 낙뢰
+// 뇌락(雷落): 간파 성공 뒤 followWindow(실제 시간) 안에 우클릭 → 뛰어올라 내려찍기. 착지 순간 주변 경직 + 뇌인 +2 + 낙뢰
 public class PlayerKanpa : MonoBehaviour
 {
     [SerializeField] PlayerCombat combat;
@@ -19,7 +19,7 @@ public class PlayerKanpa : MonoBehaviour
     [SerializeField] float counterPostureDamage = 60f;
     [SerializeField] bool logKanpa = true;
 
-    // [변경] 뇌락: 판정·내딛기·히트박스는 일반 공격 흐름(PlayerCombat)을 그대로 타고, 착지(판정 시작) 순간 범위 효과만 여기서
+    // 뇌락: 판정·내딛기·히트박스는 일반 공격 흐름(PlayerCombat)을 그대로 타고, 착지(판정 시작) 순간 범위 효과만 여기서
     [Header("Follow-up (뇌락)")]
     [SerializeField] AttackData smashAttack;
     [SerializeField] float followWindow = 0.8f;
@@ -29,7 +29,7 @@ public class PlayerKanpa : MonoBehaviour
 
     AttackData windowAttack;
     float windowEnd;
-    float followUntil = -1f; // [변경] 실제 시간
+    float followUntil = -1f; // 실제 시간
     bool smashing;
 
     public bool IsWindowOpen => windowAttack != null && combat != null && combat.CurrentAttack == windowAttack && Time.time <= windowEnd;
@@ -39,7 +39,7 @@ public class PlayerKanpa : MonoBehaviour
     public event Action<GameObject, Vector3> Clashed; // 연출용 (적, 접촉 지점)
     public event Action<GameObject> Countered;        // 표식·스파크용
 
-    // [변경] 뇌락 이벤트: 입력 창 열림(남은 시간) / 창 닫힘(사용 여부) / 착지(위치)
+    // 뇌락 이벤트: 입력 창 열림(남은 시간) / 창 닫힘(사용 여부) / 착지(위치)
     public event Action<float> FollowReady;
     public event Action<bool> FollowClosed;
     public event Action<Vector3> SmashLanded;
@@ -57,11 +57,11 @@ public class PlayerKanpa : MonoBehaviour
         if (combat != null)
         {
             combat.AttackStarted += OnAttackStarted;
-            combat.SwingStarted += OnSwingStarted; // [변경]
+            combat.SwingStarted += OnSwingStarted;
         }
     }
 
-    // [변경] 창이 시간 초과로 닫히면 알림 (HUD 프롬프트 · 칼 번개 정리)
+    // 창이 시간 초과로 닫히면 알림 (HUD 프롬프트 · 칼 번개 정리)
     void Update()
     {
         if (followUntil > 0f && Time.unscaledTime > followUntil) CloseFollow(false);
@@ -73,7 +73,7 @@ public class PlayerKanpa : MonoBehaviour
         if (combat != null)
         {
             combat.AttackStarted -= OnAttackStarted;
-            combat.SwingStarted -= OnSwingStarted; // [변경]
+            combat.SwingStarted -= OnSwingStarted;
         }
         windowAttack = null;
         followUntil = -1f;
@@ -104,8 +104,9 @@ public class PlayerKanpa : MonoBehaviour
         if (afterimage != null) afterimage.Spawn();
         Countered?.Invoke(enemy);
         ApplyCounter(enemy);
+        if (enemy.TryGetComponent(out EnemySwordsman swordsman)) swordsman.CloseExecution(); // [변경] 간파 뒤는 처형 대신 뇌락
 
-        // [변경] 뇌락 입력 창 열기
+        // 뇌락 입력 창 열기
         if (smashAttack != null)
         {
             followUntil = Time.unscaledTime + followWindow;
@@ -116,7 +117,7 @@ public class PlayerKanpa : MonoBehaviour
         return true;
     }
 
-    // [변경] PlayerChargeAttack이 우클릭을 누른 순간 가장 먼저 물어봄. true면 이번 입력은 뇌락으로 소비
+    // PlayerChargeAttack이 우클릭을 누른 순간 가장 먼저 물어봄. true면 이번 입력은 뇌락으로 소비
     public bool TryFollowUp()
     {
         if (!IsFollowOpen || smashAttack == null || combat == null) return false;
@@ -134,7 +135,7 @@ public class PlayerKanpa : MonoBehaviour
         FollowClosed?.Invoke(used);
     }
 
-    // [변경] 핵심: 내려찍기 판정이 켜지는 순간 = 착지. 주변 적을 경직시키고 표식·연출 신호
+    // 핵심: 내려찍기 판정이 켜지는 순간 = 착지. 주변 적을 경직시키고 표식·연출 신호
     void OnSwingStarted(AttackData attack)
     {
         if (attack != smashAttack || smashAttack == null) return;

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ZoneTheme
   zoneName: Zone_3_Trial
   seed: 3
-  origin: {x: 0, y: 0, z: 220}
+  origin: {x: 0, y: 0, z: 330}
   displayNumber: "\uC2DC\uB828"
   displayName: "\uC2DC\uB828\uC758 \uD130"
   combatRadius: 18
@@ -82,6 +82,9 @@ MonoBehaviour:
   - {fileID: 7295565647549083207, guid: afb4147c0a55e0e458c75b164cd01418, type: 3}
   - {fileID: 6510808458649195636, guid: b7ce2ec5e9528c74d8319e333d4c71c1, type: 3}
   outerCoverCount: 60
+  landmarks: []
+  landmarkSize: 9
+  landmarkDistance: 6
   pathStones:
   - {fileID: 2184874480338919190, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
   - {fileID: 1005171171890641205, guid: 37e175973f8fe5f4aabfc8d0ec06c835, type: 3}

@@ -42,9 +42,19 @@ public class ThirdPersonCamera : MonoBehaviour
     float zoomDuration;
     float zoomAmount;
 
-    // [변경] 간파 v2: 빠르게 당겼다가 유지 후 풀리는 펀치 줌 + 살짝 기울기
+    // 간파 v2: 빠르게 당겼다가 유지 후 풀리는 펀치 줌 + 살짝 기울기
     float punchElapsed = -1f;
     float punchAmount, punchIn, punchHold, punchOut, punchRoll;
+
+    // [변경] 락온: 마우스 대신 플레이어 → 대상 방향으로 돌고, 대상 높이에 맞춰 내려다봄
+    [Header("Lock On")]
+    [SerializeField] float lockTurnSpeed = 8f;
+    [SerializeField] float lockPitch = 12f;      // 같은 높이일 때 기본으로 내려다보는 각도
+    [SerializeField] float lockTargetHeight = 1.2f;
+    Transform lockTarget;
+
+    public void SetLockTarget(Transform t) => lockTarget = t;
+    public bool IsLocked => lockTarget != null;
 
     void OnEnable()
     {
@@ -75,7 +85,7 @@ public class ThirdPersonCamera : MonoBehaviour
         zoomTimer = zoomDuration;
     }
 
-    // [변경] amount 비율만큼 inTime 동안 당기고, hold 유지, outTime 동안 복귀. roll은 최대 기울기(도)
+    // amount 비율만큼 inTime 동안 당기고, hold 유지, outTime 동안 복귀. roll은 최대 기울기(도)
     public void Punch(float amount, float inTime, float hold, float outTime, float roll)
     {
         punchAmount = Mathf.Clamp01(amount);
@@ -100,19 +110,40 @@ public class ThirdPersonCamera : MonoBehaviour
         // 히트스톱(timeScale 저하) 중에도 카메라는 실시간으로 움직이도록 unscaled 사용
         float dt = Time.unscaledDeltaTime;
 
-        Vector2 look = lookAction != null ? lookAction.action.ReadValue<Vector2>() : Vector2.zero;
-        yaw += look.x * sensitivity;
-        pitch = Mathf.Clamp(pitch - look.y * sensitivity, minPitchAngle, maxPitch);
-
         UpdatePivot(target.position + pivotOffset, dt);
+
+        if (lockTarget != null) FollowLockTarget(dt); // [변경]
+        else
+        {
+            Vector2 look = lookAction != null ? lookAction.action.ReadValue<Vector2>() : Vector2.zero;
+            yaw += look.x * sensitivity;
+            pitch = Mathf.Clamp(pitch - look.y * sensitivity, minPitchAngle, maxPitch);
+        }
 
         Quaternion rot = Quaternion.Euler(pitch, yaw, 0f);
         Vector3 back = -(rot * Vector3.forward);
-        float punch = PunchWeight(dt); // [변경]
+        float punch = PunchWeight(dt);
         float allowed = CollisionDistance(pivot, back, distance * ZoomFactor(dt) * (1f - punchAmount * punch));
         Vector3 position = pivot + back * allowed + ShakeOffset(dt);
 
         transform.SetPositionAndRotation(position, rot * Quaternion.Euler(0f, 0f, punchRoll * punch));
+    }
+
+    // [변경] 플레이어 어깨 너머로 대상이 화면 가운데쯤 오게. 아주 가까우면 방향이 튀지 않게 각도 유지
+    void FollowLockTarget(float dt)
+    {
+        Vector3 aim = lockTarget.position + Vector3.up * lockTargetHeight;
+        Vector3 to = aim - pivot;
+        Vector3 flat = new Vector3(to.x, 0f, to.z);
+        float k = 1f - Mathf.Exp(-lockTurnSpeed * dt);
+
+        if (flat.sqrMagnitude > 1f)
+        {
+            float wantYaw = Mathf.Atan2(flat.x, flat.z) * Mathf.Rad2Deg;
+            yaw = Mathf.LerpAngle(yaw, wantYaw, k);
+        }
+        float wantPitch = lockPitch - Mathf.Atan2(to.y, Mathf.Max(flat.magnitude, 0.5f)) * Mathf.Rad2Deg;
+        pitch = Mathf.Lerp(pitch, Mathf.Clamp(wantPitch, minPitchAngle, maxPitch), k);
     }
 
     // 가릴 때는 즉시 당기고, 풀릴 때는 recoverSpeed로 서서히 원래 거리로 돌아감
@@ -178,7 +209,7 @@ public class ThirdPersonCamera : MonoBehaviour
         return 1f - zoomAmount * k * k;
     }
 
-    // [변경] 0→1(ease-out) → 유지 → 1→0(smoothstep)
+    // 0→1(ease-out) → 유지 → 1→0(smoothstep)
     float PunchWeight(float dt)
     {
         if (punchElapsed < 0f) return 0f;
