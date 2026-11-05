@@ -1,0 +1,94 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f17a27452b0c73489b9c0018725e944, type: 3}
+  m_Name: Swordsman_Boss
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyData
+  kind: 3
+  maxHealth: 900
+  detectRange: 40
+  attackRange: 2.6
+  walkSpeed: 1.8
+  runSpeed: 4.8
+  runDistance: 4
+  turnSpeed: 540
+  firstAttack: {fileID: 11400000, guid: 27e75d925e6efe94d9897a307cff17fa, type: 2}
+  windupTime: 0.4
+  attackCooldown: 1.2
+  armorDuringSwing: 1
+  armorWholeSwing: 1
+  lightStunTime: 0.3
+  heavyStunTime: 0.6
+  heavyDamageThreshold: 18
+  lightKnockback: 0.15
+  heavyKnockback: 0.3
+  parryStunTime: 0.9
+  respawnTime: 3
+  xpReward: 200
+  guardPoints: 4
+  guardAngle: 75
+  lightGuardCost: 1
+  heavyGuardCost: 2
+  guardBreakStun: 2
+  guardRegenDelay: 3
+  guardRegenInterval: 0.8
+  guardHitPause: 0.3
+  chargeAttack: {fileID: 0}
+  chargeMinDistance: 4.5
+  chargeMaxDistance: 13
+  chargeWindup: 0.9
+  chargeSpeed: 13
+  chargeMaxTravel: 12
+  chargeStopDistance: 1.8
+  chargeHomingTime: 0.2
+  chargeTurnSpeed: 180
+  chargeCooldown: 2.5
+  exhaustTime: 1.4
+  displayName: "\uD751\uB8B0"
+  maxPosture: 100
+  postureRegenDelay: 2.5
+  postureRegenRate: 10
+  postureBreakStun: 3.5
+  parryPosture: 30
+  executionDamageRatio: 0.25
+  instantKillDamageRatio: 0.12
+  phase2Ratio: 0.5
+  phase2Speed: 1.15
+  phase2CooldownScale: 0.7
+  roarTime: 1.8
+  roarPushRadius: 4
+  introTime: 1.6
+  grabAttack: {fileID: 11400000, guid: bf3249cb09d81344aaaa4da8f3ea4f12, type: 2}
+  grabChance: 0.3
+  grabWindup: 0.7
+  grabRange: 2.3
+  grabLungeSpeed: 6
+  grabLungeTime: 0.35
+  grabDamage: 35
+  grabCooldown: 8
+  grabMissStun: 1.2
+  leapAttack: {fileID: 11400000, guid: e0047d6908f18064e87a0e2c7cb1b219, type: 2}
+  leapMinDistance: 5
+  leapMaxDistance: 15
+  leapWindup: 0.9
+  leapAirTime: 0.8
+  leapHeight: 5
+  leapRadius: 3.2
+  leapDamage: 30
+  leapCooldown: 9
+  leapRecovery: 1.3
+  waveAttack: {fileID: 11400000, guid: 8ff052491b232d1449e807dfda89834a, type: 2}
+  waveMinDistance: 4
+  waveSpeed: 16
+  waveRange: 22
+  waveWidth: 2.2
+  waveDamage: 16
+  waveCooldown: 6

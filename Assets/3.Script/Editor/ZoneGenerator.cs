@@ -14,7 +14,8 @@ public static class ZoneGenerator
     const string Zone1ThemePath = DataFolder + "/Zone1_Sanmun.asset";
     const string Zone2ThemePath = DataFolder + "/Zone2_Forest.asset";
     const string Zone3ThemePath = DataFolder + "/Zone3_Trial.asset"; // 시련의 터 (끝없는 웨이브)
-    const string TempleThemePath = DataFolder + "/Zone3_Temple.asset"; // [변경] 구역 3 폐사찰 (시련의 터 앞에 끼움)
+    const string TempleThemePath = DataFolder + "/Zone3_Temple.asset";
+    const string BossThemePath = DataFolder + "/Zone4_Boss.asset"; // [변경] 보스 구역 (폐사찰과 시련의 터 사이) // 구역 3 폐사찰 (시련의 터 앞에 끼움)
     const string ElitePrefabPath = "Assets/2.Model/Prefabs/Swordsman_Elite.prefab";
     const string GuardianPrefabPath = "Assets/2.Model/Prefabs/Swordsman_Guardian.prefab";
     const string ChargerPrefabPath = "Assets/2.Model/Prefabs/Swordsman_Charger.prefab";
@@ -33,7 +34,8 @@ public static class ZoneGenerator
     {
         (Zone1ThemePath, CreateZone1Theme, new[] { 2, 3 }, "구역 1", "산문"),
         (Zone2ThemePath, CreateZone2Theme, new[] { 2, 3, 3 }, "구역 2", "안개 낀 숲길"),
-        (TempleThemePath, CreateTempleTheme, new[] { 2, 2, 1 }, "구역 3", "폐사찰"), // [변경] 방패병·돌격병은 ConfigureTemple이 추가
+        (TempleThemePath, CreateTempleTheme, new[] { 2, 2, 1 }, "구역 3", "폐사찰"), // 방패병·돌격병은 ConfigureTemple이 추가
+        (BossThemePath, CreateBossTheme, new int[0], "최종", "흑뢰의 제단"), // [변경] 웨이브는 ConfigureBoss가 보스 1명으로
         (Zone3ThemePath, CreateZone3Theme, new int[0], "시련", "시련의 터"), // 웨이브는 ZoneArena가 끝없이 생성
     };
 
@@ -54,11 +56,12 @@ public static class ZoneGenerator
         }
     }
 
-    // [변경] 구역별 추가 설정
+    // 구역별 추가 설정
     static void Configure(string path, ZoneTheme theme)
     {
         if (path == Zone3ThemePath) ConfigureTrial(theme);
         else if (path == TempleThemePath) ConfigureTemple(theme);
+        else if (path == BossThemePath) ConfigureBoss(theme); // [변경]
     }
 
     [MenuItem("Tools/Map/Generate Zone 1 (Sanmun)")]
@@ -70,8 +73,11 @@ public static class ZoneGenerator
     [MenuItem("Tools/Map/Generate Zone 3 (Temple)")]
     static void GenerateZone3() => GenerateSingle(2);
 
+    [MenuItem("Tools/Map/Generate Boss Zone")] // [변경]
+    static void GenerateBoss() => GenerateSingle(3);
+
     [MenuItem("Tools/Map/Generate Trial")]
-    static void GenerateTrial() => GenerateSingle(3); // [변경] 시련의 터는 폐사찰 뒤로
+    static void GenerateTrial() => GenerateSingle(4); // [변경] 시련의 터는 보스 구역 뒤로
 
     // 크래시 원인: 소품 2,287개를 정적 배칭하면 플레이 시작 때 나무마다 정점을 월드 좌표로 복제해 합친 거대한 메시가 생겨
     // GPU 공유 메모리(16GB)를 다 써서 D3D12 장치가 끊김 → 정적 배칭을 쓰지 않고, 이미 붙은 표시는 이 메뉴로 지움
@@ -118,7 +124,7 @@ public static class ZoneGenerator
         Configure(Zones[index].path, themes[index]);
     }
 
-    // [변경] 폐사찰: 웨이브에 추가 적이 하나도 없을 때만 기본 구성을 넣음 (인스펙터 튜닝 보존)
+    // 폐사찰: 웨이브에 추가 적이 하나도 없을 때만 기본 구성을 넣음 (인스펙터 튜닝 보존)
     // 1웨이브 검병 2 + 방패병 1 / 2웨이브 검병 2 + 돌격병 2 / 3웨이브 검병 1 + 방패병 1 + 돌격병 1 + 정예 1
     static void ConfigureTemple(ZoneTheme theme)
     {
@@ -150,6 +156,37 @@ public static class ZoneGenerator
         EditorSceneManager.MarkSceneDirty(root.scene);
     }
 
+    // [변경] 보스 구역: 웨이브가 비어 있을 때만 보스 1명 (등장 직후 잠깐 멈춤 → 등장 모션)
+    static void ConfigureBoss(ZoneTheme theme)
+    {
+        GameObject root = GameObject.Find(theme.zoneName);
+        ZoneArena arena = root != null ? root.GetComponent<ZoneArena>() : null;
+        if (arena == null) return;
+
+        var boss = AssetDatabase.LoadAssetAtPath<GameObject>(BossSetup.BossPrefab);
+        if (boss == null)
+        {
+            Debug.LogWarning("[ZoneGenerator] 보스 프리팹이 없어 보스 구역 웨이브가 비어 있습니다. Tools/Setup/Boss를 실행한 뒤 다시 생성하세요.");
+            return;
+        }
+
+        var so = new SerializedObject(arena);
+        SerializedProperty waves = so.FindProperty("waves");
+        if (waves.arraySize > 0) return;
+        waves.arraySize = 1;
+        SerializedProperty wave = waves.GetArrayElementAtIndex(0);
+        wave.FindPropertyRelative("enemyPrefab").objectReferenceValue = boss;
+        wave.FindPropertyRelative("count").intValue = 1;
+        wave.FindPropertyRelative("elitePrefab").objectReferenceValue = null;
+        wave.FindPropertyRelative("eliteCount").intValue = 0;
+        wave.FindPropertyRelative("extras").arraySize = 0;
+        so.FindProperty("firstWaveDelay").floatValue = 1.2f;
+        so.FindProperty("spawnRadius").floatValue = 11f;
+        so.FindProperty("spawnHold").floatValue = 1f;
+        so.ApplyModifiedProperties();
+        EditorSceneManager.MarkSceneDirty(root.scene);
+    }
+
     static void SetExtras(SerializedProperty wave, params (GameObject prefab, int count)[] groups)
     {
         SerializedProperty list = wave.FindPropertyRelative("extras");
@@ -173,7 +210,7 @@ public static class ZoneGenerator
         so.FindProperty("xpPerWave").floatValue = 0.05f;
         so.FindProperty("endlessEnemy").objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(EnemyPrefabPath);
         so.FindProperty("endlessElite").objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(ElitePrefabPath);
-        // [변경] 시련 3웨이브부터 방패병·돌격병이 섞여 나옴 (프리팹이 있을 때만)
+        // 시련 3웨이브부터 방패병·돌격병이 섞여 나옴 (프리팹이 있을 때만)
         SerializedProperty specials = so.FindProperty("endlessSpecials");
         GameObject[] extra = { AssetDatabase.LoadAssetAtPath<GameObject>(GuardianPrefabPath), AssetDatabase.LoadAssetAtPath<GameObject>(ChargerPrefabPath) };
         extra = extra.Where(p => p != null).ToArray();
@@ -258,7 +295,7 @@ public static class ZoneGenerator
         int trees = PlaceTrees(theme, Group(generated, "Trees"), terrain);
         int cover = PlaceCover(theme, Group(generated, "Cover"), terrain);
         int stones = PlacePathStones(theme, Group(generated, "PathStones"), terrain);
-        PlaceLandmarks(theme, Group(generated, "Landmarks"), terrain); // [변경]
+        PlaceLandmarks(theme, Group(generated, "Landmarks"), terrain);
         PlaceParticles(theme, Group(generated, "Particles"), terrain);
         if (applyAtmosphere) ApplyAtmosphere(theme);
 
@@ -564,7 +601,7 @@ public static class ZoneGenerator
         return count;
     }
 
-    // [변경] 벽 바깥 대각선 네 곳 (문이 있는 남북 축을 피함). 콜라이더 유지 → 벽 너머 배경
+    // 벽 바깥 대각선 네 곳 (문이 있는 남북 축을 피함). 콜라이더 유지 → 벽 너머 배경
     static void PlaceLandmarks(ZoneTheme t, Transform parent, Terrain terrain)
     {
         if (t.landmarks == null || t.landmarks.Length == 0) return;
@@ -892,7 +929,7 @@ public static class ZoneGenerator
         return SaveTheme(theme, Zone3ThemePath);
     }
 
-    // [변경] 구역 3 폐사찰: 해 질 녘 잿빛 안개, 마른 나무와 부러진 나무, 무너진 정자·기둥·울타리 잔해
+    // 구역 3 폐사찰: 해 질 녘 잿빛 안개, 마른 나무와 부러진 나무, 무너진 정자·기둥·울타리 잔해
     static ZoneTheme CreateTempleTheme()
     {
         ZoneTheme theme = NewTheme("Zone_3_Temple");
@@ -941,6 +978,53 @@ public static class ZoneGenerator
         theme.barrierColor = new Color(1f, 0.8f, 0.4f, 0.35f);
 
         return SaveTheme(theme, TempleThemePath);
+    }
+
+    // [변경] 보스 구역 흑뢰의 제단: 넓고 비운 원형 분지(도약 내려찍기 공간), 먹구름 낀 검붉은 하늘빛, 부러진 나무와 기둥 잔해
+    static ZoneTheme CreateBossTheme()
+    {
+        ZoneTheme theme = NewTheme("Zone_4_Boss");
+        if (theme == null) return null;
+
+        theme.seed = 5;
+        theme.terrainSize = 120f;
+        theme.combatRadius = 20f;
+        theme.wallRadius = 23f;
+        theme.hillHeight = 16f;
+        theme.hillNoise = 6f;
+        theme.hillWidth = 16f;
+
+        theme.groundLayer = Load<TerrainLayer>("Terrain/Layer_TFF_Terrain_Earth_2A_D.terrainlayer");
+        theme.arenaLayer = Load<TerrainLayer>("Terrain/Layer_TFF_Terrain_Earth_1A_D.terrainlayer");
+        theme.roadLayer = Load<TerrainLayer>("Terrain/Layer_TFF_Terrain_Dirt_Road_1A_D.terrainlayer");
+
+        theme.wallRocks = Prefabs("Rocks", "TFF_Rock_Large_");
+        theme.wallRockSize = new Vector2(5.5f, 8.5f);
+        theme.innerRocks = Prefabs("Rocks", "TFF_Rock_Small_");
+        theme.innerRockCount = 0; // 가운데는 비워 둠
+        theme.trees = Prefabs("Vegetation/Trees", "TFF_Tree_Broken_").Concat(Prefabs("Vegetation/Trees", "TFF_Birch_Tree_Dry_")).ToArray();
+        theme.treeHeight = new Vector2(9f, 15f);
+        theme.treeMinDistance = 5f;
+        theme.treeMaxCount = 120;
+        theme.arenaCover = Prefabs("Decals", "TFF_Decal_Debris_");
+        theme.arenaCoverCount = 16;
+        theme.outerCover = Prefabs("Props", "TFF_Debris_").Concat(Prefabs("Structures", "TFF_Wooden_Pole_")).ToArray();
+        theme.outerCoverCount = 50;
+        theme.landmarks = Prefabs("Structures", "TFF_Wooden_Pavilion_");
+        theme.pathStones = Prefabs("Rocks", "TFF_Stone_Slab_");
+
+        theme.skybox = Load<Material>("Skyboxes/TFF_Skybox_Day_01A.mat");
+        theme.fogColor = new Color(0.32f, 0.22f, 0.28f);
+        theme.fogDensity = 0.022f;
+        theme.sunColor = new Color(0.85f, 0.4f, 0.38f);
+        theme.sunEuler = new Vector3(12f, 200f, 0f);
+        theme.groundParticles = new[] { Load<GameObject>("Particles/TFF_Fog_01A.prefab") };
+        theme.groundParticleCount = 10;
+        theme.overheadParticles = new GameObject[0];
+        theme.gateColor = new Color(0.4f, 0.06f, 0.08f);
+        theme.barrierColor = new Color(1f, 0.25f, 0.25f, 0.35f);
+
+        return SaveTheme(theme, BossThemePath);
     }
 
     static T Load<T>(string relative) where T : Object

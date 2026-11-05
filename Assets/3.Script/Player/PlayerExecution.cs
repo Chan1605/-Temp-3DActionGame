@@ -15,7 +15,7 @@ public class PlayerExecution : MonoBehaviour
         Animator.StringToHash("Execution_1"), Animator.StringToHash("Execution_2"), Animator.StringToHash("Execution_3")
     };
 
-    // [변경] 모션별 짝 맞춤. distance = 앞, side = 오른쪽(+)·왼쪽(-), yaw = 적이 나를 정면으로 보는 각도에서 더 돌림
+    // 모션별 짝 맞춤. distance = 앞, side = 오른쪽(+)·왼쪽(-), yaw = 적이 나를 정면으로 보는 각도에서 더 돌림
     [Serializable]
     public class MotionSetup
     {
@@ -43,16 +43,16 @@ public class PlayerExecution : MonoBehaviour
 
     [Header("Motion")]
     [SerializeField] MotionSetup[] motions = { new MotionSetup(), new MotionSetup(), new MotionSetup() };
-    [SerializeField] float playbackSpeed = 0.8f; // [변경] 짝 모션 재생 속도 (1보다 작으면 묵직하게)
+    [SerializeField] float playbackSpeed = 0.8f; // 짝 모션 재생 속도 (1보다 작으면 묵직하게)
     [SerializeField] float alignTime = 0.12f;    // 적이 자리로 미끄러지는 시간
 
     [Header("Kill Moment")]
-    [SerializeField] float freezeTime = 0.09f;   // [변경] 칼이 꽂히는 순간 거의 정지 (실제 시간)
+    [SerializeField] float freezeTime = 0.09f;   // 칼이 꽂히는 순간 거의 정지 (실제 시간)
     [SerializeField] float slowScale = 0.3f;
     [SerializeField] float slowTime = 0.55f;
 
     [Header("Camera")]
-    [SerializeField] bool cinematicCamera = true; // [변경]
+    [SerializeField] bool cinematicCamera = true;
     [SerializeField] float cameraSideAngle = 70f; // 플레이어 정면 기준 옆으로 돈 각도 (+ 오른쪽)
     [SerializeField] float cameraPitch = 8f;
     [SerializeField] float cameraDistance = 3.4f;
@@ -74,7 +74,7 @@ public class PlayerExecution : MonoBehaviour
     public int MotionCount => ExecutionHashes.Length;
     public MotionSetup GetMotion(int index) => motions != null && index >= 0 && index < motions.Length ? motions[index] : null;
 
-    // [변경] 플레이어가 이 자리에 이 방향으로 서 있을 때 index번 모션의 적 자리 (튜너 창도 같이 씀)
+    // 플레이어가 이 자리에 이 방향으로 서 있을 때 index번 모션의 적 자리 (튜너 창도 같이 씀)
     public void GetVictimPose(Vector3 playerPos, Quaternion playerRot, int index, out Vector3 pos, out Quaternion rot)
     {
         MotionSetup m = GetMotion(index) ?? new MotionSetup();
@@ -120,7 +120,7 @@ public class PlayerExecution : MonoBehaviour
     // 죽지 않았고 땅에 있고 스킬 중이 아니면 처형 가능 (공격·회피·패링·차지·피격 중이어도 끊고 들어감)
     bool CanExecuteNow()
     {
-        if (health != null && health.IsDead) return false;
+        if (health != null && (health.IsDead || health.IsGrabbed)) return false; // [변경] 보스에게 잡힌 동안은 처형 불가
         if (skill != null && skill.IsActive) return false;
         return locomotion == null || locomotion.IsGrounded;
     }
@@ -163,7 +163,7 @@ public class PlayerExecution : MonoBehaviour
         transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
         GetVictimPose(transform.position, transform.rotation, index, out Vector3 spot, out Quaternion spotRot);
         spot.y = enemy.transform.position.y;
-        enemy.BeginExecuted(spot, spotRot, index, playbackSpeed, alignTime); // [변경]
+        enemy.BeginExecuted(spot, spotRot, index, playbackSpeed, alignTime);
 
         animator.speed = playbackSpeed;
         animator.CrossFadeInFixedTime(ExecutionHashes[index], 0.05f, 0, 0f);
@@ -210,7 +210,7 @@ public class PlayerExecution : MonoBehaviour
         });
 
         if (followCamera != null) followCamera.Shake(0.2f, 0.25f);
-        // [변경] 정지 → 슬로 → 원래 속도 (실제 시간 기준)
+        // 정지 → 슬로 → 원래 속도 (실제 시간 기준)
         if (freezeUntil < 0f && slowUntil < 0f) savedTimeScale = Time.timeScale > 0.01f ? Time.timeScale : 1f;
         Time.timeScale = 0.02f;
         freezeUntil = Time.unscaledTime + freezeTime;

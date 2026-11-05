@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ZoneTheme
   zoneName: Zone_3_Trial
   seed: 3
-  origin: {x: 0, y: 0, z: 330}
+  origin: {x: 0, y: 0, z: 450}
   displayNumber: "\uC2DC\uB828"
   displayName: "\uC2DC\uB828\uC758 \uD130"
   combatRadius: 18

@@ -104,6 +104,7 @@ public class GameHUD : MonoBehaviour
         if (kanpaSource == null) kanpaSource = FindAnyObjectByType<PlayerKanpa>();
         CreateFollowPrompt();
         CreateMarkGuide();
+        CreateBossBar(); // [변경]
 
         SetThunderVisible(showThunder);
         SetAlpha(zoneBanner, 0f);
@@ -405,6 +406,19 @@ public class GameHUD : MonoBehaviour
         skillWasActive = active;
     }
 
+    // [변경] 보스 체력 막대: 화면 전체를 덮는 자식으로 만들고 BossHealthBar가 아래 가운데에 그림
+    void CreateBossBar()
+    {
+        if (GetComponentInChildren<BossHealthBar>(true) != null) return;
+        var go = new GameObject("BossHealthBar", typeof(RectTransform));
+        var rt = (RectTransform)go.transform;
+        rt.SetParent(transform, false);
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = rt.offsetMax = Vector2.zero;
+        go.AddComponent<BossHealthBar>().Build(hpText != null ? hpText.font : null);
+    }
+
     // ===== 뇌인 안내 =====
     // 슬롯 위 작은 글씨(상시) + Q를 눌렀는데 막혔을 때 화면 중앙 아래 안내(잠깐)
     void CreateMarkGuide()
@@ -498,7 +512,7 @@ public class GameHUD : MonoBehaviour
             gauge.localScale = Vector3.one * 0.8f;
             gauge.DOScale(1f, 0.25f).SetEase(Ease.OutBack).SetUpdate(true).SetLink(gauge.gameObject);
             chargeLevel = 0;
-            if (chargeLabel != null) chargeLabel.text = ""; // [변경]
+            if (chargeLabel != null) chargeLabel.text = "";
         }
         else if (!now && charging)
         {
@@ -521,7 +535,7 @@ public class GameHUD : MonoBehaviour
 
         if (level != chargeLevel)
         {
-            if (chargeLabel != null && level >= chargeSource.MaxLevel) // [변경] "차지 1·2" 글자 없이 풀차지만 표시
+            if (chargeLabel != null && level >= chargeSource.MaxLevel) // "차지 1·2" 글자 없이 풀차지만 표시
             {
                 chargeLabel.text = "풀차지";
                 UITween.Punch(chargeLabel.transform, 0.35f, 0.3f);

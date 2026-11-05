@@ -12,6 +12,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     static readonly int[] AirHitHashes = Hashes("HitAir_F", "HitAir_B", "HitAir_L", "HitAir_R");
     static readonly int KnockDownHash = Animator.StringToHash("KnockDown_Start");
     static readonly int GetUpHash = Animator.StringToHash("Get_Up");
+    static readonly int GrabbedHash = Animator.StringToHash("Grabbed"); // [변경] 보스 잡기 짝 모션 (처형 당하는 쪽 클립)
 
     [SerializeField] float maxHealth = 100f;
     [SerializeField] float stunTime = 0.35f;
@@ -34,17 +35,19 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     [SerializeField] PlayerKanpa kanpa; // △ 초반에 맞으면 간파
     [SerializeField] ThirdPersonCamera followCamera;
     [SerializeField] PlayerExecution execution; // 처형 중 무적 · 다른 행동 막기
-    [SerializeField] PlayerChargeAttack charge; // [변경] 섬격 중 무적
+    [SerializeField] PlayerChargeAttack charge; // 섬격 중 무적
 
     float health;
     float stunTimer;
     float invulnerableTimer;
     bool dead;
     bool knockedDown;
+    bool grabbed; // [변경] 보스에게 잡힘: 모든 입력·피격을 막고 보스가 놓을 때까지 짝 모션
 
     public float Health => health;
     public float MaxHealth => maxHealth;
-    public bool IsStunned => stunTimer > 0f || (execution != null && execution.IsActive); // 회피·패링·차지가 이 값으로 막힘
+    public bool IsStunned => stunTimer > 0f || grabbed || (execution != null && execution.IsActive); // 회피·패링·차지가 이 값으로 막힘 // [변경] 잡힘 포함
+    public bool IsGrabbed => grabbed;
     public bool CanBeTargeted => !dead;
     public bool IsDead => dead;
     public event System.Action<DamageInfo> Damaged; // 피격 이펙트용
@@ -77,6 +80,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     void Update()
     {
         if (invulnerableTimer > 0f) invulnerableTimer -= Time.deltaTime;
+        if (grabbed) return; // [변경]
         if (execution != null && execution.IsActive) return;
         if (stunTimer <= 0f) return;
 
@@ -102,12 +106,12 @@ public class PlayerHealth : MonoBehaviour, IDamageable
 
     public HitResult ReceiveDamage(DamageInfo info)
     {
-        if (dead) return HitResult.Ignored;
+        if (dead || grabbed) return HitResult.Ignored; // [변경] 잡힌 동안은 잡기 피해만 (GrabHit)
         // 프로토타입: 스킬 사용 중에는 피격을 무시 (스킬 중 피격 처리는 아직 미정)
         if (skill != null && skill.IsActive) return HitResult.Ignored;
         if (invulnerableTimer > 0f) return HitResult.Ignored;
         if (execution != null && execution.IsActive) return HitResult.Ignored;
-        if (charge != null && charge.IsDashing) return HitResult.Ignored; // [변경]
+        if (charge != null && charge.IsDashing) return HitResult.Ignored;
 
         // 회피 무적 구간이면 무시, 무적이 끝난 회피 후반에 맞으면 회피를 끊고 피격 처리
         if (parry != null && parry.IsInvulnerable) return HitResult.Ignored;
@@ -137,6 +141,74 @@ public class PlayerHealth : MonoBehaviour, IDamageable
         Damaged?.Invoke(info);
         if (health <= 0f) Die(info); // 피격 모션 대신 사망 모션
         return HitResult.Hit;
+    }
+
+    // ===== 보스 잡기 ===== [변경]
+    // 핵심: 무적(회피·스킬·처형·섬격·패링·뇌락·피격 직후)이면 실패 → 보스는 헛잡음. 성공하면 하던 행동을 끊고 지정 자리에서 짝 모션
+    public bool TryBeginGrab(GameObject by, Vector3 position, Quaternion rotation, float startNormalized, float animSpeed)
+    {
+        if (dead || grabbed || !animator.HasState(0, GrabbedHash)) return false;
+        if (dodge != null && dodge.IsInvulnerable)
+        {
+            dodge.NotifyAvoidedHit(); // 잡기를 흘려도 저스트 회피로 인정
+            return false;
+        }
+        bool invulnerable = invulnerableTimer > 0f || (skill != null && skill.IsActive) || (execution != null && execution.IsActive)
+            || (charge != null && charge.IsDashing) || (parry != null && parry.IsInvulnerable) || (kanpa != null && kanpa.IsInvulnerable);
+        if (invulnerable) return false;
+
+        grabbed = true;
+        stunTimer = 0f;
+        knockedDown = false;
+        if (dodge != null && dodge.IsDodging) dodge.Interrupt();
+        if (parry != null) parry.Interrupt();
+        if (charge != null) charge.Cancel();
+        if (combat != null)
+        {
+            combat.CancelAttack();
+            combat.InputLocked = true;
+        }
+        if (locomotion != null) locomotion.MovementLocked = true;
+        if (skill != null) skill.enabled = false;
+
+        var cc = GetComponent<CharacterController>();
+        if (cc != null) cc.enabled = false;
+        transform.SetPositionAndRotation(position, rotation);
+        if (cc != null) cc.enabled = true;
+
+        animator.speed = animSpeed;
+        animator.Play(GrabbedHash, 0, Mathf.Clamp01(startNormalized));
+        if (followCamera != null) followCamera.Shake(0.1f, 0.15f);
+        Debug.Log("[Player] 잡힘");
+        return true;
+    }
+
+    // 보스 칼이 꽂히는 순간: 피해만 (짝 모션은 계속)
+    public void GrabHit(DamageInfo info)
+    {
+        if (!grabbed || dead) return;
+        TakeDamage(info.Damage);
+        Damaged?.Invoke(info);
+        if (followCamera != null) followCamera.Shake(0.22f, 0.25f);
+        if (health > 0f) return;
+
+        grabbed = false;
+        animator.speed = 1f;
+        Die(info, false); // 짝 모션에 쓰러지는 동작이 들어 있음
+    }
+
+    // 보스가 놓음 → 쓰러진 채 잠깐 → 기상 (그동안 무적)
+    public void ReleaseGrab()
+    {
+        if (!grabbed) return;
+        grabbed = false;
+        animator.speed = 1f;
+        if (dead) return;
+
+        if (skill != null) skill.enabled = true;
+        knockedDown = true;
+        stunTimer = 0.35f;
+        invulnerableTimer = stunTimer + getUpTime + 0.3f;
     }
 
     // 핵심: 넉다운 > 공중 > 강공격 > 일반 순으로 반응을 고르고, 경직·무적 시간도 반응에 맞춤
@@ -208,7 +280,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
 
     // ===== 사망·부활 =====
     // 사망: 모든 입력을 막고 경직을 끝나지 않게 둠 (Q 스킬은 경직을 확인하지 않아 컴포넌트를 끔). 부활은 ZoneArena가 호출
-    void Die(DamageInfo killingBlow)
+    void Die(DamageInfo killingBlow, bool playAnimation = true) // [변경] 잡혀서 죽으면 짝 모션 그대로
     {
         dead = true;
         health = 0f;
@@ -222,7 +294,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
         if (locomotion != null) locomotion.MovementLocked = true;
         if (dodge != null && dodge.IsDodging) dodge.Interrupt();
         if (skill != null) skill.enabled = false;
-        PlayDeath(killingBlow);
+        if (playAnimation) PlayDeath(killingBlow);
 
         Debug.Log("[Player] 사망");
         Died?.Invoke();
@@ -244,6 +316,8 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     {
         dead = false;
         knockedDown = false;
+        grabbed = false; // [변경]
+        animator.speed = 1f;
         health = maxHealth;
         stunTimer = 0f;
         invulnerableTimer = invulnerable;

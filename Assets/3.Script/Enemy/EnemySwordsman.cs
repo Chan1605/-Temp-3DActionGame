@@ -1,10 +1,11 @@
 using UnityEngine;
 
-// partial: 방패병(EnemySwordsman.Guard.cs) · 돌격병(EnemySwordsman.Charge.cs) · 처형(EnemySwordsman.Execution.cs) 행동을 파일로 나눔. 종류는 EnemyData.Kind
+// partial: 방패병(EnemySwordsman.Guard.cs) · 돌격병(EnemySwordsman.Charge.cs) · 처형(EnemySwordsman.Execution.cs) · 보스(EnemySwordsman.Boss.cs) 행동을 파일로 나눔. 종류는 EnemyData.Kind
 [RequireComponent(typeof(CharacterController))]
 public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저스트 회피·간파 판정용 인터페이스
 {
-    enum State { Idle, Chase, Windup, Attack, Stun, Dead, ChargeWindup, Charge, Executed } // 처형 중
+    enum State { Idle, Chase, Windup, Attack, Stun, Dead, ChargeWindup, Charge, Executed, // 처형 중
+        BossGrabWindup, BossGrab, BossLeapWindup, BossLeapAir, BossLeapLand, BossRoar } // [변경] 보스 패턴
 
     static readonly int MoveBlendHash = Animator.StringToHash("MoveBlend");
     static readonly int LocomotionHash = Animator.StringToHash("Locomotion");
@@ -167,6 +168,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
         health = data != null ? data.MaxHealth * healthScale : 1f;
         ApplyColor(bodyTint);
         InitGuard();
+        InitBoss(); // [변경]
         if (animator != null && IsGuardian) PlayMoveState(0f);
     }
 
@@ -176,11 +178,12 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
 
         // 적은 CombatTime 배속으로 움직임 → 저스트 회피·간파 슬로가 플레이어를 빼고 적용됨
         float scale = CombatTime.EnemyScale;
-        float dt = Time.deltaTime * scale;
-        if (animator != null) animator.speed = scale * (state == State.Executed ? executedSpeed : 1f); // [변경] 처형 짝 모션은 플레이어와 같은 배속
+        float dt = Time.deltaTime * scale * BossSpeed; // [변경] 보스 2페이즈는 동작 전체가 빨라짐
+        if (animator != null) animator.speed = scale * (state == State.Executed ? executedSpeed : BossSpeed); // 처형 짝 모션은 플레이어와 같은 배속
         localTime += dt;
         stateTime += dt;
         UpdateGuard(dt);
+        UpdateBoss(dt); // [변경]
 
         switch (state)
         {
@@ -192,7 +195,13 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
             case State.Dead: UpdateDead(); break;
             case State.ChargeWindup: UpdateChargeWindup(dt); break;
             case State.Charge: UpdateCharge(dt); break;
-            case State.Executed: UpdateExecuted(dt); break; // [변경] 자리로 미끄러진 뒤 모션이 끝날 때까지 대기
+            case State.Executed: UpdateExecuted(dt); break; // 자리로 미끄러진 뒤 모션이 끝날 때까지 대기
+            case State.BossGrabWindup: UpdateBossGrabWindup(dt); break; // [변경]
+            case State.BossGrab: UpdateBossGrab(dt); break;
+            case State.BossLeapWindup: UpdateBossLeapWindup(dt); break;
+            case State.BossLeapAir: UpdateBossLeapAir(dt); break;
+            case State.BossLeapLand: UpdateBossLeapLand(); break;
+            case State.BossRoar: UpdateBossRoar(); break;
         }
 
         Move(dt);
@@ -217,6 +226,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
         }
 
         FaceTarget(dt, 1f);
+        if (UpdateBossChase(dist)) return; // [변경] 보스: 등장 · 체간 붕괴 · 포효 · 도약 · 검기
 
         // 방패병은 막은 직후 잠깐 멈칫, 돌격병은 거리가 맞으면 돌진 예고
         if (guardPauseTimer > 0f)
@@ -232,6 +242,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
             if (localTime >= attackReadyTime)
             {
                 if (IsGuardian) LowerGuardForAttack(); // 예고 동안은 가드를 내림 (이때 □로 끊을 수 있음)
+                if (TryStartGrab()) return; // [변경] 보스: 일정 확률로 잡기
                 SetState(State.Windup); // 적 시계 기준
             }
             return;
@@ -319,6 +330,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
     {
         if (state == State.Dead) return HitResult.Ignored;
         if (TryBlock(info)) return HitResult.Blocked; // 방패병 정면 가드 (붕괴 조건이면 가드를 깨고 피해는 그대로)
+        if (IsBoss) return BossReceiveDamage(info); // [변경] 보스는 경직 없이 체간만 쌓임
 
         DamageEvents.Raise(transform.position + Vector3.up * 2f, info); // 데미지 숫자
         health -= info.Damage;
@@ -389,6 +401,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
         moveSpeed = 0f;
 
         controller.enabled = false;
+        BossOnDie(); // [변경]
         if (!executed) animator.CrossFadeInFixedTime(DeathHash, 0.05f, 0, 0f); // 처형 짝 모션에 쓰러지는 동작이 들어 있음
         SetState(State.Dead);
         Log("사망");
@@ -408,6 +421,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
         executed = false;
         executableUntil = -1f;
         InitGuard();
+        InitBoss(); // [변경]
 
         animator.Play(LocomotionHash, 0, 0f);
         moveAnimGuard = false; // 방패병이면 다음 프레임 UpdateGuard가 가드 자세로 돌림
@@ -417,6 +431,11 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
     void BeginSwing()
     {
         swingActive = true;
+        if (IsWaveAttack(currentAttack)) // [변경] 보스 검기: 칼 판정 대신 날아가는 참격
+        {
+            FireWave();
+            return;
+        }
         if (weapon == null) return;
 
         weapon.BeginSwing(new DamageInfo
@@ -487,12 +506,17 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
             ApplyColor(flashColor);
             return;
         }
+        if (BossColor(out Color bossColor)) // [변경] 보스 예고 색 (잡기 붉게 · 도약 주황 · 포효 · 체간 붕괴)
+        {
+            ApplyColor(bossColor);
+            return;
+        }
 
         // 돌격병 예고는 옵션과 상관없이 항상 발광 (먼 거리에서 오는 공격이라 읽혀야 함), 탈진은 칙칙한 색
         if (state == State.ChargeWindup || state == State.Charge)
         {
             float k = state == State.Charge ? 1f : Mathf.Clamp01(stateTime / Mathf.Max(data.ChargeWindup, 0.01f));
-            ApplyColor(Color.Lerp(bodyTint, windupColor, k * k));
+            ApplyColor(Color.Lerp(BaseTint, windupColor, k * k));
             return;
         }
         if (exhausted)
@@ -504,7 +528,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
         if (state == State.Windup && showWindupTell)
         {
             float k = Mathf.Clamp01(stateTime / Mathf.Max(data.WindupTime, 0.01f));
-            ApplyColor(Color.Lerp(bodyTint, windupColor, k * k));
+            ApplyColor(Color.Lerp(BaseTint, windupColor, k * k));
             return;
         }
 
@@ -513,11 +537,11 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
         if (untilChain >= 0f && untilChain <= comboTellTime)
         {
             float k = 1f - untilChain / Mathf.Max(comboTellTime, 0.01f);
-            ApplyColor(Color.Lerp(bodyTint, windupColor, k * k));
+            ApplyColor(Color.Lerp(BaseTint, windupColor, k * k));
             return;
         }
 
-        ApplyColor(bodyTint);
+        ApplyColor(BaseTint); // [변경] 보스 2페이즈는 붉은 몸
     }
 
     // 성능: 같은 색이면 건너뜀 (예전엔 적마다 매 프레임 PropertyBlock을 다시 넣었음)
@@ -570,6 +594,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
         if (untilHit <= 0f && TimeSinceHitStart() * toReal > lateWindow) return false;
 
         Vector3 to = Flat(targetPosition - transform.position);
+        if (IsBossRanged) return (Flat(targetPosition - leapTo).magnitude <= data.LeapRadius + threatRangeMargin); // [변경] 도약은 착지 범위로 판정
         if (!IsCharging && to.magnitude > data.AttackRange + threatRangeMargin) return false; // 돌진은 멀리서 오므로 거리 조건 제외
         return Vector3.Angle(transform.forward, to) <= threatAngle;
     }
@@ -595,6 +620,8 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
     {
         float untilCharge = ChargeTimeUntilHit();
         if (untilCharge >= 0f) return untilCharge;
+        float untilBoss = BossTimeUntilHit(); // [변경]
+        if (untilBoss >= 0f) return untilBoss;
 
         if (state == State.Windup && data.FirstAttack != null)
             return (data.WindupTime - stateTime) + data.FirstAttack.HitStart * data.FirstAttack.Duration;
@@ -631,13 +658,16 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
 
     // 연타를 이어갈 조건 (UpdateAttack과 간파 판정이 같이 사용)
     bool WillChain() =>
-        currentAttack != null && currentAttack.GetNext(AttackInput.Light) != null && DistanceToTarget() <= data.AttackRange * 1.5f;
+        currentAttack != null && currentAttack.GetNext(AttackInput.Light) != null
+        && (DistanceToTarget() <= data.AttackRange * 1.5f || IsWaveAttack(currentAttack)); // [변경] 검기 연속은 거리와 상관없이
 
     // 간파 대상이 될 공격: 예고 중이면 첫 타, 다음 타 대기 중이면 다음 타, 아니면 현재 타
     AttackData UpcomingAttack()
     {
         if (data == null) return null;
         if (IsCharging) return data.ChargeAttack;
+        AttackData bossAttack = BossUpcomingAttack(); // [변경] 잡기·도약은 패링 불가 데이터
+        if (bossAttack != null) return bossAttack;
         if (state == State.Windup || currentAttack == null) return data.FirstAttack;
         return TimeUntilChain() >= 0f ? currentAttack.GetNext(AttackInput.Light) : currentAttack;
     }
@@ -645,6 +675,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
     public HitResult ReceiveParry(GameObject parrier)
     {
         if (state == State.Dead || !IsParryable) return HitResult.Ignored;
+        if (IsBoss) return BossReceiveParry(parrier); // [변경]
 
         Vector3 dir = Flat(transform.position - parrier.transform.position);
         EnterStun(true, dir.normalized, data.ParryStunTime);

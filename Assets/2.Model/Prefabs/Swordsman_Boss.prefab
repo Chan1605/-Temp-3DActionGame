@@ -1,0 +1,99 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &6016578733980180366
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 965816109012478863, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 965816109012478863, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 965816109012478863, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 965816109012478863, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 965816109012478863, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 965816109012478863, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 965816109012478863, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 965816109012478863, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 965816109012478863, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 965816109012478863, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 965816109012478863, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 965816109012478863, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 965816109012478863, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5534474880986429457, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: data
+      value: 
+      objectReference: {fileID: 11400000, guid: 54b052054eed2eb4b90a52a6f4edae43, type: 2}
+    - target: {fileID: 5534474880986429457, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: bodyTint.b
+      value: 0.07
+      objectReference: {fileID: 0}
+    - target: {fileID: 5534474880986429457, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: bodyTint.g
+      value: 0.05
+      objectReference: {fileID: 0}
+    - target: {fileID: 5534474880986429457, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: bodyTint.r
+      value: 0.16
+      objectReference: {fileID: 0}
+    - target: {fileID: 5534474880986429457, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: waveHitVfx
+      value: 
+      objectReference: {fileID: 6464376092417059005, guid: 76de6a5888d85b149893cb89ef3b6847, type: 3}
+    - target: {fileID: 5534474880986429457, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: waveVisual
+      value: 
+      objectReference: {fileID: 4839014159920536022, guid: 26bee6af42a0e9f44b2aa8742e6bbbbd, type: 3}
+    - target: {fileID: 5534474880986429457, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: telegraphMaterial
+      value: 
+      objectReference: {fileID: 2100000, guid: 1ab621a14af543b4c8b9647c5ff492a3, type: 2}
+    - target: {fileID: 6766439865391952310, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
+      propertyPath: m_Name
+      value: Swordsman_Boss
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: ad4a924e586b55e45886c9dbfc93448e, type: 3}
