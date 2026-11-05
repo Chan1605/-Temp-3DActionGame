@@ -4,7 +4,7 @@ using UnityEngine;
 [RequireComponent(typeof(CharacterController))]
 public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat // 저스트 회피·간파 판정용 인터페이스
 {
-    enum State { Idle, Chase, Windup, Attack, Stun, Dead, ChargeWindup, Charge, Executed } // [변경] 처형 중
+    enum State { Idle, Chase, Windup, Attack, Stun, Dead, ChargeWindup, Charge, Executed } // 처형 중
 
     static readonly int MoveBlendHash = Animator.StringToHash("MoveBlend");
     static readonly int LocomotionHash = Animator.StringToHash("Locomotion");
@@ -177,7 +177,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
         // 적은 CombatTime 배속으로 움직임 → 저스트 회피·간파 슬로가 플레이어를 빼고 적용됨
         float scale = CombatTime.EnemyScale;
         float dt = Time.deltaTime * scale;
-        if (animator != null) animator.speed = scale;
+        if (animator != null) animator.speed = scale * (state == State.Executed ? executedSpeed : 1f); // [변경] 처형 짝 모션은 플레이어와 같은 배속
         localTime += dt;
         stateTime += dt;
         UpdateGuard(dt);
@@ -192,7 +192,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
             case State.Dead: UpdateDead(); break;
             case State.ChargeWindup: UpdateChargeWindup(dt); break;
             case State.Charge: UpdateCharge(dt); break;
-            case State.Executed: moveSpeed = 0f; break; // [변경] 처형 모션이 끝날 때까지 아무것도 안 함
+            case State.Executed: UpdateExecuted(dt); break; // [변경] 자리로 미끄러진 뒤 모션이 끝날 때까지 대기
         }
 
         Move(dt);
@@ -330,7 +330,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
             return HitResult.Hit;
         }
 
-        if (state == State.Executed) return HitResult.Hit; // [변경] 처형 중에는 다른 피해로 끊기지 않음
+        if (state == State.Executed) return HitResult.Hit; // 처형 중에는 다른 피해로 끊기지 않음
 
         // 휘두르는 중에는 경직 없이 맞기만 함 (토글로 비교)
         if (data.ArmorDuringSwing && IsArmored() && !info.BreakArmor) // // 판정 중 → 휘두르는 내내(옵션)
@@ -389,7 +389,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
         moveSpeed = 0f;
 
         controller.enabled = false;
-        if (!executed) animator.CrossFadeInFixedTime(DeathHash, 0.05f, 0, 0f); // [변경] 처형 짝 모션에 쓰러지는 동작이 들어 있음
+        if (!executed) animator.CrossFadeInFixedTime(DeathHash, 0.05f, 0, 0f); // 처형 짝 모션에 쓰러지는 동작이 들어 있음
         SetState(State.Dead);
         Log("사망");
         Died?.Invoke(this);
@@ -405,7 +405,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
         verticalVelocity = 0f;
         attackReadyTime = localTime + 1f;
         exhausted = false;
-        executed = false; // [변경]
+        executed = false;
         executableUntil = -1f;
         InitGuard();
 
@@ -649,7 +649,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat 
         Vector3 dir = Flat(transform.position - parrier.transform.position);
         EnterStun(true, dir.normalized, data.ParryStunTime);
         if (IsGuardian) BreakGuard(dir.normalized); // 방패병 공격을 간파·패링하면 가드까지 무너짐
-        OpenExecution(data.ParryStunTime); // [변경] 패링 뒤 처형 가능 (간파는 PlayerKanpa가 바로 닫음 → 뇌락으로)
+        OpenExecution(data.ParryStunTime); // 패링 뒤 처형 가능 (간파는 PlayerKanpa가 바로 닫음 → 뇌락으로)
         Flash(parryColor);
         Log("간파당함");
         return HitResult.Countered;

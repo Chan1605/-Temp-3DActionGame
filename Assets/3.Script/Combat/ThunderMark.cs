@@ -34,6 +34,9 @@ public class ThunderMark : MonoBehaviour
     public bool IsFull => marks >= maxMarks;
     public event Action<ThunderMark> Completed; // 가득 찬 순간 (P5 전이·뇌기 보너스용)
 
+    public static readonly System.Collections.Generic.List<ThunderMark> Active = new System.Collections.Generic.List<ThunderMark>(); // [변경] 켜져 있는 표식 전부 (일섬 사용 조건 검사용)
+    public IDamageable Owner => owner; // [변경]
+
     public static ThunderMark Of(Component c) => c != null ? c.GetComponentInParent<ThunderMark>() : null;
 
     void Awake()
@@ -43,6 +46,9 @@ public class ThunderMark : MonoBehaviour
         BuildIcons();
         Refresh();
     }
+
+    void OnEnable() => Active.Add(this);   // [변경]
+    void OnDisable() => Active.Remove(this); // [변경]
 
     // 반환값: 이번에 가득 찼으면 true
     public bool Add(int amount)

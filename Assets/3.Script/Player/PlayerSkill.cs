@@ -26,12 +26,15 @@ public class PlayerSkill : MonoBehaviour
     [SerializeField] TrailRenderer dashTrail;
     [SerializeField] PlayerStats stats; // 있으면 일섬 피해에도 공격력·치명타 적용
     [SerializeField] PlayerThunder thunder; // 있으면 뇌기 소모형 일섬 + 표식된 적만 즉사·연쇄
+    [SerializeField] PlayerStance stance;   // 일섬이 끝나면 납도 → 평상시 자세 (락온 중이면 그대로 전투 자세)
+    [SerializeField] bool sheatheAfterSkill = true;
+    [SerializeField] bool requireMark = true; // 사거리 안에 뇌인이 한 칸이라도 쌓인 적이 없으면 Q를 못 씀
 
-    [SerializeField] float aimTurnSpeed = 720f; // [변경] 자세·차지 중 고정한 대상을 따라 도는 속도(도/초, 실제 시간)
+    [SerializeField] float aimTurnSpeed = 720f; // 자세·차지 중 고정한 대상을 따라 도는 속도(도/초, 실제 시간)
     [SerializeField] bool hideBodyWhileDashing = true;
     [SerializeField] LayerMask obstacleMask = ~0;
 
-    readonly Collider[] overlapBuffer = new Collider[32];
+    readonly Collider[] overlapBuffer = new Collider[128]; // [변경] 32칸이면 바위·풀 콜라이더로 꽉 차 적을 못 찾는 경우가 있었음
     readonly RaycastHit[] castBuffer = new RaycastHit[16];
     readonly List<PendingHit> pendingHits = new List<PendingHit>();
 
@@ -52,16 +55,19 @@ public class PlayerSkill : MonoBehaviour
     bool killsApplied;
     float cooldownTimer;
     float hitStopTimer;
-    IDamageable aimTarget; // [변경] Q를 누른 순간 자동으로 고른 대상 (방향키와 무관)
+    IDamageable aimTarget; // Q를 누른 순간 자동으로 고른 대상 (방향키와 무관)
 
     float savedTimeScale = 1f;
     bool timeScaleOverridden;
 
     public bool IsActive => phase != Phase.Ready;
     public bool IsInvulnerable => phase == Phase.Dashing;
+    public TrailRenderer DashTrail => dashTrail; // 차지 섬격도 같은 궤적을 씀
     // HUD 쿨타임 표시용 (1 = 방금 사용, 0 = 사용 가능)
     public float CooldownRatio => data != null && data.Cooldown > 0f ? Mathf.Clamp01(cooldownTimer / data.Cooldown) : 0f;
     bool UsesGauge => thunder != null && thunder.UseGaugeForSkill;
+    public bool HasMarkTarget { get; private set; } = true; // HUD 안내용 (매 프레임 갱신)
+    public event System.Action Blocked; // 뇌인 없는데 Q를 누름
 
     // 이펙트(PlayerVfx)용 이벤트: 돌진 시작·끝 지점, 일괄 베기로 베인 대상 위치
     public event System.Action<Vector3, Vector3> Dashed;
@@ -74,6 +80,7 @@ public class PlayerSkill : MonoBehaviour
 
     void Awake()
     {
+        if (stance == null) stance = GetComponent<PlayerStance>();
         controller = GetComponent<CharacterController>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
         if (stats == null) stats = GetComponent<PlayerStats>();
@@ -110,6 +117,7 @@ public class PlayerSkill : MonoBehaviour
         float dt = Time.unscaledDeltaTime;
         if (cooldownTimer > 0f) cooldownTimer -= Time.deltaTime;
         UpdateHitStop(dt);
+        if (phase == Phase.Ready) HasMarkTarget = !requireMark || AnyMarkedNearby();
 
         switch (phase)
         {
@@ -148,6 +156,13 @@ public class PlayerSkill : MonoBehaviour
             return;
         }
 
+        if (!HasMarkTarget)
+        {
+            Debug.Log("[Skill] 뇌인이 쌓인 적이 없음");
+            Blocked?.Invoke();
+            return;
+        }
+
         if (locomotion != null && !locomotion.IsGrounded) return; // 공중 일섬은 v1 범위 밖
 
         // 콤보 중에는 다음 타 전환 구간 이후에만 캔슬해서 들어감
@@ -166,8 +181,9 @@ public class PlayerSkill : MonoBehaviour
         dashCount = 0;
         pendingHits.Clear();
 
-        aimTarget = FindTarget(transform.position, transform.forward, data.RangeAt(data.MaxChargeLevel), 360f, false); // [변경] 주변 360° 자동 선택
-        FaceAimTarget(true, 0f); // [변경] 누른 순간 그 대상 쪽으로 바로 돌아서 차징 자세
+        aimTarget = FindTarget(transform.position, transform.forward, data.RangeAt(data.MaxChargeLevel), 360f, false); // 주변 360° 자동 선택
+        if (requireMark && (aimTarget == null || MarkRank((Component)aimTarget) == 0)) aimTarget = NearestMarked(); // [변경] 뇌인 쌓인 적을 확실히 겨냥
+        FaceAimTarget(true, 0f); // 누른 순간 그 대상 쪽으로 바로 돌아서 차징 자세
         animator.CrossFadeInFixedTime(stanceHash, 0.05f, 0, 0f);
         HoldStarted?.Invoke();
     }
@@ -176,7 +192,7 @@ public class PlayerSkill : MonoBehaviour
     void UpdateHolding(float dt)
     {
         holdTime += dt;
-        FaceAimTarget(true, dt); // [변경] 자세·차지 중에는 고정한 대상을 자동으로 따라 돎
+        FaceAimTarget(true, dt); // 자세·차지 중에는 고정한 대상을 자동으로 따라 돎
 
         int level = holdTime < data.ChargeStartTime
             ? 0
@@ -200,7 +216,7 @@ public class PlayerSkill : MonoBehaviour
         if (!skillAction.action.IsPressed()) Release();
     }
 
-    // [변경] 핵심: 방향키를 보지 않고 자동 조준. 누를 때 고른 대상(표식 우선 → 가까운 순)을 바라보고,
+    // 핵심: 방향키를 보지 않고 자동 조준. 누를 때 고른 대상(표식 우선 → 가까운 순)을 바라보고,
     // 그 대상이 쓰러지면 다시 고름. 대상이 없으면 지금 방향 유지
     void FaceAimTarget(bool snap, float dt)
     {
@@ -221,7 +237,7 @@ public class PlayerSkill : MonoBehaviour
         HoldEnded?.Invoke();
         if (UsesGauge) thunder.TrySpend(thunder.SkillCost(chargeLevel)); // 놓는 순간 단계별 비용 차감
 
-        // [변경] 바라보던 대상이 이번 단계 사거리 안이면 그 대상에게, 아니면 정면 원뿔에서 다시 찾고 없으면 정면으로 헛돌진
+        // 바라보던 대상이 이번 단계 사거리 안이면 그 대상에게, 아니면 정면 원뿔에서 다시 찾고 없으면 정면으로 헛돌진
         Vector3 dir = transform.forward;
         float range = data.RangeAt(chargeLevel);
         IDamageable target = IsValidTarget(aimTarget) && Flat(((Component)aimTarget).transform.position - transform.position).magnitude <= range
@@ -231,7 +247,7 @@ public class PlayerSkill : MonoBehaviour
         StartDash(target, dir);
     }
 
-    bool IsValidTarget(IDamageable t) => t != null && (t as Object) != null && t.CanBeTargeted; // [변경]
+    bool IsValidTarget(IDamageable t) => t != null && (t as Object) != null && t.CanBeTargeted;
 
     void StartDash(IDamageable target, Vector3 fallbackDir)
     {
@@ -337,7 +353,7 @@ public class PlayerSkill : MonoBehaviour
             killsApplied = true;
         }
 
-        if (killsApplied && finishTimer >= data.KillDelay + data.RecoveryTime) EndSkill();
+        if (killsApplied && finishTimer >= data.KillDelay + data.RecoveryTime) EndSkill(true); // 끝까지 마친 경우만 납도
     }
 
     void ApplyPendingHits()
@@ -376,7 +392,7 @@ public class PlayerSkill : MonoBehaviour
         Debug.Log($"[Skill] 벽력일섬 {dashCount}연 · {applied}명 베기");
     }
 
-    void EndSkill()
+    void EndSkill(bool finished = false)
     {
         if (phase == Phase.Holding) HoldEnded?.Invoke(); // 차지 도중 끊긴 경우에도 이펙트 정리
         phase = Phase.Ready;
@@ -389,18 +405,19 @@ public class PlayerSkill : MonoBehaviour
 
         if (locomotion != null) locomotion.MovementLocked = false;
         if (combat != null) combat.InputLocked = false;
-        if (animator != null) animator.CrossFadeInFixedTime(LocomotionHash, 0.2f, 0, 0f);
+        bool sheathed = finished && sheatheAfterSkill && stance != null && stance.SheatheNow();
+        if (!sheathed && animator != null) animator.CrossFadeInFixedTime(LocomotionHash, 0.2f, 0, 0f);
 
         cooldownTimer = UsesGauge ? 0f : data.Cooldown;
     }
 
-    // 표식된 적을 먼저 고르고(같은 조건이면 가까운 순), markedOnly면 표식된 적만
+    // 뇌인 가득 → 한 칸이라도 → 없음 순으로 고르고(같은 순위면 가까운 순), markedOnly면 가득 찬 적만
     IDamageable FindTarget(Vector3 origin, Vector3 preferDir, float range, float maxAngle, bool markedOnly)
     {
         int count = Physics.OverlapSphereNonAlloc(origin, range, overlapBuffer, ~0, QueryTriggerInteraction.Ignore);
         IDamageable best = null;
         float bestDist = float.MaxValue;
-        bool bestMarked = false;
+        int bestRank = -1;
         Vector3 forward = Flat(preferDir).normalized;
 
         for (int i = 0; i < count; i++)
@@ -416,18 +433,43 @@ public class PlayerSkill : MonoBehaviour
             if (dist < 0.01f) continue;
             if (maxAngle < 360f && Vector3.Angle(forward, to) > maxAngle * 0.5f) continue;
 
-            bool marked = UsesGauge && PlayerThunder.IsMarked((Component)candidate);
-            if (markedOnly && !marked) continue;
-            if (bestMarked && !marked) continue;
+            int rank = MarkRank((Component)candidate);
+            if (markedOnly && rank < 2) continue;
+            if (rank < bestRank || (rank == bestRank && dist >= bestDist)) continue;
 
-            if (dist < bestDist || (marked && !bestMarked))
-            {
-                bestDist = dist;
-                best = candidate;
-                bestMarked = marked;
-            }
+            bestDist = dist;
+            best = candidate;
+            bestRank = rank;
         }
 
+        return best;
+    }
+
+    static int MarkRank(Component c)
+    {
+        ThunderMark mark = ThunderMark.Of(c);
+        if (mark == null || mark.Marks <= 0) return 0;
+        return mark.IsFull ? 2 : 1;
+    }
+
+    // [변경] 물리 검색 대신 표식 목록을 직접 봄 → 주변 콜라이더 수와 상관없이 정확
+    bool AnyMarkedNearby() => NearestMarked() != null;
+
+    // 최대 사거리 안에서 뇌인이 한 칸이라도 쌓인 가장 가까운 적
+    IDamageable NearestMarked()
+    {
+        if (data == null) return null;
+        float range = data.RangeAt(data.MaxChargeLevel);
+        IDamageable best = null;
+        float bestDist = range;
+        foreach (ThunderMark mark in ThunderMark.Active)
+        {
+            if (mark == null || mark.Marks <= 0 || mark.Owner == null || !mark.Owner.CanBeTargeted) continue;
+            float d = Flat(mark.transform.position - transform.position).magnitude;
+            if (d > bestDist) continue;
+            bestDist = d;
+            best = mark.Owner;
+        }
         return best;
     }
 

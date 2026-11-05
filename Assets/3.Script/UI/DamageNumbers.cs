@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-// 맞은 적 머리 위로 피해 숫자를 띄움. 일반 = 흰색, 치명타 = 금색 + 크게 튀어오름, 일섬 즉사 = 하늘색 "즉사"
+// 맞은 적 머리 위로 피해 숫자를 띄움. 일반 = 흰색, 치명타 = 금색 + 크게 튀어오름, 일섬 즉사 = 하늘색 999, 처형 = 표시 안 함
 // 월드 위치를 매 프레임 화면 좌표로 바꿔 따라가고, 실제 시간 기준이라 히트스톱·슬로 중에도 일정하게 사라짐
 public class DamageNumbers : MonoBehaviour
 {
@@ -44,7 +44,7 @@ public class DamageNumbers : MonoBehaviour
     void OnEnable()
     {
         DamageEvents.Dealt += OnDealt;
-        DamageEvents.Labeled += OnLabeled; // [변경]
+        DamageEvents.Labeled += OnLabeled;
     }
 
     void OnDisable()
@@ -53,7 +53,7 @@ public class DamageNumbers : MonoBehaviour
         DamageEvents.Labeled -= OnLabeled;
     }
 
-    // [변경] 글자 알림은 치명타 크기로 조금 더 오래
+    // 글자 알림은 치명타 크기로 조금 더 오래
     void OnLabeled(Vector3 position, string label, Color color)
     {
         Entry e = pool[next];
@@ -72,13 +72,14 @@ public class DamageNumbers : MonoBehaviour
     void OnDealt(Vector3 position, DamageInfo info)
     {
         if (showEnemyOnly && (info.Attacker == null || !info.Attacker.CompareTag("Player"))) return;
+        if (info.Weight == AttackWeight.Execution) return; // [변경] 처형은 숫자 없이 연출만
 
         Entry e = pool[next];
         next = (next + 1) % pool.Count;
 
         if (info.InstantKill)
         {
-            e.Text.text = "처형";
+            e.Text.text = "999"; // [변경] 일섬 즉사 (주석 처리 시 풀에 남아 있던 이전 숫자가 그대로 보였음)
             e.Color = killColor;
             e.Scale = critScale;
         }

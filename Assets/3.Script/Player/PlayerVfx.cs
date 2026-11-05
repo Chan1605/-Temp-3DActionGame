@@ -9,7 +9,7 @@ public class PlayerVfx : MonoBehaviour
 
     [SerializeField] PlayerCombat combat;
     [SerializeField] PlayerSkill skill;
-    [SerializeField] PlayerChargeAttack heavyCharge; // [변경] 우클릭 차지도 Q 차지와 같은 번개 연출
+    [SerializeField] PlayerChargeAttack heavyCharge; // 우클릭 차지도 Q 차지와 같은 번개 연출
     [SerializeField] SwordTrail trail;
     [SerializeField] BoxCollider blade;
     [SerializeField] GameObject boltPrefab;
@@ -33,6 +33,7 @@ public class PlayerVfx : MonoBehaviour
     [SerializeField] float strikeHeight = 12f;
     [SerializeField] float strikeSpread = 2f;
     [SerializeField] float strikeFlickerDelay = 0.07f;
+    [SerializeField] float strikeStagger = 0.08f; // [변경] 한 번에 여러 명이 베이면 낙뢰를 이 간격으로 차례차례 (동시에 떨어져 화면이 하얗게 타는 것 방지)
     [SerializeField] int impactArcs = 4;
     [SerializeField] float impactRadius = 1.6f;
     [SerializeField] LightningBoltStyle strikeStyle = DefaultStrikeStyle(); // 타입 이름만 변경 (저장된 값은 유지)
@@ -62,7 +63,7 @@ public class PlayerVfx : MonoBehaviour
     {
         if (combat == null) combat = GetComponent<PlayerCombat>();
         if (skill == null) skill = GetComponent<PlayerSkill>();
-        if (heavyCharge == null) heavyCharge = GetComponent<PlayerChargeAttack>(); // [변경]
+        if (heavyCharge == null) heavyCharge = GetComponent<PlayerChargeAttack>();
 
         bladeBolt = CreateBolt("BladeLightning", bladeStyle);
         dashBolt = CreateBolt("DashLightning", dashStyle);
@@ -85,11 +86,13 @@ public class PlayerVfx : MonoBehaviour
             skill.ChargeLevelChanged += OnChargeLevelChanged;
             skill.HoldEnded += OnHoldEnded;
         }
-        if (heavyCharge != null) // [변경]
+        if (heavyCharge != null)
         {
             heavyCharge.ChargeStarted += OnHoldStarted;
             heavyCharge.ChargeLevelChanged += OnHeavyChargeLevel;
             heavyCharge.ChargeEnded += OnHoldEnded;
+            heavyCharge.Dashed += OnDashed;       // 섬격도 일섬과 같은 번개 궤적 · 낙뢰
+            heavyCharge.TargetCut += OnTargetCut;
         }
     }
 
@@ -108,11 +111,13 @@ public class PlayerVfx : MonoBehaviour
             skill.ChargeLevelChanged -= OnChargeLevelChanged;
             skill.HoldEnded -= OnHoldEnded;
         }
-        if (heavyCharge != null) // [변경]
+        if (heavyCharge != null)
         {
             heavyCharge.ChargeStarted -= OnHoldStarted;
             heavyCharge.ChargeLevelChanged -= OnHeavyChargeLevel;
             heavyCharge.ChargeEnded -= OnHoldEnded;
+            heavyCharge.Dashed -= OnDashed;
+            heavyCharge.TargetCut -= OnTargetCut;
         }
         OnSwingFinished();
         OnHoldEnded();
@@ -157,20 +162,32 @@ public class PlayerVfx : MonoBehaviour
     }
 
     // 낙뢰: 하늘→적 본줄기 + 짧은 시간차 재점멸 + 착탄 지점에서 땅을 타고 퍼지는 잔번개
+    int strikeFrame = -1;
+    int strikeOrder;
+
     void OnTargetCut(Vector3 position)
     {
         if (!strikeLightning || strikeBolt == null) return;
 
+        // [변경] 같은 프레임에 들어온 낙뢰는 순서대로 지연
+        if (Time.frameCount != strikeFrame)
+        {
+            strikeFrame = Time.frameCount;
+            strikeOrder = 0;
+        }
+        float delay = strikeOrder++ * strikeStagger;
+
         Vector2 offset = Random.insideUnitCircle * strikeSpread;
         Vector3 sky = position + new Vector3(offset.x, strikeHeight, offset.y);
         Vector3 ground = position + Vector3.up * 0.1f;
-
-        strikeBolt.Trigger(sky, ground);
-        StartCoroutine(StrikeFollowUp(sky, ground));
+        StartCoroutine(StrikeFollowUp(sky, ground, delay));
     }
 
-    IEnumerator StrikeFollowUp(Vector3 sky, Vector3 ground)
+    IEnumerator StrikeFollowUp(Vector3 sky, Vector3 ground, float delay)
     {
+        if (delay > 0f) yield return new WaitForSecondsRealtime(delay);
+        if (strikeBolt != null) strikeBolt.Trigger(sky, ground);
+
         yield return new WaitForSecondsRealtime(strikeFlickerDelay);
         if (strikeBolt != null) strikeBolt.Trigger(sky, ground);
 
@@ -204,7 +221,7 @@ public class PlayerVfx : MonoBehaviour
         for (int i = 0; i < levelUpArcs; i++) chargeBolt.Trigger(RandomGroundPoint(), Vector3.Lerp(hilt, tip, Random.value));
     }
 
-    // [변경] 우클릭 차지는 1~3단계, Q 차지 연출은 0~2단계 기준이라 한 칸 내려서 전달
+    // 우클릭 차지는 1~3단계, Q 차지 연출은 0~2단계 기준이라 한 칸 내려서 전달
     void OnHeavyChargeLevel(int level) => OnChargeLevelChanged(level - 1);
 
     void OnHoldEnded()

@@ -46,7 +46,7 @@ public class ThirdPersonCamera : MonoBehaviour
     float punchElapsed = -1f;
     float punchAmount, punchIn, punchHold, punchOut, punchRoll;
 
-    // [변경] 락온: 마우스 대신 플레이어 → 대상 방향으로 돌고, 대상 높이에 맞춰 내려다봄
+    // 락온: 마우스 대신 플레이어 → 대상 방향으로 돌고, 대상 높이에 맞춰 내려다봄
     [Header("Lock On")]
     [SerializeField] float lockTurnSpeed = 8f;
     [SerializeField] float lockPitch = 12f;      // 같은 높이일 때 기본으로 내려다보는 각도
@@ -55,6 +55,25 @@ public class ThirdPersonCamera : MonoBehaviour
 
     public void SetLockTarget(Transform t) => lockTarget = t;
     public bool IsLocked => lockTarget != null;
+
+    // [변경] 시네마틱(처형 등): 지정한 초점·각도·거리로 부드럽게 옮겼다가 끝나면 원래 추적으로
+    [Header("Cinematic")]
+    [SerializeField] float cinematicBlendSpeed = 5f;
+    bool cinematic;
+    float cinematicWeight;
+    Vector3 cineFocus;
+    float cineYaw, cinePitch, cineDistance;
+
+    public void BeginCinematic(Vector3 focus, float yawAngle, float pitchAngle, float dist)
+    {
+        cinematic = true;
+        cineFocus = focus;
+        cineYaw = yawAngle;
+        cinePitch = pitchAngle;
+        cineDistance = dist;
+    }
+
+    public void EndCinematic() => cinematic = false;
 
     void OnEnable()
     {
@@ -112,7 +131,14 @@ public class ThirdPersonCamera : MonoBehaviour
 
         UpdatePivot(target.position + pivotOffset, dt);
 
-        if (lockTarget != null) FollowLockTarget(dt); // [변경]
+        cinematicWeight = Mathf.MoveTowards(cinematicWeight, cinematic ? 1f : 0f, cinematicBlendSpeed * dt); // [변경]
+        if (cinematic)
+        {
+            float k = 1f - Mathf.Exp(-cinematicBlendSpeed * dt);
+            yaw = Mathf.LerpAngle(yaw, cineYaw, k);
+            pitch = Mathf.Lerp(pitch, cinePitch, k);
+        }
+        else if (lockTarget != null) FollowLockTarget(dt);
         else
         {
             Vector2 look = lookAction != null ? lookAction.action.ReadValue<Vector2>() : Vector2.zero;
@@ -123,13 +149,16 @@ public class ThirdPersonCamera : MonoBehaviour
         Quaternion rot = Quaternion.Euler(pitch, yaw, 0f);
         Vector3 back = -(rot * Vector3.forward);
         float punch = PunchWeight(dt);
-        float allowed = CollisionDistance(pivot, back, distance * ZoomFactor(dt) * (1f - punchAmount * punch));
-        Vector3 position = pivot + back * allowed + ShakeOffset(dt);
+        float w = cinematicWeight * cinematicWeight * (3f - 2f * cinematicWeight); // [변경] 초점·거리를 시네마틱 쪽으로 섞음
+        Vector3 origin = Vector3.Lerp(pivot, cineFocus, w);
+        float baseDistance = Mathf.Lerp(distance, cineDistance, w);
+        float allowed = CollisionDistance(origin, back, baseDistance * ZoomFactor(dt) * (1f - punchAmount * punch));
+        Vector3 position = origin + back * allowed + ShakeOffset(dt);
 
         transform.SetPositionAndRotation(position, rot * Quaternion.Euler(0f, 0f, punchRoll * punch));
     }
 
-    // [변경] 플레이어 어깨 너머로 대상이 화면 가운데쯤 오게. 아주 가까우면 방향이 튀지 않게 각도 유지
+    // 플레이어 어깨 너머로 대상이 화면 가운데쯤 오게. 아주 가까우면 방향이 튀지 않게 각도 유지
     void FollowLockTarget(float dt)
     {
         Vector3 aim = lockTarget.position + Vector3.up * lockTargetHeight;

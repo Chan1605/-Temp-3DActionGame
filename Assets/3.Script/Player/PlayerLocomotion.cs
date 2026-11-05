@@ -50,6 +50,10 @@ public class PlayerLocomotion : MonoBehaviour
     [SerializeField] int airJumps = 1;
     [SerializeField] float doubleJumpHeight = 1.1f;
     [SerializeField] float doubleJumpMinAirTime = 0.12f; // 점프 직후 연타로 바로 나가지 않게
+    // [변경] 이단 점프 마무리: 회전 모션이 tailAt까지 가면 1단 점프 모션(Jump_Start, 방향 블렌드)의 tailStart 지점으로 넘어가 그 자세로 떨어짐
+    [SerializeField, Range(0f, 1f)] float doubleJumpTailAt = 0.75f;
+    [SerializeField, Range(0f, 1f)] float doubleJumpTailStart = 0.45f;
+    [SerializeField] float doubleJumpTailFade = 0.15f;
 
     [Header("Animation")]
     [SerializeField] float walkClipSpeed = 1.6f;
@@ -61,7 +65,7 @@ public class PlayerLocomotion : MonoBehaviour
     [SerializeField] float leanTurnRate = 300f; // 이 각속도(도/초)로 돌면 끝까지 기울임
     [SerializeField] float directionDampTime = 0.1f;
 
-    // [변경] 락온 이동: 대상을 바라본 채 입력 방향으로 옆걸음·뒷걸음 (질주하면 풀림)
+    // 락온 이동: 대상을 바라본 채 입력 방향으로 옆걸음·뒷걸음 (질주하면 풀림)
     [Header("Strafe (Lock On)")]
     [SerializeField] float strafeSpeed = 3.6f;
     [SerializeField] float strafeTurnSmoothTime = 0.08f;
@@ -82,7 +86,7 @@ public class PlayerLocomotion : MonoBehaviour
     // 경사·계단에서 isGrounded가 잠깐 끊겨도 공중으로 치지 않도록 airborneDelay만큼 여유를 둠
     public bool IsGrounded => airTime < airborneDelay;
     public bool HasBufferedJump => Time.time - lastJumpPress <= jumpBuffer;
-    public Transform StrafeTarget { get; set; } // [변경] PlayerLockOn이 지정
+    public Transform StrafeTarget { get; set; } // PlayerLockOn이 지정
 
     void Awake()
     {
@@ -125,7 +129,7 @@ public class PlayerLocomotion : MonoBehaviour
 
             if (strafing)
             {
-                // [변경] 핵심: 몸은 대상을 향하고, 속도는 입력 방향으로 (옆·뒤 모션은 MoveX/MoveZ 블렌드가 고름)
+                // 핵심: 몸은 대상을 향하고, 속도는 입력 방향으로 (옆·뒤 모션은 MoveX/MoveZ 블렌드가 고름)
                 Vector3 to = StrafeTarget.position - transform.position;
                 to.y = 0f;
                 if (to.sqrMagnitude > 0.04f)
@@ -165,11 +169,21 @@ public class PlayerLocomotion : MonoBehaviour
         verticalVelocity += gravity * dt;
 
         if (MovementLocked) moveHeading = transform.forward;
-        CollisionFlags flags = controller.Move((moveHeading * currentSpeed + Vector3.up * verticalVelocity) * dt); // [변경] 바라보는 방향이 아니라 이동 방향으로
+        CollisionFlags flags = controller.Move((moveHeading * currentSpeed + Vector3.up * verticalVelocity) * dt); // 바라보는 방향이 아니라 이동 방향으로
         if ((flags & CollisionFlags.Above) != 0 && verticalVelocity > 0f) verticalVelocity = 0f; // 천장에 닿으면 바로 낙하
 
         UpdateAirState(dt, wasGrounded);
+        UpdateDoubleJumpTail();
         UpdateAnimator(dt);
+    }
+
+    // [변경] 이단 점프 회전이 끝나 갈 때 1단 점프의 공중 자세로 이어 붙임 (컨트롤러의 Jump_Loop 전환보다 먼저 실행)
+    void UpdateDoubleJumpTail()
+    {
+        if (animator == null || IsGrounded || animator.IsInTransition(0)) return;
+        AnimatorStateInfo info = animator.GetCurrentAnimatorStateInfo(0);
+        if (info.shortNameHash != DoubleJumpHash || info.normalizedTime < doubleJumpTailAt) return;
+        animator.CrossFade(JumpStartHash, doubleJumpTailFade, 0, doubleJumpTailStart);
     }
 
     public Vector3 GetInputDirection() => ToCameraRelative(ReadMoveInput());

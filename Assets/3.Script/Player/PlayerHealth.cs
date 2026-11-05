@@ -33,7 +33,8 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     [SerializeField] PlayerParry parry; // 패링 반격 중 무적
     [SerializeField] PlayerKanpa kanpa; // △ 초반에 맞으면 간파
     [SerializeField] ThirdPersonCamera followCamera;
-    [SerializeField] PlayerExecution execution; // [변경] 처형 중 무적 · 다른 행동 막기
+    [SerializeField] PlayerExecution execution; // 처형 중 무적 · 다른 행동 막기
+    [SerializeField] PlayerChargeAttack charge; // [변경] 섬격 중 무적
 
     float health;
     float stunTimer;
@@ -43,7 +44,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
 
     public float Health => health;
     public float MaxHealth => maxHealth;
-    public bool IsStunned => stunTimer > 0f || (execution != null && execution.IsActive); // [변경] 회피·패링·차지가 이 값으로 막힘
+    public bool IsStunned => stunTimer > 0f || (execution != null && execution.IsActive); // 회피·패링·차지가 이 값으로 막힘
     public bool CanBeTargeted => !dead;
     public bool IsDead => dead;
     public event System.Action<DamageInfo> Damaged; // 피격 이펙트용
@@ -60,13 +61,23 @@ public class PlayerHealth : MonoBehaviour, IDamageable
         if (parry == null) parry = GetComponent<PlayerParry>();
         if (kanpa == null) kanpa = GetComponent<PlayerKanpa>();
         if (execution == null) execution = GetComponent<PlayerExecution>();
+        if (charge == null) charge = GetComponent<PlayerChargeAttack>();
         if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
         health = maxHealth;
+    }
+
+    // 처형이 시작되면 맞고 있던 경직을 지움 (경직이 끝나며 로코모션으로 되돌리는 것 방지)
+    public void ClearStun()
+    {
+        if (dead) return;
+        stunTimer = 0f;
+        knockedDown = false;
     }
 
     void Update()
     {
         if (invulnerableTimer > 0f) invulnerableTimer -= Time.deltaTime;
+        if (execution != null && execution.IsActive) return;
         if (stunTimer <= 0f) return;
 
         stunTimer -= Time.deltaTime;
@@ -95,7 +106,8 @@ public class PlayerHealth : MonoBehaviour, IDamageable
         // 프로토타입: 스킬 사용 중에는 피격을 무시 (스킬 중 피격 처리는 아직 미정)
         if (skill != null && skill.IsActive) return HitResult.Ignored;
         if (invulnerableTimer > 0f) return HitResult.Ignored;
-        if (execution != null && execution.IsActive) return HitResult.Ignored; // [변경]
+        if (execution != null && execution.IsActive) return HitResult.Ignored;
+        if (charge != null && charge.IsDashing) return HitResult.Ignored; // [변경]
 
         // 회피 무적 구간이면 무시, 무적이 끝난 회피 후반에 맞으면 회피를 끊고 피격 처리
         if (parry != null && parry.IsInvulnerable) return HitResult.Ignored;

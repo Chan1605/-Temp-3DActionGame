@@ -433,6 +433,8 @@ GameObject:
   - component: {fileID: 8781555882832531804}
   - component: {fileID: 7268560931724845920}
   - component: {fileID: 4498633949859688452}
+  - component: {fileID: 8033109656775331062}
+  - component: {fileID: 1285893297518870779}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -514,11 +516,18 @@ MonoBehaviour:
   jumpCrossFade: 0.05
   landCrossFade: 0.08
   jumpBuffer: 0.15
+  airJumps: 1
+  doubleJumpHeight: 1.1
+  doubleJumpMinAirTime: 0.12
   walkClipSpeed: 1.4997509
   runClipSpeed: 5
   sprintClipSpeed: 10
   blendDampTime: 0.08
   animSpeedRange: {x: 0.7, y: 1.6}
+  leanTurnRate: 300
+  directionDampTime: 0.1
+  strafeSpeed: 3.6
+  strafeTurnSmoothTime: 0.08
 --- !u!114 &3750847782795144091
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -589,6 +598,11 @@ MonoBehaviour:
   maxHealth: 100
   stunTime: 0.35
   invulnerableTime: 0.6
+  knockDownDamage: 20
+  heavyStunTime: 0.6
+  heavyHitDamage: 15
+  knockDownTime: 1.1
+  getUpTime: 0.8
   animator: {fileID: 9054350018550051993}
   combat: {fileID: 3750847782795144091}
   locomotion: {fileID: 8946055058242759463}
@@ -597,6 +611,7 @@ MonoBehaviour:
   parry: {fileID: 4353746522782798047}
   kanpa: {fileID: 8781555882832531804}
   followCamera: {fileID: 0}
+  execution: {fileID: 1285893297518870779}
 --- !u!114 &118300998889972725
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -828,6 +843,8 @@ MonoBehaviour:
   keepTargetTime: 1.5
   angleWeight: 0.6
   logTarget: 0
+  lockOn: {fileID: 8033109656775331062}
+  lockAttackRange: 6
 --- !u!114 &2336979120302626365
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1199,6 +1216,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerStance
   animator: {fileID: 9054350018550051993}
   locomotion: {fileID: 8946055058242759463}
+  lockOn: {fileID: 8033109656775331062}
   sheatheDelay: 5
   sheatheCrossFade: 0.2
   returnCrossFade: 0.25
@@ -1206,6 +1224,57 @@ MonoBehaviour:
   startRelaxed: 1
   stayDrawnInZoneFight: 1
   logStance: 0
+--- !u!114 &8033109656775331062
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38e0e5e33d2d95844bc805e569c878af, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerLockOn
+  followCamera: {fileID: 0}
+  locomotion: {fileID: 8946055058242759463}
+  health: {fileID: 4005965994054678145}
+  lockRange: 18
+  breakRange: 24
+  flickThreshold: 60
+  flickDecay: 10
+  switchCooldown: 0.3
+  logLockOn: 0
+--- !u!114 &1285893297518870779
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6cecc44041af83e478097cf47f42fba5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerExecution
+  animator: {fileID: 0}
+  combat: {fileID: 0}
+  locomotion: {fileID: 0}
+  lockOn: {fileID: 0}
+  skill: {fileID: 0}
+  health: {fileID: 0}
+  dodge: {fileID: 0}
+  parry: {fileID: 0}
+  charge: {fileID: 0}
+  followCamera: {fileID: 0}
+  range: 2.8
+  coneAngle: 110
+  alignDistance: 1.2
+  killTime: 0.55
+  endTime: 0.92
+  slowScale: 0.25
+  slowTime: 0.25
+  logExecution: 1
 --- !u!1 &1515010326207606855
 GameObject:
   m_ObjectHideFlags: 0
@@ -2124,7 +2193,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 563129190470504868}
-  m_LocalEulerAnglesHint: {x: -1.8347265, y: 12.514479, z: 158.25023}
+  m_LocalEulerAnglesHint: {x: -5.0202065, y: -0.4852721, z: -159.02827}
 --- !u!1 &4212727519411449491
 GameObject:
   m_ObjectHideFlags: 0
@@ -3265,7 +3334,7 @@ Transform:
   - {fileID: 7117908773678089895}
   - {fileID: 4076426485361985546}
   m_Father: {fileID: 5090184323580091682}
-  m_LocalEulerAnglesHint: {x: -46.089886, y: 146.55144, z: 17.434725}
+  m_LocalEulerAnglesHint: {x: 20.318016, y: 55.044655, z: 44.94927}
 --- !u!1 &7744667127320898915
 GameObject:
   m_ObjectHideFlags: 0

@@ -42,10 +42,11 @@ public class LockOnMarker : MonoBehaviour
         marker.gameObject.SetActive(t != null);
         if (t == null) return;
 
+        // [변경] 무한 반복은 Sequence 안에 넣을 수 없어(DOTween 경고) 튀어나온 뒤 따로 시작
         marker.localScale = Vector3.one * 2.2f;
-        pulse = DOTween.Sequence().SetUpdate(true).SetLink(marker.gameObject)
-            .Append(marker.DOScale(1f, 0.18f).SetEase(Ease.OutBack))
-            .Append(marker.DOScale(1.25f, 0.6f).SetEase(Ease.InOutSine).SetLoops(-1, LoopType.Yoyo));
+        pulse = marker.DOScale(1f, 0.18f).SetEase(Ease.OutBack).SetUpdate(true).SetLink(marker.gameObject)
+            .OnComplete(() => pulse = marker.DOScale(1.25f, 0.6f).SetEase(Ease.InOutSine).SetLoops(-1, LoopType.Yoyo)
+                .SetUpdate(true).SetLink(marker.gameObject));
         Place();
     }
 

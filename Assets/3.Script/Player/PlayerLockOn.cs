@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 // 락온: 휠 클릭 또는 Tab으로 켜고 끔. 켜면 화면 가운데에 가까운 적을 잡고
 //  - 카메라가 대상을 따라 돌고(ThirdPersonCamera), 플레이어는 대상을 바라본 채 옆걸음·뒷걸음(PlayerLocomotion)
 //  - 공격은 입력 방향과 상관없이 대상에게 붙음(PlayerTargeting)
-// 대상 바꾸기: 마우스를 좌우로 휙 움직이거나 휠 위·아래. 대상이 쓰러지면 가까운 적으로 자동 전환, 없으면 해제
+// 대상 바꾸기: 휠 위·아래 (마우스 휙 전환은 옵션, 기본 끔). 대상이 쓰러지면 가까운 적으로 자동 전환, 없으면 해제
 public class PlayerLockOn : MonoBehaviour
 {
     [SerializeField] ThirdPersonCamera followCamera;
@@ -14,6 +14,7 @@ public class PlayerLockOn : MonoBehaviour
 
     [SerializeField] float lockRange = 18f;
     [SerializeField] float breakRange = 24f;
+    [SerializeField] bool switchByMouseFlick;      // [변경] 마우스를 휙 움직여도 바뀌면 어지러워서 기본은 휠만
     [SerializeField] float flickThreshold = 60f;  // 이만큼(픽셀) 빠르게 휙 움직이면 옆 대상으로
     [SerializeField] float flickDecay = 10f;
     [SerializeField] float switchCooldown = 0.3f;
@@ -76,7 +77,7 @@ public class PlayerLockOn : MonoBehaviour
         flick = Mathf.Lerp(flick, 0f, 1f - Mathf.Exp(-flickDecay * Time.unscaledDeltaTime)) + mouse.delta.ReadValue().x;
 
         int side = 0;
-        if (Mathf.Abs(flick) >= flickThreshold) side = flick > 0f ? 1 : -1;
+        if (switchByMouseFlick && Mathf.Abs(flick) >= flickThreshold) side = flick > 0f ? 1 : -1; // [변경]
         else if (Mathf.Abs(scroll) > 0.01f) side = scroll > 0f ? 1 : -1;
         if (side == 0 || Time.unscaledTime - lastSwitch < switchCooldown) return;
 

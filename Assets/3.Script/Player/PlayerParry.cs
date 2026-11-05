@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// 패링: 대기·이동 중 적 공격이 곧 들어오는 순간 우클릭하면 받아치고 반격. 아니면 강공격·차지로 이어감 // [변경] 로그·주석 이름을 패링으로 (간파는 PlayerKanpa)
+// 패링: 대기·이동 중 적 공격이 곧 들어오는 순간 우클릭하면 받아치고 반격. 아니면 강공격·차지로 이어감 // 로그·주석 이름을 패링으로 (간파는 PlayerKanpa)
 // v2(clashStyle): 누른 순간엔 무적 + 반격 모션만, 칼이 부딪히는 프레임에 경직·피해·연출을 한 번에 (오공식)
 public class PlayerParry : MonoBehaviour
 {
@@ -242,6 +242,11 @@ public class PlayerParry : MonoBehaviour
         });
 
         if (followCamera != null) followCamera.Shake(shakeStrength * 0.6f, 0.12f);
+    }
+
+    public void Interrupt() // [변경] 처형이 패링 반격 모션을 끊고 이어받을 때
+    {
+        if (active) End(false);
     }
 
     void End(bool restoreControl)

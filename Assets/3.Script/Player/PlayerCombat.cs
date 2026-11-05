@@ -9,9 +9,11 @@ public class PlayerCombat : MonoBehaviour
     [FormerlySerializedAs("attackAction")]
     [SerializeField] InputActionReference lightAttackAction;
     // 우클릭(강공격·간파·차지)은 PlayerChargeAttack이 받아서 탭이면 PressHeavy()로 넘겨줌
+    // [변경] 강공격 △는 콤보 분기(□□△ 등)로만 나감. 대기 중 우클릭 탭은 아무 공격도 안 함
 
     [SerializeField] AttackData lightStarter;
     [SerializeField] AttackData heavyStarter;
+    [SerializeField] bool heavyStartsCombo = false; // [변경] 켜면 예전처럼 대기 중 우클릭 탭 = 강공격
     [SerializeField] AttackData runStarter;      // 달리는 중 □ → 달리기 공격 (없으면 일반 □)
     [SerializeField] float runAttackSpeed = 7f;  // 이 속도 이상으로 달리고 있으면 달리기 공격
 
@@ -20,7 +22,6 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] PlayerLocomotion locomotion;
     [SerializeField] PlayerTargeting targeting; // P2 소프트 타겟팅
     [SerializeField] PlayerStats stats;         // 공격 속도 (없으면 1배)
-    [SerializeField] PlayerExecution execution; // [변경] 처형 가능한 적이 앞에 있으면 □가 처형으로
 
     [SerializeField] float attackCrossFade = 0.08f;
     [SerializeField] float returnCrossFade = 0.2f;
@@ -70,7 +71,6 @@ public class PlayerCombat : MonoBehaviour
         controller = GetComponent<CharacterController>();
         if (targeting == null) targeting = GetComponent<PlayerTargeting>();
         if (stats == null) stats = GetComponent<PlayerStats>();
-        if (execution == null) execution = GetComponent<PlayerExecution>();
     }
 
     void OnEnable()
@@ -92,11 +92,7 @@ public class PlayerCombat : MonoBehaviour
         if (result == HitResult.Blocked && current != null && current.Weight == AttackWeight.Light) deflected = true;
     }
 
-    void OnLightPressed(InputAction.CallbackContext ctx)
-    {
-        if (execution != null && execution.TryExecute()) return; // [변경]
-        RegisterPress(AttackInput.Light);
-    }
+    void OnLightPressed(InputAction.CallbackContext ctx) => RegisterPress(AttackInput.Light); // 처형은 F키(PlayerExecution)로 옮김
     public void PressHeavy() => RegisterPress(AttackInput.Heavy); // 우클릭을 짧게 눌렀다 뗐을 때 (PlayerChargeAttack이 호출)
 
     // 차지 강타: 콤보와 같은 흐름(내딛기·판정·캔슬)으로 재생하되 피해만 단계 배율을 곱함
@@ -126,7 +122,7 @@ public class PlayerCombat : MonoBehaviour
         {
             if (HasBufferedPress && IsGrounded()) // 공중에서는 공격 시작 안 함 (착지 직전 입력은 버퍼로 착지 후 나감)
             {
-                AttackData starter = lastPressInput == AttackInput.Light ? LightStarter() : heavyStarter;
+                AttackData starter = lastPressInput == AttackInput.Light ? LightStarter() : heavyStartsCombo ? heavyStarter : null; // [변경]
                 if (starter != null) StartAttack(starter, true);
             }
             return;

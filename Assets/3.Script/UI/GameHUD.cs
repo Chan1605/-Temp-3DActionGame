@@ -70,11 +70,16 @@ public class GameHUD : MonoBehaviour
     int lastAlive = -1;
     bool waveShown;
     bool deadShown;
-    int shownHp = -1, shownHpMax = -1, shownWaveKey = int.MinValue; // [변경] 텍스트 캐시
+    int shownHp = -1, shownHpMax = -1, shownWaveKey = int.MinValue; // 텍스트 캐시
     string deathSubDefault;
     Text followPrompt;      // 간파 직후 "우클릭 뇌락!" (런타임 생성 → HUD 셋업 재실행 불필요)
     CanvasGroup followGroup;
     Tween followLoop;
+    Text markHint;            // 일섬 슬롯 위 "뇌인 필요"
+    CanvasGroup markHintGroup;
+    CanvasGroup blockedGroup; // 뇌인 없이 Q를 눌렀을 때 화면 안내
+    Sequence blockedSeq;
+    bool markHintShown;
 
     Image hpImage;
     Color hpColor;
@@ -98,6 +103,7 @@ public class GameHUD : MonoBehaviour
         if (chargeSource == null) chargeSource = FindAnyObjectByType<PlayerChargeAttack>();
         if (kanpaSource == null) kanpaSource = FindAnyObjectByType<PlayerKanpa>();
         CreateFollowPrompt();
+        CreateMarkGuide();
 
         SetThunderVisible(showThunder);
         SetAlpha(zoneBanner, 0f);
@@ -154,6 +160,7 @@ public class GameHUD : MonoBehaviour
             kanpaSource.FollowReady += ShowFollowPrompt;
             kanpaSource.FollowClosed += HideFollowPrompt;
         }
+        if (skill != null) skill.Blocked += ShowBlocked;
     }
 
     void OnDisable()
@@ -167,9 +174,10 @@ public class GameHUD : MonoBehaviour
             kanpaSource.FollowReady -= ShowFollowPrompt;
             kanpaSource.FollowClosed -= HideFollowPrompt;
         }
+        if (skill != null) skill.Blocked -= ShowBlocked;
     }
 
-    // ===== 뇌락 안내 ===== [변경]
+    // ===== 뇌락 안내 =====
     void CreateFollowPrompt()
     {
         var go = new GameObject("FollowPrompt", typeof(RectTransform));
@@ -251,7 +259,7 @@ public class GameHUD : MonoBehaviour
 
         float ratio = health.MaxHealth > 0f ? Mathf.Clamp01(health.Health / health.MaxHealth) : 0f;
         SetFill(hpFill, ratio);
-        // [변경] 성능: 숫자가 바뀔 때만 문자열을 새로 만듦 (매 프레임 문자열 할당 → GC 끊김 방지)
+        // 성능: 숫자가 바뀔 때만 문자열을 새로 만듦 (매 프레임 문자열 할당 → GC 끊김 방지)
         int hp = Mathf.CeilToInt(health.Health), hpMax = Mathf.CeilToInt(health.MaxHealth);
         if (hpText != null && (hp != shownHp || hpMax != shownHpMax))
         {
@@ -370,7 +378,8 @@ public class GameHUD : MonoBehaviour
         skillCooldown.fillAmount = ratio;
 
         Transform slot = skillCooldown.transform.parent;
-        bool ready = ratio <= 0f;
+        bool ready = ratio <= 0f && skill.HasMarkTarget; // 뇌인이 쌓인 적이 없으면 준비 안 됨으로 표시
+        SetMarkHint(ratio <= 0f && !skill.HasMarkTarget && !skill.IsActive);
         if (ready && !skillReady)
         {
             // 쓸 수 있게 된 순간: 슬롯 튀어오름 + 글자 금색 번쩍
@@ -396,6 +405,84 @@ public class GameHUD : MonoBehaviour
         skillWasActive = active;
     }
 
+    // ===== 뇌인 안내 =====
+    // 슬롯 위 작은 글씨(상시) + Q를 눌렀는데 막혔을 때 화면 중앙 아래 안내(잠깐)
+    void CreateMarkGuide()
+    {
+        if (skillCooldown != null)
+        {
+            var slot = (RectTransform)skillCooldown.transform.parent;
+            markHint = NewGuideText("MarkHint", slot, 22, new Color(0.45f, 0.85f, 1f), "뇌인 필요");
+            var rt = markHint.rectTransform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+            rt.anchoredPosition = new Vector2(0f, 22f);
+            markHintGroup = markHint.gameObject.AddComponent<CanvasGroup>();
+            markHintGroup.alpha = 0f;
+        }
+
+        Text blocked = NewGuideText("MarkBlocked", transform, 30, Gold, "뇌인이 쌓인 적이 없습니다\n<size=22>공격으로 적에게 뇌인을 쌓은 뒤 Q</size>");
+        blocked.rectTransform.anchorMin = blocked.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        blocked.rectTransform.anchoredPosition = new Vector2(0f, -190f);
+        blocked.rectTransform.sizeDelta = new Vector2(620f, 90f);
+        blockedGroup = blocked.gameObject.AddComponent<CanvasGroup>();
+        blockedGroup.alpha = 0f;
+        blockedGroup.blocksRaycasts = false;
+    }
+
+    Text NewGuideText(string name, Transform parent, int size, Color color, string content)
+    {
+        var go = new GameObject(name, typeof(RectTransform));
+        var rt = (RectTransform)go.transform;
+        rt.SetParent(parent, false);
+        rt.sizeDelta = new Vector2(260f, size * 1.6f);
+        var text = go.AddComponent<Text>();
+        text.font = hpText != null ? hpText.font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.fontSize = size;
+        text.fontStyle = FontStyle.Bold;
+        text.alignment = TextAnchor.MiddleCenter;
+        text.horizontalOverflow = HorizontalWrapMode.Overflow;
+        text.verticalOverflow = VerticalWrapMode.Overflow;
+        text.supportRichText = true;
+        text.raycastTarget = false;
+        text.color = color;
+        text.text = content;
+        var outline = go.AddComponent<Outline>();
+        outline.effectColor = new Color(0f, 0f, 0f, 0.85f);
+        outline.effectDistance = new Vector2(2f, -2f);
+        return text;
+    }
+
+    void SetMarkHint(bool show)
+    {
+        if (markHintGroup == null || show == markHintShown) return;
+        markHintShown = show;
+        DOTween.Kill(markHintGroup);
+        DOTween.To(() => markHintGroup.alpha, a => markHintGroup.alpha = a, show ? 1f : 0f, 0.2f)
+            .SetTarget(markHintGroup).SetUpdate(true).SetLink(markHintGroup.gameObject);
+    }
+
+    void ShowBlocked()
+    {
+        if (skillCooldown != null)
+        {
+            Transform slot = skillCooldown.transform.parent;
+            slot.DOKill(true);
+            slot.DOShakePosition(0.3f, new Vector3(8f, 0f, 0f), 30, 0f).SetUpdate(true).SetLink(slot.gameObject);
+        }
+        if (markHint != null) markHint.transform.DOPunchScale(Vector3.one * 0.35f, 0.3f, 6).SetUpdate(true).SetLink(markHint.gameObject);
+        if (blockedGroup == null) return;
+
+        // 핵심: 연타해도 처음부터 다시 (떠 있는 시간 연장)
+        blockedSeq?.Kill();
+        Transform t = blockedGroup.transform;
+        t.localScale = Vector3.one * 0.85f;
+        blockedSeq = DOTween.Sequence().SetUpdate(true).SetLink(blockedGroup.gameObject)
+            .Append(DOTween.To(() => blockedGroup.alpha, a => blockedGroup.alpha = a, 1f, 0.1f))
+            .Join(t.DOScale(1f, 0.18f).SetEase(Ease.OutBack))
+            .AppendInterval(1.2f)
+            .Append(DOTween.To(() => blockedGroup.alpha, a => blockedGroup.alpha = a, 0f, 0.35f));
+    }
+
     // ===== 차지 =====
     void UpdateCharge()
     {
@@ -411,6 +498,7 @@ public class GameHUD : MonoBehaviour
             gauge.localScale = Vector3.one * 0.8f;
             gauge.DOScale(1f, 0.25f).SetEase(Ease.OutBack).SetUpdate(true).SetLink(gauge.gameObject);
             chargeLevel = 0;
+            if (chargeLabel != null) chargeLabel.text = ""; // [변경]
         }
         else if (!now && charging)
         {
@@ -433,9 +521,9 @@ public class GameHUD : MonoBehaviour
 
         if (level != chargeLevel)
         {
-            if (chargeLabel != null)
+            if (chargeLabel != null && level >= chargeSource.MaxLevel) // [변경] "차지 1·2" 글자 없이 풀차지만 표시
             {
-                chargeLabel.text = level >= chargeSource.MaxLevel ? "풀차지" : $"차지 {level}";
+                chargeLabel.text = "풀차지";
                 UITween.Punch(chargeLabel.transform, 0.35f, 0.3f);
                 UITween.Flash(chargeLabel, color, chargeLabelColor, 0.35f);
             }
@@ -469,13 +557,13 @@ public class GameHUD : MonoBehaviour
             }
             lastWave = -1;
             lastAlive = -1;
-            shownWaveKey = int.MinValue; // [변경]
+            shownWaveKey = int.MinValue;
         }
         if (!show) return;
 
         int wave = zone.CurrentWave;
         int alive = zone.AliveCount;
-        // [변경] 성능: 웨이브·남은 적·최고 기록이 바뀔 때만 문자열 갱신
+        // 성능: 웨이브·남은 적·최고 기록이 바뀔 때만 문자열 갱신
         int key = (wave * 1000 + alive) * 1000 + ZoneArena.TrialBest;
         bool changed = key != shownWaveKey;
         shownWaveKey = key;
