@@ -70,8 +70,6 @@ desktop.ini
 
 # ===== 이 프로젝트 전용 =====
 # 에셋스토어 유료/외부 에셋 (라이선스상 재배포 불가) - README에 사용 에셋 목록 기재
-/[Aa]ssets/ThirdParty/
-/[Aa]ssets/ThirdParty.meta
 
 # DOTween (에셋스토어 배포본)
 /[Aa]ssets/Plugins/Demigiant/

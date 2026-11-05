@@ -1,0 +1,3 @@
+[submodule "Assets/ThirdParty"]
+	path = Assets/ThirdParty
+	url = https://github.com/Chan1605/3DActionGame-ThirdParty.git
