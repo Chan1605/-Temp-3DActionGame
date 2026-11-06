@@ -23,7 +23,7 @@ public class PlayerDodge : MonoBehaviour
     [SerializeField] PlayerSkill skill;
     [SerializeField] PlayerHealth health;
     [SerializeField] PlayerParry parry;
-    [SerializeField] PlayerChargeAttack charge; // [변경] 가드 대신: 회피 후반에 우클릭을 누르고 있으면 차지로 바로 넘어감
+    [SerializeField] PlayerChargeAttack charge; // 가드 대신: 회피 후반에 우클릭을 누르고 있으면 차지로 바로 넘어감
     [SerializeField] PlayerAfterimage afterimage;
     [SerializeField] ThirdPersonCamera followCamera;
 
@@ -107,7 +107,7 @@ public class PlayerDodge : MonoBehaviour
         if (skill == null) skill = GetComponent<PlayerSkill>();
         if (health == null) health = GetComponent<PlayerHealth>();
         if (parry == null) parry = GetComponent<PlayerParry>();
-        if (charge == null) charge = GetComponent<PlayerChargeAttack>(); // [변경]
+        if (charge == null) charge = GetComponent<PlayerChargeAttack>();
         if (afterimage == null) afterimage = GetComponent<PlayerAfterimage>();
         if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
     }
@@ -147,7 +147,7 @@ public class PlayerDodge : MonoBehaviour
     bool CanDodge()
     {
         if (Time.time < readyTime) return false;
-        if (health != null && health.IsStunned) return false;
+        if (health != null && health.IsStunned && !health.CanDodgeOutOfStun) return false; // [변경] 피격 경직 후반은 회피 허용
         if (skill != null && skill.IsActive) return false;
         if (parry != null && parry.IsActive) return false; // 간파 반격 중에는 회피 불가
         if (locomotion != null && !locomotion.IsGrounded) return false; // 공중 회피는 v1 범위 밖
@@ -167,6 +167,12 @@ public class PlayerDodge : MonoBehaviour
 
     void StartDodge()
     {
+        if (health != null && health.IsStunned) // [변경] 피격 경직을 회피로 끊음 (잠금은 회피가 다시 걸고 끝날 때 풂)
+        {
+            health.ClearStun();
+            if (logDodge) Debug.Log("[Dodge] 피격 경직 회피 캔슬");
+        }
+
         Vector3 input = locomotion != null ? locomotion.GetInputDirection() : Vector3.zero;
         direction = input.sqrMagnitude > 0.0001f ? input.normalized : -transform.forward;
 
@@ -226,7 +232,7 @@ public class PlayerDodge : MonoBehaviour
 
         bool wantsAction = (combat != null && combat.HasBufferedPress)
                            || (locomotion != null && locomotion.HasBufferedJump)
-                           || (charge != null && charge.IsHeld); // [변경]
+                           || (charge != null && charge.IsHeld);
         if (wantsAction)
         {
             EndDodge(true, false); // 다음 행동이 자기 애니메이션으로 바로 전환하므로 로코모션 크로스페이드는 생략

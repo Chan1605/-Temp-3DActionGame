@@ -51,12 +51,15 @@ public class ThirdPersonCamera : MonoBehaviour
     [SerializeField] float lockTurnSpeed = 8f;
     [SerializeField] float lockPitch = 12f;      // 같은 높이일 때 기본으로 내려다보는 각도
     [SerializeField] float lockTargetHeight = 1.2f;
+    [SerializeField] float lockSizeDistance = 1.6f; // [변경] 대상이 기본 크기보다 1배 클 때마다 거리를 이만큼(배) 더 벌림
+    [SerializeField] float lockSizeBlend = 3f;
+    float lockDistanceScale = 1f;
     Transform lockTarget;
 
     public void SetLockTarget(Transform t) => lockTarget = t;
     public bool IsLocked => lockTarget != null;
 
-    // [변경] 시네마틱(처형 등): 지정한 초점·각도·거리로 부드럽게 옮겼다가 끝나면 원래 추적으로
+    // 시네마틱(처형 등): 지정한 초점·각도·거리로 부드럽게 옮겼다가 끝나면 원래 추적으로
     [Header("Cinematic")]
     [SerializeField] float cinematicBlendSpeed = 5f;
     bool cinematic;
@@ -131,7 +134,7 @@ public class ThirdPersonCamera : MonoBehaviour
 
         UpdatePivot(target.position + pivotOffset, dt);
 
-        cinematicWeight = Mathf.MoveTowards(cinematicWeight, cinematic ? 1f : 0f, cinematicBlendSpeed * dt); // [변경]
+        cinematicWeight = Mathf.MoveTowards(cinematicWeight, cinematic ? 1f : 0f, cinematicBlendSpeed * dt);
         if (cinematic)
         {
             float k = 1f - Mathf.Exp(-cinematicBlendSpeed * dt);
@@ -149,9 +152,11 @@ public class ThirdPersonCamera : MonoBehaviour
         Quaternion rot = Quaternion.Euler(pitch, yaw, 0f);
         Vector3 back = -(rot * Vector3.forward);
         float punch = PunchWeight(dt);
-        float w = cinematicWeight * cinematicWeight * (3f - 2f * cinematicWeight); // [변경] 초점·거리를 시네마틱 쪽으로 섞음
+        float w = cinematicWeight * cinematicWeight * (3f - 2f * cinematicWeight); // 초점·거리를 시네마틱 쪽으로 섞음
         Vector3 origin = Vector3.Lerp(pivot, cineFocus, w);
-        float baseDistance = Mathf.Lerp(distance, cineDistance, w);
+        float wantScale = lockTarget != null ? 1f + Mathf.Max(0f, lockTarget.lossyScale.y - 1f) * lockSizeDistance : 1f; // [변경] 보스(1.3배)면 약 1.5배 거리
+        lockDistanceScale = Mathf.MoveTowards(lockDistanceScale, wantScale, lockSizeBlend * dt);
+        float baseDistance = Mathf.Lerp(distance * lockDistanceScale, cineDistance, w);
         float allowed = CollisionDistance(origin, back, baseDistance * ZoomFactor(dt) * (1f - punchAmount * punch));
         Vector3 position = origin + back * allowed + ShakeOffset(dt);
 
@@ -161,7 +166,7 @@ public class ThirdPersonCamera : MonoBehaviour
     // 플레이어 어깨 너머로 대상이 화면 가운데쯤 오게. 아주 가까우면 방향이 튀지 않게 각도 유지
     void FollowLockTarget(float dt)
     {
-        Vector3 aim = lockTarget.position + Vector3.up * lockTargetHeight;
+        Vector3 aim = lockTarget.position + Vector3.up * (lockTargetHeight * lockTarget.lossyScale.y); // [변경] 큰 대상은 가슴 높이도 높게
         Vector3 to = aim - pivot;
         Vector3 flat = new Vector3(to.x, 0f, to.z);
         float k = 1f - Mathf.Exp(-lockTurnSpeed * dt);

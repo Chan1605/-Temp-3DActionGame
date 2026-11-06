@@ -1,125 +1,69 @@
-using System;
 using UnityEngine;
 
-// P4 뇌인(雷印): 적에게 쌓이는 표식 3칸. 가득 차면 벽력일섬 즉사 대상
-// 일정 시간 안 맞으면 한 칸씩 사라짐. 머리 위 마름모 3개로 표시 (0칸이면 숨김)
+// 뇌인(雷印) = 흐트러짐 표시. 예전 3칸 스택은 없앰
+// 대상(IStaggerable)이 흐트러져 있는 동안 머리 위에 번개색 마름모가 맥박치듯 뜸 → "지금 Q로 벨 수 있다"
+// 판정은 하지 않음 (일섬은 IStaggerable을 직접 봄). 적 프리팹에 이미 붙어 있어 클래스 이름은 유지
 public class ThunderMark : MonoBehaviour
 {
-    [SerializeField] int maxMarks = 3;
-    [SerializeField] float decayDelay = 5f;     // 마지막으로 맞은 뒤 이 시간이 지나면
-    [SerializeField] float decayInterval = 1.5f; // 이 간격으로 한 칸씩 감소
-
     [Header("Icon")]
     [SerializeField] float iconHeight = 2.4f;
-    [SerializeField] float iconSize = 0.2f;
-    [SerializeField] float iconSpacing = 0.28f;
-    [SerializeField] Color emptyColor = new Color(0.15f, 0.17f, 0.22f);
-    [SerializeField] Color filledColor = new Color(0.45f, 0.85f, 1f);
-    [SerializeField] Color fullColor = new Color(1f, 0.95f, 0.55f);
+    [SerializeField] float iconSize = 0.3f;
+    [SerializeField] Color litColor = new Color(0.55f, 0.9f, 1f);
+    [SerializeField] Color flashColor = new Color(1f, 0.95f, 0.6f);
 
     static Material iconMaterial;
     static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
     IDamageable owner;
+    IStaggerable staggerable;
     Transform iconRoot;
-    Renderer[] icons;
+    Renderer icon;
     MaterialPropertyBlock block;
-    int marks;
-    float lastHitTime;
-    float decayTimer;
     Camera cam;
+    bool lit;
+    float litAt;
 
-    public int Marks => marks;
-    public int MaxMarks => maxMarks;
-    public bool IsFull => marks >= maxMarks;
-    public event Action<ThunderMark> Completed; // 가득 찬 순간 (P5 전이·뇌기 보너스용)
+    public bool IsLit => lit;
+    public static bool ShowIcons = true; // [변경] PlayerSkill이 흐트러짐 모드일 때만 켬
 
-    public static readonly System.Collections.Generic.List<ThunderMark> Active = new System.Collections.Generic.List<ThunderMark>(); // [변경] 켜져 있는 표식 전부 (일섬 사용 조건 검사용)
-    public IDamageable Owner => owner; // [변경]
-
-    public static ThunderMark Of(Component c) => c != null ? c.GetComponentInParent<ThunderMark>() : null;
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics() => ShowIcons = true;
 
     void Awake()
     {
         owner = GetComponent<IDamageable>();
+        staggerable = GetComponent<IStaggerable>();
         block = new MaterialPropertyBlock();
-        BuildIcons();
-        Refresh();
+        BuildIcon();
+        SetLit(false);
     }
 
-    void OnEnable() => Active.Add(this);   // [변경]
-    void OnDisable() => Active.Remove(this); // [변경]
-
-    // 반환값: 이번에 가득 찼으면 true
-    public bool Add(int amount)
-    {
-        if (amount <= 0 || !Alive()) return false;
-
-        bool wasFull = IsFull;
-        marks = Mathf.Min(maxMarks, marks + amount);
-        lastHitTime = Time.time;
-        decayTimer = 0f;
-        Refresh();
-
-        if (wasFull || !IsFull) return false;
-        Completed?.Invoke(this);
-        return true;
-    }
-
-    public bool Fill() => Add(maxMarks);
-
-    public void Clear()
-    {
-        marks = 0;
-        Refresh();
-    }
-
-    void Update()
-    {
-        if (marks == 0) return;
-
-        if (!Alive())
-        {
-            Clear();
-            return;
-        }
-
-        // 맞은 지 decayDelay가 지나면 decayInterval마다 한 칸씩
-        if (Time.time - lastHitTime < decayDelay) return;
-        decayTimer += Time.deltaTime;
-        if (decayTimer < decayInterval) return;
-        decayTimer = 0f;
-        marks--;
-        Refresh();
-    }
-
-    // 카메라를 바라보게 하고, 가득 찼으면 맥박처럼 커졌다 작아짐
     void LateUpdate()
     {
-        if (iconRoot == null || !iconRoot.gameObject.activeSelf) return;
+        bool now = ShowIcons && staggerable != null && staggerable.IsStaggered && (owner == null || owner.CanBeTargeted); // [변경]
+        if (now != lit) SetLit(now);
+        if (!lit || iconRoot == null) return;
+
         if (cam == null) cam = Camera.main;
         if (cam != null) iconRoot.rotation = cam.transform.rotation;
 
-        float pulse = IsFull ? 1f + Mathf.Sin(Time.unscaledTime * 12f) * 0.15f : 1f;
-        iconRoot.localScale = Vector3.one * pulse;
+        // 켜진 직후 크게 튀었다가 맥박
+        float since = Time.time - litAt;
+        float pop = since < 0.15f ? Mathf.Lerp(1.8f, 1f, since / 0.15f) : 1f;
+        iconRoot.localScale = Vector3.one * (pop + Mathf.Sin(Time.unscaledTime * 12f) * 0.12f);
+        block.SetColor(BaseColorId, Color.Lerp(litColor, flashColor, 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 18f)));
+        icon.SetPropertyBlock(block);
     }
 
-    bool Alive() => owner == null || owner.CanBeTargeted;
-
-    void Refresh()
+    void SetLit(bool value)
     {
-        if (iconRoot == null) return;
-        iconRoot.gameObject.SetActive(marks > 0);
-        for (int i = 0; i < icons.Length; i++)
-        {
-            Color c = i >= marks ? emptyColor : IsFull ? fullColor : filledColor;
-            block.SetColor(BaseColorId, c);
-            icons[i].SetPropertyBlock(block);
-        }
+        lit = value;
+        litAt = Time.time;
+        if (iconRoot != null) iconRoot.gameObject.SetActive(value);
     }
 
-    // 마름모 = 45도 돌린 사각 Quad. 그림자·충돌 없음
-    void BuildIcons()
+    // 마름모 = 45도 돌린 Quad. 그림자·충돌 없음
+    void BuildIcon()
     {
         if (iconMaterial == null)
         {
@@ -128,26 +72,18 @@ public class ThunderMark : MonoBehaviour
             iconMaterial = new Material(shader) { name = "ThunderMarkIcon" };
         }
 
-        iconRoot = new GameObject("ThunderMarkIcons").transform;
+        iconRoot = new GameObject("ThunderMarkIcon").transform;
         iconRoot.SetParent(transform, false);
         iconRoot.localPosition = Vector3.up * iconHeight;
 
-        icons = new Renderer[maxMarks];
-        for (int i = 0; i < maxMarks; i++)
-        {
-            GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            Destroy(quad.GetComponent<Collider>());
-            quad.name = $"Mark_{i + 1}";
-            quad.transform.SetParent(iconRoot, false);
-            quad.transform.localPosition = new Vector3((i - (maxMarks - 1) * 0.5f) * iconSpacing, 0f, 0f);
-            quad.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
-            quad.transform.localScale = Vector3.one * iconSize;
-
-            var r = quad.GetComponent<Renderer>();
-            r.sharedMaterial = iconMaterial;
-            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            r.receiveShadows = false;
-            icons[i] = r;
-        }
+        GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        Destroy(quad.GetComponent<Collider>());
+        quad.transform.SetParent(iconRoot, false);
+        quad.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+        quad.transform.localScale = Vector3.one * iconSize;
+        icon = quad.GetComponent<Renderer>();
+        icon.sharedMaterial = iconMaterial;
+        icon.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        icon.receiveShadows = false;
     }
 }

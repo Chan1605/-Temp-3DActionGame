@@ -12,8 +12,8 @@ public static class BossSetup
     const string AnimRoot = "Assets/ThirdParty/SwordAnimationPack/Animation/Humanoid/";
     const string ComboClip = AnimRoot + "02_Attack/03_Combo_Attack_03/Combo_Attack_03_0{0}.anim";
     const string WaveClip = AnimRoot + "02_Attack/05_Combo_Attack_Wave_05/Combo_Attack_Wave_05_0{0}.anim";
-    const string GrabClip = AnimRoot + "02_Attack/15_Execution/01_Execution/Execution_01.anim";
-    const string GrabbedClip = AnimRoot + "02_Attack/15_Execution/02_Target/Execution_Target_01.anim";
+    const string GrabClip = AnimRoot + "02_Attack/15_Execution/01_Execution/Execution_0{0}.anim";          // [변경] 1~3
+    const string GrabbedClip = AnimRoot + "02_Attack/15_Execution/02_Target/Execution_Target_0{0}.anim";
     const string LeapAirClip = AnimRoot + "02_Attack/08_Attack_Air_to_Floor_01/Attack_Air_To_Floor_Start_01.anim";
     const string LeapSlamClip = AnimRoot + "02_Attack/08_Attack_Air_to_Floor_01/Attack_Air_To_Floor_End_01.anim";
     const string LeapWindupClip = AnimRoot + "02_Attack/16_Power_Attack/Power_Attack_Start.anim";
@@ -55,16 +55,19 @@ public static class BossSetup
 
         AnimationClip[] combo = Enumerable.Range(1, 4).Select(i => Clip(string.Format(ComboClip, i), false)).ToArray();
         AnimationClip[] wave = Enumerable.Range(1, 3).Select(i => Clip(string.Format(WaveClip, i), false)).ToArray();
-        AnimationClip grab = Clip(GrabClip, false), grabbed = Clip(GrabbedClip, false);
+        AnimationClip[] grabs = Enumerable.Range(1, 3).Select(i => Clip(string.Format(GrabClip, i), false)).ToArray(); // [변경]
+        AnimationClip[] grabbeds = Enumerable.Range(1, 3).Select(i => Clip(string.Format(GrabbedClip, i), false)).ToArray();
+        AnimationClip grab = grabs[0], grabbed = grabbeds[0];
         AnimationClip leapAir = Clip(LeapAirClip, false), leapSlam = Clip(LeapSlamClip, false), leapWindup = Clip(LeapWindupClip, false);
         AnimationClip roar = Clip(RoarClip, true), intro = Clip(IntroClip, false), stagger = Clip(StaggerClip, false), getUp = Clip(GetUpClip, false);
-        if (combo.Concat(wave).Concat(new[] { grab, grabbed, leapAir, leapSlam, leapWindup, roar, intro, stagger, getUp }).Any(c => c == null)) return;
+        if (combo.Concat(wave).Concat(grabs).Concat(grabbeds).Concat(new[] { grab, grabbed, leapAir, leapSlam, leapWindup, roar, intro, stagger, getUp }).Any(c => c == null)) return;
 
         // 1) 보스 상태 (검병 공용 컨트롤러. 다른 적은 이 상태를 부르지 않음)
         AnimatorStateMachine sm = enemyController.layers[0].stateMachine;
         for (int i = 0; i < 4; i++) State(sm, $"Boss_Combo_{i + 1}").motion = combo[i];
         for (int i = 0; i < 3; i++) State(sm, $"Boss_Wave_{i + 1}").motion = wave[i];
         State(sm, "Boss_Grab").motion = grab;
+        for (int i = 0; i < 3; i++) State(sm, $"Boss_Grab_{i + 1}").motion = grabs[i]; // [변경] 잡기 3종 (무작위)
         State(sm, "Boss_LeapAir").motion = leapAir;
         State(sm, "Boss_LeapSlam").motion = leapSlam;
         State(sm, "Boss_Roar").motion = roar;
@@ -77,6 +80,7 @@ public static class BossSetup
 
         // 플레이어: 보스에게 잡혔을 때 짝 모션
         State(playerController.layers[0].stateMachine, "Grabbed").motion = grabbed;
+        for (int i = 0; i < 3; i++) State(playerController.layers[0].stateMachine, $"Grabbed_{i + 1}").motion = grabbeds[i]; // [변경]
         EditorUtility.SetDirty(playerController);
 
         // 2) 공격 데이터

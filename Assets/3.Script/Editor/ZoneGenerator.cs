@@ -15,7 +15,7 @@ public static class ZoneGenerator
     const string Zone2ThemePath = DataFolder + "/Zone2_Forest.asset";
     const string Zone3ThemePath = DataFolder + "/Zone3_Trial.asset"; // 시련의 터 (끝없는 웨이브)
     const string TempleThemePath = DataFolder + "/Zone3_Temple.asset";
-    const string BossThemePath = DataFolder + "/Zone4_Boss.asset"; // [변경] 보스 구역 (폐사찰과 시련의 터 사이) // 구역 3 폐사찰 (시련의 터 앞에 끼움)
+    const string BossThemePath = DataFolder + "/Zone4_Boss.asset"; // 보스 구역 (폐사찰과 시련의 터 사이) // 구역 3 폐사찰 (시련의 터 앞에 끼움)
     const string ElitePrefabPath = "Assets/2.Model/Prefabs/Swordsman_Elite.prefab";
     const string GuardianPrefabPath = "Assets/2.Model/Prefabs/Swordsman_Guardian.prefab";
     const string ChargerPrefabPath = "Assets/2.Model/Prefabs/Swordsman_Charger.prefab";
@@ -35,7 +35,7 @@ public static class ZoneGenerator
         (Zone1ThemePath, CreateZone1Theme, new[] { 2, 3 }, "구역 1", "산문"),
         (Zone2ThemePath, CreateZone2Theme, new[] { 2, 3, 3 }, "구역 2", "안개 낀 숲길"),
         (TempleThemePath, CreateTempleTheme, new[] { 2, 2, 1 }, "구역 3", "폐사찰"), // 방패병·돌격병은 ConfigureTemple이 추가
-        (BossThemePath, CreateBossTheme, new int[0], "최종", "흑뢰의 제단"), // [변경] 웨이브는 ConfigureBoss가 보스 1명으로
+        (BossThemePath, CreateBossTheme, new int[0], "최종", "흑뢰의 제단"), // 웨이브는 ConfigureBoss가 보스 1명으로
         (Zone3ThemePath, CreateZone3Theme, new int[0], "시련", "시련의 터"), // 웨이브는 ZoneArena가 끝없이 생성
     };
 
@@ -61,7 +61,7 @@ public static class ZoneGenerator
     {
         if (path == Zone3ThemePath) ConfigureTrial(theme);
         else if (path == TempleThemePath) ConfigureTemple(theme);
-        else if (path == BossThemePath) ConfigureBoss(theme); // [변경]
+        else if (path == BossThemePath) ConfigureBoss(theme);
     }
 
     [MenuItem("Tools/Map/Generate Zone 1 (Sanmun)")]
@@ -73,11 +73,11 @@ public static class ZoneGenerator
     [MenuItem("Tools/Map/Generate Zone 3 (Temple)")]
     static void GenerateZone3() => GenerateSingle(2);
 
-    [MenuItem("Tools/Map/Generate Boss Zone")] // [변경]
+    [MenuItem("Tools/Map/Generate Boss Zone")]
     static void GenerateBoss() => GenerateSingle(3);
 
     [MenuItem("Tools/Map/Generate Trial")]
-    static void GenerateTrial() => GenerateSingle(4); // [변경] 시련의 터는 보스 구역 뒤로
+    static void GenerateTrial() => GenerateSingle(4); // 시련의 터는 보스 구역 뒤로
 
     // 크래시 원인: 소품 2,287개를 정적 배칭하면 플레이 시작 때 나무마다 정점을 월드 좌표로 복제해 합친 거대한 메시가 생겨
     // GPU 공유 메모리(16GB)를 다 써서 D3D12 장치가 끊김 → 정적 배칭을 쓰지 않고, 이미 붙은 표시는 이 메뉴로 지움
@@ -156,7 +156,7 @@ public static class ZoneGenerator
         EditorSceneManager.MarkSceneDirty(root.scene);
     }
 
-    // [변경] 보스 구역: 웨이브가 비어 있을 때만 보스 1명 (등장 직후 잠깐 멈춤 → 등장 모션)
+    // 보스 구역: 웨이브가 비어 있을 때만 보스 1명 (등장 직후 잠깐 멈춤 → 등장 모션)
     static void ConfigureBoss(ZoneTheme theme)
     {
         GameObject root = GameObject.Find(theme.zoneName);
@@ -171,6 +171,8 @@ public static class ZoneGenerator
         }
 
         var so = new SerializedObject(arena);
+        so.FindProperty("quickRetry").boolValue = true; // [변경] 보스전은 결계 안에서 바로 재도전
+        so.ApplyModifiedProperties();
         SerializedProperty waves = so.FindProperty("waves");
         if (waves.arraySize > 0) return;
         waves.arraySize = 1;
@@ -980,7 +982,7 @@ public static class ZoneGenerator
         return SaveTheme(theme, TempleThemePath);
     }
 
-    // [변경] 보스 구역 흑뢰의 제단: 넓고 비운 원형 분지(도약 내려찍기 공간), 먹구름 낀 검붉은 하늘빛, 부러진 나무와 기둥 잔해
+    // 보스 구역 흑뢰의 제단: 넓고 비운 원형 분지(도약 내려찍기 공간), 먹구름 낀 검붉은 하늘빛, 부러진 나무와 기둥 잔해
     static ZoneTheme CreateBossTheme()
     {
         ZoneTheme theme = NewTheme("Zone_4_Boss");

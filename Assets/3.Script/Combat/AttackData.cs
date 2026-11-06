@@ -11,7 +11,7 @@ public class AttackData : ScriptableObject
     [SerializeField] float postureDamage = 5f;
     [SerializeField] bool parryable = true;
     [SerializeField] AttackWeight weight = AttackWeight.Light; // P3 무게별 피드백
-    [SerializeField] bool knockDown; // [변경] 맞으면 넘어짐 (적 공격 전용)
+    [SerializeField] bool knockDown; // 맞으면 넘어짐 (적 공격 전용)
 
     // 모든 타이밍은 클립 길이 기준 정규화 시간(0~1)
     [Header("Timing")]
@@ -28,6 +28,11 @@ public class AttackData : ScriptableObject
     [SerializeField, Range(0f, 1f)] float stepEnd = 0.3f;
 
     // 이 공격 도중 약/강 입력 시 이어질 다음 공격, 비어 있으면 그 입력으로는 콤보가 끝남
+    // [변경] 공중 콤보: launchHeight > 0이면 띄우기, airAttack이면 공중에서 쓰는 공격 (체공 + 떠 있는 적 떠받침)
+    [Header("Air")]
+    [SerializeField] float launchHeight;
+    [SerializeField] bool airAttack;
+
     [Header("Combo")]
     [SerializeField] AttackData nextLight;
     [SerializeField] AttackData nextHeavy;
@@ -52,6 +57,8 @@ public class AttackData : ScriptableObject
     public float MoveCancelStart => moveCancelStart;
     public float StepDistance => stepDistance;
     public float StepEnd => stepEnd;
+    public float LaunchHeight => launchHeight; // [변경]
+    public bool AirAttack => airAttack;
 
     public AttackData GetNext(AttackInput input) => input == AttackInput.Light ? nextLight : nextHeavy;
 

@@ -2,20 +2,28 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
 
-public class PlayerCombat : MonoBehaviour
+public partial class PlayerCombat : MonoBehaviour // [변경] 공중 콤보는 PlayerCombat.Air.cs
 {
     static readonly int LocomotionHash = Animator.StringToHash("Locomotion");
 
     [FormerlySerializedAs("attackAction")]
     [SerializeField] InputActionReference lightAttackAction;
     // 우클릭(강공격·간파·차지)은 PlayerChargeAttack이 받아서 탭이면 PressHeavy()로 넘겨줌
-    // [변경] 강공격 △는 콤보 분기(□□△ 등)로만 나감. 대기 중 우클릭 탭은 아무 공격도 안 함
+    // 강공격 △는 콤보 분기(□□△ 등)로만 나감. 대기 중 우클릭 탭은 아무 공격도 안 함
 
     [SerializeField] AttackData lightStarter;
     [SerializeField] AttackData heavyStarter;
-    [SerializeField] bool heavyStartsCombo = false; // [변경] 켜면 예전처럼 대기 중 우클릭 탭 = 강공격
+    [SerializeField] bool heavyStartsCombo = false; // 켜면 예전처럼 대기 중 우클릭 탭 = 강공격
     [SerializeField] AttackData runStarter;      // 달리는 중 □ → 달리기 공격 (없으면 일반 □)
     [SerializeField] float runAttackSpeed = 7f;  // 이 속도 이상으로 달리고 있으면 달리기 공격
+
+    // 저스트 회피 반격: 저스트 회피 뒤 counterWindow초(실제 시간) 안에 □ → 전용 반격 베기 (아머 무시, 피해·체간 배율)
+    [Header("Just Dodge Counter")]
+    [SerializeField] AttackData counterStarter;
+    [SerializeField] PlayerDodge dodge;
+    [SerializeField] float counterWindow = 0.9f;
+    [SerializeField] float counterDamageScale = 1.5f;
+    [SerializeField] float counterPostureScale = 2f;
 
     [SerializeField] Animator animator;
     [SerializeField] WeaponHitbox weapon;
@@ -47,8 +55,10 @@ public class PlayerCombat : MonoBehaviour
     int chargeLevel;             // 0 = 일반 공격
     bool deflected;              // 이번 타가 방패에 막힘 → 다음 타로 이어지지 않음
     string route = "";
+    float counterUntil = -1f;
+    bool pendingCounter, counterAttack;
 
-    public bool IsAttacking => current != null;
+    public bool IsAttacking => current != null || IsSlamming; // [변경] 내려찍기도 공격 중
     public bool CurrentIsBranch { get; private set; } // 콤보 분기로 이어진 공격인지 (간파 판정용)
     public AttackData CurrentAttack => current;
     public float AttackElapsed => current != null ? elapsed : 0f; // 회피가 공격을 끊을 수 있는 시점 판단용
@@ -71,18 +81,22 @@ public class PlayerCombat : MonoBehaviour
         controller = GetComponent<CharacterController>();
         if (targeting == null) targeting = GetComponent<PlayerTargeting>();
         if (stats == null) stats = GetComponent<PlayerStats>();
+        if (dodge == null) dodge = GetComponent<PlayerDodge>();
+        if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>(); // [변경]
     }
 
     void OnEnable()
     {
         Subscribe(lightAttackAction, OnLightPressed);
         if (weapon != null) weapon.OnHit += OnWeaponHit;
+        if (dodge != null) dodge.JustDodged += OnJustDodged;
     }
 
     void OnDisable()
     {
         Unsubscribe(lightAttackAction, OnLightPressed);
         if (weapon != null) weapon.OnHit -= OnWeaponHit;
+        if (dodge != null) dodge.JustDodged -= OnJustDodged;
         if (IsAttacking) EndCombo(returnCrossFade);
     }
 
@@ -90,7 +104,10 @@ public class PlayerCombat : MonoBehaviour
     void OnWeaponHit(IDamageable target, DamageInfo info, HitResult result)
     {
         if (result == HitResult.Blocked && current != null && current.Weight == AttackWeight.Light) deflected = true;
+        FollowLaunch(target, result); // [변경] 띄우기가 들어가면 같이 떠오름
     }
+
+    void OnJustDodged() => counterUntil = Time.unscaledTime + counterWindow;
 
     void OnLightPressed(InputAction.CallbackContext ctx) => RegisterPress(AttackInput.Light); // 처형은 F키(PlayerExecution)로 옮김
     public void PressHeavy() => RegisterPress(AttackInput.Heavy); // 우클릭을 짧게 눌렀다 뗐을 때 (PlayerChargeAttack이 호출)
@@ -116,15 +133,22 @@ public class PlayerCombat : MonoBehaviour
 
     void Update()
     {
+        if (IsGrounded()) airUsed = false; // [변경]
+        if (IsSlamming) // [변경] 내려찍기는 자체 흐름 (도약 → 낙하 → 착지 충격파)
+        {
+            UpdateSlam(Time.deltaTime);
+            return;
+        }
         if (InputLocked && !IsAttacking) return;
 
         if (!IsAttacking)
         {
-            if (HasBufferedPress && IsGrounded()) // 공중에서는 공격 시작 안 함 (착지 직전 입력은 버퍼로 착지 후 나감)
+            if (HasBufferedPress && IsGrounded())
             {
-                AttackData starter = lastPressInput == AttackInput.Light ? LightStarter() : heavyStartsCombo ? heavyStarter : null; // [변경]
+                AttackData starter = lastPressInput == AttackInput.Light ? LightStarter() : heavyStartsCombo ? heavyStarter : null;
                 if (starter != null) StartAttack(starter, true);
             }
+            else if (HasBufferedPress) TryStartAirAttack(); // [변경] 공중: □ = 공중 콤보(한 번 뜰 때 한 번), 우클릭 = 내려찍기
             return;
         }
 
@@ -140,12 +164,16 @@ public class PlayerCombat : MonoBehaviour
         else if (!inHitWindow && swingActive) EndSwing();
 
         if (swingFxActive && t >= current.HitEnd + swingFxTail) FinishSwingFx();
+        if (EndAirAttackOnLanding()) return; // [변경] 공중 공격 중 착지하면 끝
 
         // inputOpen 이후 눌린 입력만 인정하고, 그 입력에 연결된 다음 공격이 있으면 comboTransition에 분기
         bool buffered = lastPressTime >= attackStartTime + current.InputOpen * current.Duration / AttackSpeed; // 실제 시간으로 환산
+        if (TryLauncher(t)) return;               // [변경] 지상 콤보 중 Space = 띄우기
+        if (TryAirSlam(buffered, t)) return;      // [변경] 공중 콤보 마지막 □ 또는 우클릭 = 내려찍기
         if (buffered && !deflected && t >= current.ComboTransition)
         {
             AttackData next = current.GetNext(lastPressInput);
+            if (next != null && next.AirAttack && IsGrounded()) next = null; // [변경] 띄우기가 빗나가 땅에 있으면 공중 공격으로 잇지 않음
             if (next != null)
             {
                 StartAttack(next, false);
@@ -169,6 +197,8 @@ public class PlayerCombat : MonoBehaviour
 
         AttackInput input = lastPressInput;
         current = attack;
+        counterAttack = pendingCounter && attack == counterStarter;
+        pendingCounter = false;
         CurrentIsBranch = !isStarter; // AttackStarted 구독자가 읽을 수 있게 이벤트 전에 설정
         damageMultiplier = 1f;
         chargeLevel = 0;
@@ -177,6 +207,7 @@ public class PlayerCombat : MonoBehaviour
         stepTraveled = 0f;
         attackStartTime = Time.time;
         lastPressTime = float.NegativeInfinity;
+        ApplyAirPhysics(attack); // [변경] 공중 공격이면 체공, 아니면 중력 원래대로
 
         float baseStep = attack.StepDistance * stepWeight;
         stepTotal = baseStep;
@@ -206,10 +237,11 @@ public class PlayerCombat : MonoBehaviour
 
         swingFxActive = true;
         AttackStarted?.Invoke(attack, input);
+        if (counterAttack) DamageEvents.RaiseLabel(transform.position + Vector3.up * 2.2f, "반격", new Color(1f, 0.85f, 0.35f));
 
         if (logComboRoute)
         {
-            route = (isStarter ? "" : route) + (input == AttackInput.Light ? "□" : "△");
+            route = (isStarter ? "" : route) + RouteMark(input); // [변경] 띄우기 ↑ · 공중 공격 ○
             Debug.Log($"[Combo] {route}  ({attack.name})");
         }
     }
@@ -220,6 +252,7 @@ public class PlayerCombat : MonoBehaviour
         if (swingActive) EndSwing();
         FinishSwingFx();
         current = null;
+        ResetAir(); // [변경] 내려찍기·체공 해제
         lastPressTime = float.NegativeInfinity;
     }
 
@@ -228,8 +261,10 @@ public class PlayerCombat : MonoBehaviour
         if (swingActive) EndSwing();
         FinishSwingFx();
         current = null;
+        ResetAir(); // [변경]
         if (locomotion != null) locomotion.MovementLocked = false;
-        animator.CrossFadeInFixedTime(LocomotionHash, crossFade, 0, 0f);
+        if (!IsGrounded() && locomotion != null) locomotion.EnterFall(crossFade); // [변경] 공중에서 끝나면 낙하 모션
+        else animator.CrossFadeInFixedTime(LocomotionHash, crossFade, 0, 0f);
     }
 
     // 궤적·검기 종료 알림 (한 번만)
@@ -243,6 +278,13 @@ public class PlayerCombat : MonoBehaviour
     // 달리기 속도가 남아 있을 때 □를 누르면 달리기 공격으로 시작 (잠금 전 속도 기준)
     AttackData LightStarter()
     {
+        if (counterStarter != null && Time.unscaledTime <= counterUntil) // 저스트 회피 직후 □ = 반격
+        {
+            counterUntil = -1f;
+            pendingCounter = true;
+            if (logComboRoute) Debug.Log("[Combo] 저스트 회피 반격");
+            return counterStarter;
+        }
         bool running = runStarter != null && locomotion != null && locomotion.CurrentSpeed >= runAttackSpeed;
         return running ? runStarter : lightStarter;
     }
@@ -280,11 +322,13 @@ public class PlayerCombat : MonoBehaviour
         weapon.BeginSwing(new DamageInfo
         {
             Attacker = gameObject,
-            Damage = attack.Damage * damageMultiplier,
-            PostureDamage = attack.PostureDamage * damageMultiplier,
+            Damage = attack.Damage * damageMultiplier * (counterAttack ? counterDamageScale : 1f), // 반격 배율
+            PostureDamage = attack.PostureDamage * damageMultiplier * (counterAttack ? counterPostureScale : 1f),
             Parryable = attack.Parryable,
             Weight = attack.Weight,
-            BreakGuard = chargeLevel >= 2 // 차지 강타 2단계 이상은 방패를 한 번에 깸
+            BreakArmor = counterAttack, // 반격은 휘두르는 적도 경직시킴
+            BreakGuard = chargeLevel >= 2, // 차지 강타 2단계 이상은 방패를 한 번에 깸
+            Launch = attack.LaunchHeight // [변경] 띄우기 높이 (떠 있는 적은 어떤 타격이든 다시 떠받쳐짐)
         });
     }
 

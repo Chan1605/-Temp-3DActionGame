@@ -1,7 +1,7 @@
 using UnityEngine;
 
 // 구역 3 적 종류: 같은 EnemySwordsman 상태 머신에 행동만 추가 (방패병 = 정면 가드, 돌격병 = 원거리 돌진)
-public enum EnemyKind { Swordsman, Guardian, Charger, Boss } // [변경] Boss: 마지막 구역 보스 (EnemySwordsman.Boss.cs)
+public enum EnemyKind { Swordsman, Guardian, Charger, Boss } // Boss: 마지막 구역 보스 (EnemySwordsman.Boss.cs)
 
 [CreateAssetMenu(menuName = "Combat/Enemy Data", fileName = "EnemyData")]
 public class EnemyData : ScriptableObject
@@ -65,7 +65,7 @@ public class EnemyData : ScriptableObject
     [SerializeField] float chargeCooldown = 2.5f;
     [SerializeField] float exhaustTime = 1.4f;
 
-    // [변경] 보스: 경직 없이 버티다 체간(자세)이 가득 차면 붕괴 → 처형(즉사 대신 최대 체력 비율 피해)
+    // 보스: 경직 없이 버티다 체간(자세)이 가득 차면 붕괴 → 처형(즉사 대신 최대 체력 비율 피해)
     // 체력 phase2Ratio 이하에서 포효 → 2페이즈(빨라짐 + 검기). 패턴: 연속 베기 · 잡기 · 도약 내려찍기 · 검기
     [Header("Boss")]
     [SerializeField] string displayName = "흑뢰";
@@ -74,6 +74,7 @@ public class EnemyData : ScriptableObject
     [SerializeField] float postureRegenRate = 10f;    // 초당
     [SerializeField] float postureBreakStun = 3.5f;   // 체간 붕괴 = 처형 기회 시간
     [SerializeField] float parryPosture = 30f;        // 간파·패링 한 번에 쌓이는 체간
+    [SerializeField] float postureTakenScale = 0.5f;  // 공격으로 받는 체간 배율 (간파·패링은 parryPosture 그대로)
     [SerializeField, Range(0.05f, 1f)] float executionDamageRatio = 0.25f;
     [SerializeField, Range(0.01f, 1f)] float instantKillDamageRatio = 0.12f; // 일섬 즉사(뇌인 가득)는 보스에게 이 비율 피해
     [SerializeField, Range(0.1f, 0.9f)] float phase2Ratio = 0.5f;
@@ -82,6 +83,9 @@ public class EnemyData : ScriptableObject
     [SerializeField] float roarTime = 1.8f;
     [SerializeField] float roarPushRadius = 4f;
     [SerializeField] float introTime = 1.6f;
+    [SerializeField, Range(0f, 1f)] float comboStopChance = 0.3f; // [변경] 2·3타에서 연타를 끊을 확률 (반격 틈)
+    [SerializeField, Range(0f, 1f)] float delayChance = 0.5f;     // 마지막 타 직전 칼을 든 채 멈칫할 확률 (지연 베기)
+    [SerializeField] Vector2 delayTime = new Vector2(0.35f, 0.65f);
 
     [Header("Boss · Grab (회피만 가능)")]
     [SerializeField] AttackData grabAttack;
@@ -168,6 +172,7 @@ public class EnemyData : ScriptableObject
     public float PostureRegenRate => postureRegenRate;
     public float PostureBreakStun => postureBreakStun;
     public float ParryPosture => parryPosture;
+    public float PostureTakenScale => postureTakenScale;
     public float ExecutionDamageRatio => executionDamageRatio;
     public float InstantKillDamageRatio => instantKillDamageRatio;
     public float Phase2Ratio => phase2Ratio;
@@ -176,6 +181,9 @@ public class EnemyData : ScriptableObject
     public float RoarTime => roarTime;
     public float RoarPushRadius => roarPushRadius;
     public float IntroTime => introTime;
+    public float ComboStopChance => comboStopChance;
+    public float DelayChance => delayChance;
+    public Vector2 DelayTime => delayTime;
 
     public AttackData GrabAttack => grabAttack;
     public float GrabChance => grabChance;

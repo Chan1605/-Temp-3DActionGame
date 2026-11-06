@@ -25,16 +25,17 @@ public class PlayerSkill : MonoBehaviour
     [SerializeField] ThirdPersonCamera followCamera;
     [SerializeField] TrailRenderer dashTrail;
     [SerializeField] PlayerStats stats; // 있으면 일섬 피해에도 공격력·치명타 적용
-    [SerializeField] PlayerThunder thunder; // 있으면 뇌기 소모형 일섬 + 표식된 적만 즉사·연쇄
+    [SerializeField] PlayerThunder thunder; // 있으면 뇌기 소모형 일섬 + 흐트러진 적만 즉사·연쇄
     [SerializeField] PlayerStance stance;   // 일섬이 끝나면 납도 → 평상시 자세 (락온 중이면 그대로 전투 자세)
     [SerializeField] bool sheatheAfterSkill = true;
-    [SerializeField] bool requireMark = true; // 사거리 안에 뇌인이 한 칸이라도 쌓인 적이 없으면 Q를 못 씀
 
     [SerializeField] float aimTurnSpeed = 720f; // 자세·차지 중 고정한 대상을 따라 도는 속도(도/초, 실제 시간)
+    // [변경] 끄면(기본) 대상 제약 없음: 아무 적이나 겨냥·연쇄하고 보스 외에는 전부 즉사. 켜면 흐트러진 적만 즉사·연쇄 (A/B 비교용)
+    [SerializeField] bool staggerOnly = false;
     [SerializeField] bool hideBodyWhileDashing = true;
     [SerializeField] LayerMask obstacleMask = ~0;
 
-    readonly Collider[] overlapBuffer = new Collider[128]; // [변경] 32칸이면 바위·풀 콜라이더로 꽉 차 적을 못 찾는 경우가 있었음
+    readonly Collider[] overlapBuffer = new Collider[128]; // 32칸이면 바위·풀 콜라이더로 꽉 차 적을 못 찾는 경우가 있었음
     readonly RaycastHit[] castBuffer = new RaycastHit[16];
     readonly List<PendingHit> pendingHits = new List<PendingHit>();
 
@@ -66,8 +67,8 @@ public class PlayerSkill : MonoBehaviour
     // HUD 쿨타임 표시용 (1 = 방금 사용, 0 = 사용 가능)
     public float CooldownRatio => data != null && data.Cooldown > 0f ? Mathf.Clamp01(cooldownTimer / data.Cooldown) : 0f;
     bool UsesGauge => thunder != null && thunder.UseGaugeForSkill;
-    public bool HasMarkTarget { get; private set; } = true; // HUD 안내용 (매 프레임 갱신)
-    public event System.Action Blocked; // 뇌인 없는데 Q를 누름
+    public bool HasStaggerTarget { get; private set; } // HUD 안내용: 사거리 안에 흐트러진 적이 있음 (매 프레임 갱신)
+    public event System.Action Blocked; // 뇌기가 모자란데 Q를 누름
 
     // 이펙트(PlayerVfx)용 이벤트: 돌진 시작·끝 지점, 일괄 베기로 베인 대상 위치
     public event System.Action<Vector3, Vector3> Dashed;
@@ -117,7 +118,8 @@ public class PlayerSkill : MonoBehaviour
         float dt = Time.unscaledDeltaTime;
         if (cooldownTimer > 0f) cooldownTimer -= Time.deltaTime;
         UpdateHitStop(dt);
-        if (phase == Phase.Ready) HasMarkTarget = !requireMark || AnyMarkedNearby();
+        ThunderMark.ShowIcons = staggerOnly; // [변경] 흐트러짐 표시는 흐트러짐 모드에서만
+        if (phase == Phase.Ready) HasStaggerTarget = staggerOnly && NearestStaggered() != null;
 
         switch (phase)
         {
@@ -147,19 +149,13 @@ public class PlayerSkill : MonoBehaviour
             if (thunder.MaxAffordableLevel(0) < 0)
             {
                 Debug.Log($"[Skill] 뇌기 부족 ({thunder.Gauge:0.0} / {thunder.SkillCost(0)})");
+                Blocked?.Invoke(); // 안내는 뇌기 부족일 때만 (뇌인 조건 삭제)
                 return;
             }
         }
         else if (cooldownTimer > 0f)
         {
             Debug.Log($"[Skill] 쿨타임 {cooldownTimer:F1}초");
-            return;
-        }
-
-        if (!HasMarkTarget)
-        {
-            Debug.Log("[Skill] 뇌인이 쌓인 적이 없음");
-            Blocked?.Invoke();
             return;
         }
 
@@ -182,7 +178,7 @@ public class PlayerSkill : MonoBehaviour
         pendingHits.Clear();
 
         aimTarget = FindTarget(transform.position, transform.forward, data.RangeAt(data.MaxChargeLevel), 360f, false); // 주변 360° 자동 선택
-        if (requireMark && (aimTarget == null || MarkRank((Component)aimTarget) == 0)) aimTarget = NearestMarked(); // [변경] 뇌인 쌓인 적을 확실히 겨냥
+        if (staggerOnly && (aimTarget == null || StaggerRank((Component)aimTarget) == 0)) aimTarget = NearestStaggered() ?? aimTarget; // [변경] 흐트러짐 모드에서만 흐트러진 적 우선
         FaceAimTarget(true, 0f); // 누른 순간 그 대상 쪽으로 바로 돌아서 차징 자세
         animator.CrossFadeInFixedTime(stanceHash, 0.05f, 0, 0f);
         HoldStarted?.Invoke();
@@ -324,7 +320,7 @@ public class PlayerSkill : MonoBehaviour
 
         if (skillAction.action.WasPressedThisFrame())
         {
-            IDamageable next = FindTarget(transform.position, transform.forward, data.ChainRange, 360f, UsesGauge); // 연쇄는 표식된 적만
+            IDamageable next = FindTarget(transform.position, transform.forward, data.ChainRange, 360f, UsesGauge && staggerOnly); // [변경] 흐트러짐 모드에서만 흐트러진 적에게만 연쇄
             if (next != null)
             {
                 StartDash(next, transform.forward);
@@ -363,16 +359,21 @@ public class PlayerSkill : MonoBehaviour
         {
             if (hit.Target == null || (hit.Target as Object) == null) continue;
 
-            // 핵심: 뇌인 3칸(표식)이면 즉사, 아니면 큰 피해만. 쿨타임형(A/B)이면 예전처럼 데이터 값 그대로
-            bool marked = !UsesGauge || PlayerThunder.IsMarked((Component)hit.Target);
+            // 핵심: 흐트러진 적은 즉사, 아니면 큰 피해만. 보스는 즉사 없이 체간을 크게 (무너져 있으면 피해도 크게)
+            // 쿨타임형(A/B)이면 예전처럼 데이터 값 그대로
+            bool staggered = !UsesGauge || !staggerOnly || PlayerThunder.IsStaggered((Component)hit.Target); // [변경] 제약 없음 모드면 모두 즉사 대상
+            bool boss = UsesGauge && hit.Target is EnemySwordsman enemy && enemy.IsBoss;
+            float damage = !UsesGauge ? data.Damage
+                : boss ? thunder.NormalSkillDamage * (staggered ? thunder.BossStaggerDamageScale : 1f)
+                : staggered ? data.Damage : thunder.NormalSkillDamage;
             var info = new DamageInfo
             {
                 Attacker = gameObject,
-                Damage = marked ? data.Damage : thunder.UnmarkedSkillDamage,
-                PostureDamage = data.PostureDamage,
+                Damage = damage,
+                PostureDamage = data.PostureDamage * (boss ? thunder.BossPostureScale : 1f),
                 Parryable = false,
                 Weight = AttackWeight.Skill,
-                InstantKill = marked && data.InstantKill,
+                InstantKill = staggered && !boss && data.InstantKill,
                 HitPoint = hit.Point,
                 Direction = hit.Direction
             };
@@ -411,8 +412,8 @@ public class PlayerSkill : MonoBehaviour
         cooldownTimer = UsesGauge ? 0f : data.Cooldown;
     }
 
-    // 뇌인 가득 → 한 칸이라도 → 없음 순으로 고르고(같은 순위면 가까운 순), markedOnly면 가득 찬 적만
-    IDamageable FindTarget(Vector3 origin, Vector3 preferDir, float range, float maxAngle, bool markedOnly)
+    // 흐트러진 적 → 나머지 순으로 고르고(같은 순위면 가까운 순), staggeredOnly면 흐트러진 적만
+    IDamageable FindTarget(Vector3 origin, Vector3 preferDir, float range, float maxAngle, bool staggeredOnly)
     {
         int count = Physics.OverlapSphereNonAlloc(origin, range, overlapBuffer, ~0, QueryTriggerInteraction.Ignore);
         IDamageable best = null;
@@ -433,8 +434,8 @@ public class PlayerSkill : MonoBehaviour
             if (dist < 0.01f) continue;
             if (maxAngle < 360f && Vector3.Angle(forward, to) > maxAngle * 0.5f) continue;
 
-            int rank = MarkRank((Component)candidate);
-            if (markedOnly && rank < 2) continue;
+            int rank = StaggerRank((Component)candidate);
+            if (staggeredOnly && rank == 0) continue;
             if (rank < bestRank || (rank == bestRank && dist >= bestDist)) continue;
 
             bestDist = dist;
@@ -445,30 +446,21 @@ public class PlayerSkill : MonoBehaviour
         return best;
     }
 
-    static int MarkRank(Component c)
-    {
-        ThunderMark mark = ThunderMark.Of(c);
-        if (mark == null || mark.Marks <= 0) return 0;
-        return mark.IsFull ? 2 : 1;
-    }
+    int StaggerRank(Component c) => staggerOnly && PlayerThunder.IsStaggered(c) ? 1 : 0; // [변경] 제약 없음 모드면 순위 없이 가까운 순
 
-    // [변경] 물리 검색 대신 표식 목록을 직접 봄 → 주변 콜라이더 수와 상관없이 정확
-    bool AnyMarkedNearby() => NearestMarked() != null;
-
-    // 최대 사거리 안에서 뇌인이 한 칸이라도 쌓인 가장 가까운 적
-    IDamageable NearestMarked()
+    // 최대 사거리 안에서 흐트러진 가장 가까운 적 (살아 있는 검병 목록을 직접 봄 → 물리 검색 없음)
+    IDamageable NearestStaggered()
     {
         if (data == null) return null;
-        float range = data.RangeAt(data.MaxChargeLevel);
         IDamageable best = null;
-        float bestDist = range;
-        foreach (ThunderMark mark in ThunderMark.Active)
+        float bestDist = data.RangeAt(data.MaxChargeLevel);
+        foreach (EnemySwordsman enemy in EnemySwordsman.Alive)
         {
-            if (mark == null || mark.Marks <= 0 || mark.Owner == null || !mark.Owner.CanBeTargeted) continue;
-            float d = Flat(mark.transform.position - transform.position).magnitude;
+            if (enemy == null || !enemy.IsStaggered || !enemy.CanBeTargeted) continue;
+            float d = Flat(enemy.transform.position - transform.position).magnitude;
             if (d > bestDist) continue;
             bestDist = d;
-            best = mark.Owner;
+            best = enemy;
         }
         return best;
     }

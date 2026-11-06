@@ -38,7 +38,7 @@ public class PlayerLocomotion : MonoBehaviour
 
     [SerializeField] float gravity = -20f;
 
-    // 점프: 공중 공격은 v1 범위 밖이라 이동·피하기용. 착지 시 이 속도 이상으로 달리고 있으면 착지 모션 없이 바로 로코모션
+    // 점프: 이동·피하기 + 공중 콤보 시작점. 착지 시 이 속도 이상으로 달리고 있으면 착지 모션 없이 바로 로코모션
     [Header("Jump")]
     [SerializeField] float jumpHeight = 1.2f;
     [SerializeField] float airborneDelay = 0.15f;
@@ -50,7 +50,7 @@ public class PlayerLocomotion : MonoBehaviour
     [SerializeField] int airJumps = 1;
     [SerializeField] float doubleJumpHeight = 1.1f;
     [SerializeField] float doubleJumpMinAirTime = 0.12f; // 점프 직후 연타로 바로 나가지 않게
-    // [변경] 이단 점프 마무리: 회전 모션이 tailAt까지 가면 1단 점프 모션(Jump_Start, 방향 블렌드)의 tailStart 지점으로 넘어가 그 자세로 떨어짐
+    // 이단 점프 마무리: 회전 모션이 tailAt까지 가면 1단 점프 모션(Jump_Start, 방향 블렌드)의 tailStart 지점으로 넘어가 그 자세로 떨어짐
     [SerializeField, Range(0f, 1f)] float doubleJumpTailAt = 0.75f;
     [SerializeField, Range(0f, 1f)] float doubleJumpTailStart = 0.45f;
     [SerializeField] float doubleJumpTailFade = 0.15f;
@@ -87,6 +87,28 @@ public class PlayerLocomotion : MonoBehaviour
     public bool IsGrounded => airTime < airborneDelay;
     public bool HasBufferedJump => Time.time - lastJumpPress <= jumpBuffer;
     public Transform StrafeTarget { get; set; } // PlayerLockOn이 지정
+
+    // [변경] 공중 콤보(PlayerCombat)용: 중력 배율(체공) · 강제 상승 · 점프 입력 가로채기(띄우기)
+    public float GravityScale { get; set; } = 1f;
+    public float VerticalVelocity => verticalVelocity;
+    public float LastJumpPressTime => lastJumpPress;
+    public void ConsumeJump() => lastJumpPress = float.NegativeInfinity;
+    public void SetVerticalVelocity(float v) => verticalVelocity = v;
+
+    public void Launch(float height)
+    {
+        lastJumpPress = float.NegativeInfinity;
+        verticalVelocity = Mathf.Sqrt(2f * height * -gravity);
+        airTime = airborneDelay; // 바로 공중으로 침
+        airAnim = true;
+    }
+
+    // 공중에서 공격이 끝났을 때 낙하 모션으로 (착지는 기존 흐름)
+    public void EnterFall(float fade)
+    {
+        airAnim = true;
+        if (animator != null) animator.CrossFadeInFixedTime(JumpLoopHash, fade, 0, 0f);
+    }
 
     void Awake()
     {
@@ -166,7 +188,7 @@ public class PlayerLocomotion : MonoBehaviour
         else if (!MovementLocked && !wasGrounded && HasBufferedJump && airJumpsLeft > 0 && airTime >= doubleJumpMinAirTime) DoubleJump();
 
         if (controller.isGrounded && verticalVelocity < 0f) verticalVelocity = -2f;
-        verticalVelocity += gravity * dt;
+        verticalVelocity += gravity * GravityScale * dt; // [변경] 공중 공격 중 체공
 
         if (MovementLocked) moveHeading = transform.forward;
         CollisionFlags flags = controller.Move((moveHeading * currentSpeed + Vector3.up * verticalVelocity) * dt); // 바라보는 방향이 아니라 이동 방향으로
@@ -177,7 +199,7 @@ public class PlayerLocomotion : MonoBehaviour
         UpdateAnimator(dt);
     }
 
-    // [변경] 이단 점프 회전이 끝나 갈 때 1단 점프의 공중 자세로 이어 붙임 (컨트롤러의 Jump_Loop 전환보다 먼저 실행)
+    // 이단 점프 회전이 끝나 갈 때 1단 점프의 공중 자세로 이어 붙임 (컨트롤러의 Jump_Loop 전환보다 먼저 실행)
     void UpdateDoubleJumpTail()
     {
         if (animator == null || IsGrounded || animator.IsInTransition(0)) return;

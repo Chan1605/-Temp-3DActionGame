@@ -8,7 +8,7 @@ using UnityEngine.InputSystem;
 //  짧게 눌렀다 떼면       → 강공격 △ (콤보 분기: □□△, □□□△ …)
 //  길게 누르고 있으면     → 차지 자세, 단계(1~3)가 오름
 //  dashFromLevel 단계 이상에서 떼면 섬격(閃擊): 벽력일섬처럼 앞으로 빠르게 지나가며 길 위의 적을 베고, 한 박자 뒤 일괄 피해
-//  그 전에 떼면 아무것도 안 나가고 취소 (차지 강타는 없앰) // [변경]
+//  그 전에 떼면 아무것도 안 나가고 취소 (차지 강타는 없앰)
 public class PlayerChargeAttack : MonoBehaviour
 {
     static readonly int LocomotionHash = Animator.StringToHash("Locomotion");
@@ -16,7 +16,7 @@ public class PlayerChargeAttack : MonoBehaviour
     static readonly int DashHash = Animator.StringToHash("Skill_Release"); // 납도를 못 할 때(Sheathe 상태 없음 등)만 씀
 
     [SerializeField] InputActionReference heavyAction;
-    [SerializeField] AttackData releaseAttack; // 섬격 피해·체간 기준값으로만 씀 // [변경]
+    [SerializeField] AttackData releaseAttack; // 섬격 피해·체간 기준값으로만 씀
 
     [SerializeField] Animator animator;
     [SerializeField] PlayerCombat combat;
@@ -54,7 +54,6 @@ public class PlayerChargeAttack : MonoBehaviour
     [SerializeField] float cutDelay = 0.12f;           // 지나간 뒤 한 박자 늦게 베임
     [SerializeField] float dashRecovery = 0.3f;
     [SerializeField] float cutHitStop = 0.08f;         // 실제 시간
-    [SerializeField] int[] dashMarks = { 1, 1, 2 };     // 맞은 적에게 쌓는 뇌인
     [SerializeField] LayerMask obstacleMask = ~0;
 
     bool pressed;
@@ -253,7 +252,7 @@ public class PlayerChargeAttack : MonoBehaviour
         if (logCharge) Debug.Log($"[Charge] {level}단계");
     }
 
-    // [변경] 차지 강타 삭제: dashFromLevel 전에 떼면 취소, 이후면 섬격
+    // 차지 강타 삭제: dashFromLevel 전에 떼면 취소, 이후면 섬격
     void Release()
     {
         int releasedLevel = level;
@@ -370,7 +369,6 @@ public class PlayerChargeAttack : MonoBehaviour
         float mul = damageMultipliers[Mathf.Clamp(dashLevel - 1, 0, damageMultipliers.Length - 1)];
         float baseDamage = releaseAttack != null ? releaseAttack.Damage : 20f;
         float posture = releaseAttack != null ? releaseAttack.PostureDamage : 10f;
-        int marks = dashMarks[Mathf.Clamp(dashLevel - 1, 0, dashMarks.Length - 1)];
         Vector3 dir = Flat(dashEnd - dashStart).normalized;
 
         int hit = 0;
@@ -391,7 +389,7 @@ public class PlayerChargeAttack : MonoBehaviour
             };
             if (stats != null) info = stats.Modify(info);
             target.ReceiveDamage(info);
-            ThunderMark.Of((Component)target)?.Add(marks);
+            // [변경] 뇌인 스택 삭제 → 차지 섬격은 더 이상 표식을 쌓지 않음
             if (full) TargetCut?.Invoke(t.position);
             hit++;
         }

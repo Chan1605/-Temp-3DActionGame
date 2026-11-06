@@ -34,7 +34,7 @@ public class PlayerKanpa : MonoBehaviour
 
     public bool IsWindowOpen => windowAttack != null && combat != null && combat.CurrentAttack == windowAttack && Time.time <= windowEnd;
     // PlayerChargeAttack이 우클릭을 누른 순간 물어봄: 공격 중이면 패링 대신 △를 바로 예약
-    public bool HandlesPress => isActiveAndEnabled && combat != null && combat.IsAttacking && (!comboOnly || combat.CurrentAttack.GetNext(AttackInput.Heavy) != null);
+    public bool HandlesPress => isActiveAndEnabled && combat != null && combat.IsAttacking && combat.CurrentAttack != null && (!comboOnly || combat.CurrentAttack.GetNext(AttackInput.Heavy) != null); // [변경] 내려찍기 중엔 CurrentAttack이 비어 있음
 
     public event Action<GameObject, Vector3> Clashed; // 연출용 (적, 접촉 지점)
     public event Action<GameObject> Countered;        // 표식·스파크용
@@ -104,7 +104,7 @@ public class PlayerKanpa : MonoBehaviour
         if (afterimage != null) afterimage.Spawn();
         Countered?.Invoke(enemy);
         ApplyCounter(enemy);
-        if (enemy.TryGetComponent(out EnemySwordsman swordsman)) swordsman.CloseExecution(); // [변경] 간파 뒤는 처형 대신 뇌락
+        if (enemy.TryGetComponent(out EnemySwordsman swordsman)) swordsman.CloseExecution(); // 간파 뒤는 처형 대신 뇌락
 
         // 뇌락 입력 창 열기
         if (smashAttack != null)

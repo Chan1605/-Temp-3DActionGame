@@ -75,7 +75,7 @@ public class GameHUD : MonoBehaviour
     Text followPrompt;      // 간파 직후 "우클릭 뇌락!" (런타임 생성 → HUD 셋업 재실행 불필요)
     CanvasGroup followGroup;
     Tween followLoop;
-    Text markHint;            // 일섬 슬롯 위 "뇌인 필요"
+    Text markHint;            // [변경] 일섬 슬롯 위 "흐트러짐 · Q" (흐트러진 적이 있고 쓸 수 있을 때)
     CanvasGroup markHintGroup;
     CanvasGroup blockedGroup; // 뇌인 없이 Q를 눌렀을 때 화면 안내
     Sequence blockedSeq;
@@ -104,7 +104,7 @@ public class GameHUD : MonoBehaviour
         if (kanpaSource == null) kanpaSource = FindAnyObjectByType<PlayerKanpa>();
         CreateFollowPrompt();
         CreateMarkGuide();
-        CreateBossBar(); // [변경]
+        CreateBossBar();
 
         SetThunderVisible(showThunder);
         SetAlpha(zoneBanner, 0f);
@@ -379,8 +379,8 @@ public class GameHUD : MonoBehaviour
         skillCooldown.fillAmount = ratio;
 
         Transform slot = skillCooldown.transform.parent;
-        bool ready = ratio <= 0f && skill.HasMarkTarget; // 뇌인이 쌓인 적이 없으면 준비 안 됨으로 표시
-        SetMarkHint(ratio <= 0f && !skill.HasMarkTarget && !skill.IsActive);
+        bool ready = ratio <= 0f; // [변경] 뇌기만 차면 준비 (뇌인 조건 삭제)
+        SetMarkHint(ready && skill.HasStaggerTarget && !skill.IsActive); // 지금 Q로 끝낼 적이 있음
         if (ready && !skillReady)
         {
             // 쓸 수 있게 된 순간: 슬롯 튀어오름 + 글자 금색 번쩍
@@ -406,7 +406,7 @@ public class GameHUD : MonoBehaviour
         skillWasActive = active;
     }
 
-    // [변경] 보스 체력 막대: 화면 전체를 덮는 자식으로 만들고 BossHealthBar가 아래 가운데에 그림
+    // 보스 체력 막대: 화면 전체를 덮는 자식으로 만들고 BossHealthBar가 아래 가운데에 그림
     void CreateBossBar()
     {
         if (GetComponentInChildren<BossHealthBar>(true) != null) return;
@@ -426,7 +426,7 @@ public class GameHUD : MonoBehaviour
         if (skillCooldown != null)
         {
             var slot = (RectTransform)skillCooldown.transform.parent;
-            markHint = NewGuideText("MarkHint", slot, 22, new Color(0.45f, 0.85f, 1f), "뇌인 필요");
+            markHint = NewGuideText("MarkHint", slot, 22, new Color(1f, 0.92f, 0.55f), "흐트러짐 · Q"); // [변경]
             var rt = markHint.rectTransform;
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
             rt.anchoredPosition = new Vector2(0f, 22f);
@@ -434,7 +434,7 @@ public class GameHUD : MonoBehaviour
             markHintGroup.alpha = 0f;
         }
 
-        Text blocked = NewGuideText("MarkBlocked", transform, 30, Gold, "뇌인이 쌓인 적이 없습니다\n<size=22>공격으로 적에게 뇌인을 쌓은 뒤 Q</size>");
+        Text blocked = NewGuideText("MarkBlocked", transform, 30, Gold, "뇌기가 부족합니다\n<size=22>간파 · 저스트 회피 · 처형으로 뇌기를 모은 뒤 Q</size>"); // [변경]
         blocked.rectTransform.anchorMin = blocked.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
         blocked.rectTransform.anchoredPosition = new Vector2(0f, -190f);
         blocked.rectTransform.sizeDelta = new Vector2(620f, 90f);
@@ -470,6 +470,7 @@ public class GameHUD : MonoBehaviour
     {
         if (markHintGroup == null || show == markHintShown) return;
         markHintShown = show;
+        if (show && markHint != null) markHint.transform.DOPunchScale(Vector3.one * 0.3f, 0.3f, 6).SetUpdate(true).SetLink(markHint.gameObject); // [변경] 뜨는 순간 튐
         DOTween.Kill(markHintGroup);
         DOTween.To(() => markHintGroup.alpha, a => markHintGroup.alpha = a, show ? 1f : 0f, 0.2f)
             .SetTarget(markHintGroup).SetUpdate(true).SetLink(markHintGroup.gameObject);

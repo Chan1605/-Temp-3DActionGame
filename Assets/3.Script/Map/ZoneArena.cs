@@ -19,7 +19,7 @@ public class ZoneArena : MonoBehaviour
         // 정예: 기본 적과 함께 웨이브 가운데에 세움 (0이면 없음)
         public GameObject elitePrefab;
         [Min(0)] public int eliteCount;
-        // [변경] 추가 적(방패병·돌격병 등): 줄 양 끝에 번갈아 세움
+        // 추가 적(방패병·돌격병 등): 줄 양 끝에 번갈아 세움
         public List<Group> extras = new List<Group>();
     }
 
@@ -57,7 +57,7 @@ public class ZoneArena : MonoBehaviour
     [SerializeField] float healthPerWave = 0.12f;
     [SerializeField] float damagePerWave = 0.06f;
     [SerializeField] float xpPerWave = 0.05f; // 0.1이면 시련 7웨이브 전에 Lv10 → 목표(8~10웨이브)에 맞춰 절반
-    // [변경] 시련에 구역 3 적 섞기: specialFrom 웨이브부터 specialEvery마다 1명씩 늘림 (목록을 돌아가며)
+    // 시련에 구역 3 적 섞기: specialFrom 웨이브부터 specialEvery마다 1명씩 늘림 (목록을 돌아가며)
     [SerializeField] GameObject[] endlessSpecials = new GameObject[0];
     [SerializeField] int specialFrom = 3;
     [SerializeField] int specialEvery = 2;
@@ -65,6 +65,7 @@ public class ZoneArena : MonoBehaviour
     [Header("Checkpoint")]
     [SerializeField] Transform respawnPoint;
     [SerializeField] float respawnDelay = 1.5f;
+    [SerializeField] bool quickRetry; // [변경] 켜면 입구가 아니라 아레나 가장자리에서 부활 → 바로 재도전 (보스 구역)
 
     [Header("Atmosphere")]
     [SerializeField] ZoneTheme theme;
@@ -206,7 +207,7 @@ public class ZoneArena : MonoBehaviour
         int elites = endlessElite != null && eliteEvery > 0 ? Mathf.Min(total / 2, (n + 1) / eliteEvery) : 0;
         var wave = new Wave { enemyPrefab = endlessEnemy, count = Mathf.Max(1, total - elites), elitePrefab = endlessElite, eliteCount = elites };
 
-        // [변경] 특수 적은 기본 적 자리를 대신함 (총원 유지, 기본 적은 최소 1명)
+        // 특수 적은 기본 적 자리를 대신함 (총원 유지, 기본 적은 최소 1명)
         var specials = System.Array.FindAll(endlessSpecials, p => p != null);
         int specialCount = specials.Length > 0 && specialEvery > 0 && n + 1 >= specialFrom ? 1 + (n + 1 - specialFrom) / specialEvery : 0;
         specialCount = Mathf.Min(specialCount, wave.count - 1);
@@ -237,7 +238,7 @@ public class ZoneArena : MonoBehaviour
         for (int i = 0; i < wave.count; i++) prefabs.Add(wave.enemyPrefab);
         if (wave.elitePrefab != null && wave.elitePrefab.GetComponent<EnemySwordsman>() != null)
             for (int i = 0; i < wave.eliteCount; i++) prefabs.Insert(prefabs.Count / 2, wave.elitePrefab);
-        int side = 0; // [변경] 추가 적은 양 끝에 번갈아
+        int side = 0; // 추가 적은 양 끝에 번갈아
         foreach (Group g in wave.extras)
         {
             if (g == null || g.prefab == null || g.prefab.GetComponent<EnemySwordsman>() == null) continue;
@@ -275,7 +276,7 @@ public class ZoneArena : MonoBehaviour
         }
 
         WaveStarted?.Invoke(waveIndex);
-        if (logState) Debug.Log($"[Zone] {name} {waveIndex}/{waves.Count} 웨이브 · 적 {total}명 (기본 {wave.count})"); // [변경]
+        if (logState) Debug.Log($"[Zone] {name} {waveIndex}/{waves.Count} 웨이브 · 적 {total}명 (기본 {wave.count})");
     }
 
     float GroundY(Vector3 pos)
@@ -324,6 +325,7 @@ public class ZoneArena : MonoBehaviour
 
         ResetZone(true);
         TeleportPlayer();
+        if (quickRetry) MoveInsideArena(); // [변경]
         if (playerHealth != null) playerHealth.Revive();
         respawning = false;
     }
@@ -380,6 +382,24 @@ public class ZoneArena : MonoBehaviour
         if (cc != null) cc.enabled = false;
         player.SetPositionAndRotation(respawnPoint.position, respawnPoint.rotation);
         if (cc != null) cc.enabled = true;
+    }
+
+    // [변경] 부활 지점 쪽 가장자리, 진입 판정보다 2m 안쪽에 세우고 중심을 바라보게 → 다음 프레임에 전투 시작
+    void MoveInsideArena()
+    {
+        if (player == null) return;
+        Vector3 from = respawnPoint != null ? respawnPoint.position : player.position;
+        Vector3 dir = from - transform.position;
+        dir.y = 0f;
+        dir = dir.sqrMagnitude > 0.01f ? dir.normalized : -transform.forward;
+        Vector3 pos = transform.position + dir * Mathf.Max(1f, radius - enterMargin - 2f);
+        if (Physics.Raycast(pos + Vector3.up * 20f, Vector3.down, out RaycastHit hit, 40f, ~0, QueryTriggerInteraction.Ignore)) pos = hit.point;
+
+        var cc = player.GetComponent<CharacterController>();
+        if (cc != null) cc.enabled = false;
+        player.SetPositionAndRotation(pos, Quaternion.LookRotation(-dir, Vector3.up));
+        if (cc != null) cc.enabled = true;
+        if (logState) Debug.Log($"[Zone] {name} 바로 재도전");
     }
 
     float FlatDistance(Vector3 position)

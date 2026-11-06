@@ -9,7 +9,11 @@ public partial class EnemySwordsman
 {
     static readonly int BossIntroHash = Animator.StringToHash("Boss_Intro");
     static readonly int BossRoarHash = Animator.StringToHash("Boss_Roar");
-    static readonly int BossGrabHash = Animator.StringToHash("Boss_Grab");
+    static readonly int BossGrabHash = Animator.StringToHash("Boss_Grab"); // 예전 1종 (Boss_Grab_N이 없을 때)
+    static readonly int[] BossGrabHashes = // 잡기 짝 모션 3종 (처형 1·2·3과 같은 클립)
+    {
+        Animator.StringToHash("Boss_Grab_1"), Animator.StringToHash("Boss_Grab_2"), Animator.StringToHash("Boss_Grab_3")
+    };
     static readonly int BossLeapAirHash = Animator.StringToHash("Boss_LeapAir");
     static readonly int BossLeapSlamHash = Animator.StringToHash("Boss_LeapSlam");
     static readonly int BossStaggerHash = Animator.StringToHash("Boss_Stagger");
@@ -34,7 +38,14 @@ public partial class EnemySwordsman
 
     bool grabConnected, grabDodged, grabHitDone, grabCinematic;
     float grabKillTime = 0.55f, grabEndTime = 0.95f;
+    int grabMotion;    // 이번 잡기의 모션 번호 (0~2)
+    int grabStateHash;
     PlayerHealth grabbedPlayer;
+
+    bool comboStop;                       // 이번 타에서 연타를 끊음
+    float pendingDelay, holdLeft, holdAt;  // 다음 타에 걸 지연 / 지금 타의 남은 멈춤 / 멈추는 지점(정규화)
+    AttackData delayFor;                  // 지연을 걸 타 (거리 때문에 연타가 끊기면 다음 연타 첫 타에 잘못 걸리지 않게)
+    static readonly System.Collections.Generic.HashSet<EnemyData> introSeen = new System.Collections.Generic.HashSet<EnemyData>(); // 재도전 때 등장 연출 짧게
 
     Vector3 leapFrom, leapTo;
     bool leapLooping;
@@ -59,6 +70,7 @@ public partial class EnemySwordsman
     {
         ActiveBoss = null;
         BossPhaseChanged = null;
+        introSeen.Clear();
     }
 
     void InitBoss()
@@ -73,6 +85,7 @@ public partial class EnemySwordsman
 
     void OnDisable()
     {
+        TokensOnDisable(); // [변경]
         if (!IsBoss) return;
         ReleaseGrabbedPlayer();
         DestroyTelegraph();
@@ -103,9 +116,10 @@ public partial class EnemySwordsman
             ActiveBoss = this;
             bossCamera = FindAnyObjectByType<ThirdPersonCamera>();
             moveSpeed = 0f;
-            if (animator.HasState(0, BossIntroHash)) animator.CrossFadeInFixedTime(BossIntroHash, 0.15f, 0, 0f);
-            stunDuration = data.IntroTime;
-            attackReadyTime = localTime + data.IntroTime + 0.3f;
+            bool retry = !introSeen.Add(data); // 재도전이면 칼 뽑는 등장을 건너뛰고 바로 싸움
+            if (!retry && animator.HasState(0, BossIntroHash)) animator.CrossFadeInFixedTime(BossIntroHash, 0.15f, 0, 0f);
+            stunDuration = retry ? 0.3f : data.IntroTime;
+            attackReadyTime = localTime + stunDuration + 0.3f;
             SetState(State.Stun);
             Log("등장");
             return true;
@@ -155,6 +169,57 @@ public partial class EnemySwordsman
         return true;
     }
 
+    // ===== 연타 끊기 · 지연 베기 =====
+    // 핵심: 타가 시작될 때 이번 타에서 끊을지, 다음(마지막) 타 직전에 멈칫할지를 미리 정함
+    // → 간파·저스트 회피 판정(TimeUntilHit)이 같은 값을 읽어 "읽을 수 있는" 변칙이 됨
+    void OnBossAttackStarted(AttackData attack)
+    {
+        holdLeft = 0f;
+        comboStop = false;
+        if (!IsBoss || IsWaveAttack(attack) || attack == data.GrabAttack)
+        {
+            pendingDelay = 0f;
+            return;
+        }
+
+        holdLeft = attack == delayFor ? pendingDelay : 0f; // 앞 타에서 정해 둔 지연을 이번 타에 적용
+        holdAt = attack.HitStart * 0.85f;
+        pendingDelay = 0f;
+        delayFor = null;
+
+        AttackData next = attack.GetNext(AttackInput.Light);
+        if (next == null) return;
+        comboStop = ComboIndex(attack) >= 1 && Random.value < data.ComboStopChance;
+        if (!comboStop && next.GetNext(AttackInput.Light) == null && Random.value < data.DelayChance)
+        {
+            pendingDelay = Random.Range(data.DelayTime.x, data.DelayTime.y);
+            delayFor = next;
+        }
+    }
+
+    int ComboIndex(AttackData attack)
+    {
+        AttackData a = data.FirstAttack;
+        for (int i = 0; a != null && i < 8; i++, a = a.GetNext(AttackInput.Light))
+            if (a == attack) return i;
+        return -1;
+    }
+
+    // 판정 직전(holdAt)에 닿으면 멈춘 채 대상을 바라봄. 애니메이터도 거의 멈춤 (칼을 든 자세 유지)
+    bool UpdateBossHold(float dt)
+    {
+        if (holdLeft <= 0f || currentAttack == null || stateTime / currentAttack.Duration < holdAt) return false;
+        holdLeft -= dt;
+        stateTime -= dt;
+        animator.speed *= 0.04f;
+        FaceTarget(dt, 0.6f);
+        return true;
+    }
+
+    float BossHoldLeft() => IsBoss ? Mathf.Max(0f, holdLeft) : 0f;
+    float BossPendingDelay() => IsBoss ? pendingDelay : 0f;
+    bool BossStopsCombo() => IsBoss && comboStop;
+
     // ===== 잡기 =====
     void UpdateBossGrabWindup(float dt)
     {
@@ -163,28 +228,56 @@ public partial class EnemySwordsman
         if (stateTime < data.GrabWindup) return;
 
         grabConnected = grabDodged = grabHitDone = false;
+        PickGrabMotion();
         var exec = target.GetComponent<PlayerExecution>();
-        PlayerExecution.MotionSetup m = exec != null ? exec.GetMotion(0) : null;
+        PlayerExecution.MotionSetup m = exec != null ? exec.GetMotion(grabMotion) : null;
         if (m != null)
         {
             grabKillTime = m.killTime;
             grabEndTime = m.endTime;
         }
-        animator.CrossFadeInFixedTime(BossGrabHash, 0.05f, 0, 0f);
+        animator.CrossFadeInFixedTime(grabStateHash, 0.05f, 0, 0f);
         SetState(State.BossGrab);
+    }
+
+    // 보스·플레이어 둘 다 짝 상태가 있는 번호 중 무작위. 하나도 없으면 예전 Boss_Grab / Grabbed
+    void PickGrabMotion()
+    {
+        var player = target.GetComponent<PlayerHealth>();
+        int start = Random.Range(0, BossGrabHashes.Length);
+        for (int k = 0; k < BossGrabHashes.Length; k++)
+        {
+            int i = (start + k) % BossGrabHashes.Length;
+            if (!animator.HasState(0, BossGrabHashes[i]) || player == null || !player.HasGrabbedMotion(i)) continue;
+            grabMotion = i;
+            grabStateHash = BossGrabHashes[i];
+            return;
+        }
+        grabMotion = 0;
+        grabStateHash = BossGrabHash;
+    }
+
+    // 잡기 모션 진행도: 실제 애니메이터 상태에서 읽음 (클립마다 길이가 달라서)
+    float GrabNormalized()
+    {
+        AnimatorStateInfo now = animator.GetCurrentAnimatorStateInfo(0);
+        if (now.shortNameHash == grabStateHash) return now.normalizedTime;
+        AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(0);
+        if (next.shortNameHash == grabStateHash) return next.normalizedTime;
+        return stateTime / Mathf.Max(0.01f, data.GrabAttack.Duration);
     }
 
     // 핵심: 짧게 돌진하며 손이 닿는 거리면 잡음 → 플레이어를 처형 짝 자리로 옮겨 같은 시점부터 짝 모션
     // 닿지 않거나 회피로 흘리면 헛잡음 → 무방비
     void UpdateBossGrab(float dt)
     {
-        float k = stateTime / Mathf.Max(0.01f, data.GrabAttack.Duration);
+        float k = GrabNormalized();
         if (!grabConnected)
         {
             moveSpeed = stateTime < data.GrabLungeTime ? data.GrabLungeSpeed : 0f;
             if (stateTime <= data.GrabLungeTime + 0.1f)
             {
-                if (!grabDodged && InGrabReach()) TryConnectGrab(k);
+                if (!grabDodged && InGrabReach()) TryConnectGrab(stateTime); // 보스가 모션을 시작한 뒤 흐른 시간
                 return;
             }
 
@@ -210,13 +303,13 @@ public partial class EnemySwordsman
         return to.magnitude <= data.GrabRange * transform.lossyScale.x && Vector3.Angle(transform.forward, to) <= 60f;
     }
 
-    void TryConnectGrab(float normalized)
+    void TryConnectGrab(float elapsed)
     {
         var player = target.GetComponent<PlayerHealth>();
         if (player == null) return;
 
         GrabVictimPose(out Vector3 pos, out Quaternion rot);
-        if (!player.TryBeginGrab(gameObject, pos, rot, normalized, animator.speed))
+        if (!player.TryBeginGrab(gameObject, pos, rot, elapsed, animator.speed, grabMotion)) // 같은 번호의 당하는 쪽 모션
         {
             grabDodged = true; // 회피 무적 등으로 흘림 → 이번 잡기는 더 시도하지 않음
             return;
@@ -229,7 +322,7 @@ public partial class EnemySwordsman
             grabCinematic = true;
             bossCamera.BeginCinematic(Vector3.Lerp(transform.position, pos, 0.5f) + Vector3.up * 1.3f, transform.eulerAngles.y + 70f, 10f, 4.8f);
         }
-        Log("잡기 성공");
+        Log($"잡기 성공 · 모션 {grabMotion + 1}");
     }
 
     // 플레이어 처형 짝 자리를 그대로 씀 (보스가 처형하는 쪽). 덩치만큼 거리를 늘림
@@ -239,7 +332,7 @@ public partial class EnemySwordsman
         var exec = target.GetComponent<PlayerExecution>();
         if (exec != null)
         {
-            exec.GetVictimPose(transform.position, transform.rotation, 0, out pos, out rot);
+            exec.GetVictimPose(transform.position, transform.rotation, grabMotion, out pos, out rot);
             pos = transform.position + (pos - transform.position) * s;
         }
         else
@@ -467,6 +560,7 @@ public partial class EnemySwordsman
 
         health -= damage;
         Flash(hitColor);
+        if (state != State.Executed) Flinch(info.Direction, info.Weight != AttackWeight.Light); // 보스도 맞으면 움찔
         if (health <= 0f)
         {
             Die();
@@ -475,7 +569,7 @@ public partial class EnemySwordsman
         if (!phase2 && health <= max * data.Phase2Ratio) pendingPhase2 = true;
         if (state == State.Executed) return HitResult.Hit;
 
-        AddPosture(info.PostureDamage * (info.Weight == AttackWeight.Skill ? 1.5f : 1f), info.Direction);
+        AddPosture(info.PostureDamage * data.PostureTakenScale, info.Direction); // 일섬 한 방(체간 100)에 바로 붕괴하던 것 → 배율로 낮춤
         return HitResult.Hit;
     }
 
@@ -601,6 +695,11 @@ public partial class EnemySwordsman
             case State.BossRoar:
                 color = Color.Lerp(phase2Tint, grabTellColor, pulse);
                 return true;
+        }
+        if (state == State.Attack && holdLeft > 0f && currentAttack != null && stateTime / currentAttack.Duration >= holdAt) // 지연 베기 멈칫 = 주황 예고
+        {
+            color = Color.Lerp(BaseTint, windupColor, 0.5f + 0.5f * pulse);
+            return true;
         }
         if (postureBroken && state == State.Stun)
         {
