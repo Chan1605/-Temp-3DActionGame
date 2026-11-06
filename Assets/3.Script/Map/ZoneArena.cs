@@ -44,6 +44,10 @@ public class ZoneArena : MonoBehaviour
     [SerializeField] float spawnRadius = 10f; // 중심에서 등장 거리 (14m → 10m, 걸어오는 공백 줄임)
     [SerializeField] float spawnHold = 0.6f;  // 등장 직후 무방비 시간
     [SerializeField] float spawnSpread = 35f;
+    // [변경] 웨이브 기본 적 수 배율 + 추가 인원 (보스 웨이브는 제외). 시련도 적용, 인원이 많으면 등장 간격을 좁혀 200° 안에
+    [SerializeField] float countScale = 1.5f;
+    [SerializeField] int extraPerWave = 0;
+    [SerializeField] float maxSpawnArc = 200f;
 
     // 시련 모드: 정해진 웨이브 대신 끝없이 이어짐. 웨이브마다 적 수·정예·체력·공격력·경험치가 오르고, 쓰러지면 기록을 남기고 처음부터
     [Header("Endless (시련)")]
@@ -65,7 +69,7 @@ public class ZoneArena : MonoBehaviour
     [Header("Checkpoint")]
     [SerializeField] Transform respawnPoint;
     [SerializeField] float respawnDelay = 1.5f;
-    [SerializeField] bool quickRetry; // [변경] 켜면 입구가 아니라 아레나 가장자리에서 부활 → 바로 재도전 (보스 구역)
+    [SerializeField] bool quickRetry; // 켜면 입구가 아니라 아레나 가장자리에서 부활 → 바로 재도전 (보스 구역)
 
     [Header("Atmosphere")]
     [SerializeField] ZoneTheme theme;
@@ -220,6 +224,14 @@ public class ZoneArena : MonoBehaviour
     }
 
     // 플레이어 반대편 벽 쪽에 부채꼴로 세움 → 등 뒤에서 갑자기 나오지 않게
+    // [변경] 보스 웨이브는 그대로, 나머지는 배율 + 추가
+    int ScaledCount(Wave wave)
+    {
+        var enemy = wave.enemyPrefab.GetComponent<EnemySwordsman>();
+        if (enemy != null && enemy.IsBoss) return wave.count;
+        return Mathf.Max(1, Mathf.RoundToInt(wave.count * countScale) + extraPerWave);
+    }
+
     void SpawnWave(Wave wave)
     {
         current.Clear();
@@ -231,11 +243,11 @@ public class ZoneArena : MonoBehaviour
 
         Vector3 toPlayer = player != null ? player.position - transform.position : Vector3.forward;
         float baseAngle = Mathf.Atan2(toPlayer.z, toPlayer.x) + Mathf.PI;
-        float step = spawnSpread * Mathf.Deg2Rad;
 
         // 기본 적 사이 가운데 자리에 정예를 끼워 넣음
         var prefabs = new List<GameObject>();
-        for (int i = 0; i < wave.count; i++) prefabs.Add(wave.enemyPrefab);
+        int baseCount = ScaledCount(wave); // [변경]
+        for (int i = 0; i < baseCount; i++) prefabs.Add(wave.enemyPrefab);
         if (wave.elitePrefab != null && wave.elitePrefab.GetComponent<EnemySwordsman>() != null)
             for (int i = 0; i < wave.eliteCount; i++) prefabs.Insert(prefabs.Count / 2, wave.elitePrefab);
         int side = 0; // 추가 적은 양 끝에 번갈아
@@ -250,6 +262,7 @@ public class ZoneArena : MonoBehaviour
         }
 
         int total = prefabs.Count;
+        float step = Mathf.Min(spawnSpread, total > 1 ? maxSpawnArc / (total - 1) : spawnSpread) * Mathf.Deg2Rad; // [변경]
         for (int i = 0; i < total; i++)
         {
             float a = baseAngle + (i - (total - 1) * 0.5f) * step;
@@ -276,7 +289,7 @@ public class ZoneArena : MonoBehaviour
         }
 
         WaveStarted?.Invoke(waveIndex);
-        if (logState) Debug.Log($"[Zone] {name} {waveIndex}/{waves.Count} 웨이브 · 적 {total}명 (기본 {wave.count})");
+        if (logState) Debug.Log($"[Zone] {name} {waveIndex}/{waves.Count} 웨이브 · 적 {total}명 (기본 {wave.count} → {baseCount})"); // [변경]
     }
 
     float GroundY(Vector3 pos)
@@ -325,7 +338,7 @@ public class ZoneArena : MonoBehaviour
 
         ResetZone(true);
         TeleportPlayer();
-        if (quickRetry) MoveInsideArena(); // [변경]
+        if (quickRetry) MoveInsideArena();
         if (playerHealth != null) playerHealth.Revive();
         respawning = false;
     }
@@ -384,7 +397,7 @@ public class ZoneArena : MonoBehaviour
         if (cc != null) cc.enabled = true;
     }
 
-    // [변경] 부활 지점 쪽 가장자리, 진입 판정보다 2m 안쪽에 세우고 중심을 바라보게 → 다음 프레임에 전투 시작
+    // 부활 지점 쪽 가장자리, 진입 판정보다 2m 안쪽에 세우고 중심을 바라보게 → 다음 프레임에 전투 시작
     void MoveInsideArena()
     {
         if (player == null) return;

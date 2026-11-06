@@ -82,7 +82,7 @@ public class PlayerParry : MonoBehaviour
         if (skill != null && skill.IsActive) return false;
         if (dodge != null && dodge.IsDodging && !dodge.CanCancel) return false; // 회피 후반이면 간파로 끊고 들어감
         if (health != null && health.IsStunned) return false;
-        if (thunder != null && !thunder.CanSpend(thunder.ParryCost)) return false; // 뇌기가 없으면 간파 대신 강공격
+        if (thunder != null && !thunder.CanParry) return false; // [변경] 각성 중엔 칸 없이 패링 // 뇌기가 없으면 간파 대신 강공격
 
         IAttackThreat found = FindThreat();
         if (found == null) return false;
@@ -90,14 +90,14 @@ public class PlayerParry : MonoBehaviour
         // v2는 경직을 부딪히는 순간으로 미룸
         if (clashStyle)
         {
-            if (thunder != null) thunder.TrySpend(thunder.ParryCost);
+            if (thunder != null) thunder.SpendParry(); // [변경]
             BeginClash(found);
             return true;
         }
 
         HitResult result = found.ReceiveParry(gameObject);
         if (result != HitResult.Countered) return false;
-        if (thunder != null) thunder.TrySpend(thunder.ParryCost);
+        if (thunder != null) thunder.SpendParry(); // [변경]
 
         Begin(found);
         return true;
@@ -244,7 +244,7 @@ public class PlayerParry : MonoBehaviour
         if (followCamera != null) followCamera.Shake(shakeStrength * 0.6f, 0.12f);
     }
 
-    public void Interrupt() // [변경] 처형이 패링 반격 모션을 끊고 이어받을 때
+    public void Interrupt() // 처형이 패링 반격 모션을 끊고 이어받을 때
     {
         if (active) End(false);
     }

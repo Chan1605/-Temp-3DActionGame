@@ -41,6 +41,13 @@ public partial class EnemySwordsman
     int grabMotion;    // 이번 잡기의 모션 번호 (0~2)
     int grabStateHash;
     PlayerHealth grabbedPlayer;
+    BossGrabTell grabTell; // [변경] 양손 붉은 빛 예고
+    static readonly Color GrabLabelColor = new Color(1f, 0.25f, 0.18f);
+
+    // [변경] 잡기 예고 세기 (0이면 꺼짐): 예고 동안 0→1, 달려드는 동안 1
+    public float GrabTell01 =>
+        state == State.BossGrabWindup ? Mathf.Clamp01(stateTime / Mathf.Max(data.GrabWindup, 0.01f)) :
+        state == State.BossGrab && !grabConnected && stateTime <= data.GrabLungeTime + 0.1f ? 1f : 0f;
 
     bool comboStop;                       // 이번 타에서 연타를 끊음
     float pendingDelay, holdLeft, holdAt;  // 다음 타에 걸 지연 / 지금 타의 남은 멈춤 / 멈추는 지점(정규화)
@@ -85,7 +92,7 @@ public partial class EnemySwordsman
 
     void OnDisable()
     {
-        TokensOnDisable(); // [변경]
+        TokensOnDisable();
         if (!IsBoss) return;
         ReleaseGrabbedPlayer();
         DestroyTelegraph();
@@ -165,6 +172,8 @@ public partial class EnemySwordsman
         moveSpeed = 0f;
         grabReadyTime = localTime + data.GrabCooldown * CooldownScale;
         SetState(State.BossGrabWindup);
+        if (grabTell == null) grabTell = BossGrabTell.Create(this, animator); // [변경] 손 빛 + 머리 위 글자
+        DamageEvents.RaiseLabel(transform.position + Vector3.up * 2.4f * transform.lossyScale.y, "잡기!", GrabLabelColor);
         Log("잡기 예고");
         return true;
     }
@@ -683,7 +692,7 @@ public partial class EnemySwordsman
         {
             case State.BossGrabWindup:
                 float k = Mathf.Clamp01(stateTime / Mathf.Max(data.GrabWindup, 0.01f));
-                color = Color.Lerp(BaseTint, grabTellColor, k * k * (0.7f + 0.3f * pulse));
+                color = Color.Lerp(BaseTint, grabTellColor, (0.4f + 0.6f * k) * (0.7f + 0.3f * pulse)); // [변경] 예고 첫 순간부터 붉게 (k²는 앞 절반이 거의 안 보였음)
                 return true;
             case State.BossGrab:
                 if (grabConnected) return false;

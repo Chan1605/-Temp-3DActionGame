@@ -10,6 +10,7 @@ public class PlayerVfx : MonoBehaviour
     [SerializeField] PlayerCombat combat;
     [SerializeField] PlayerSkill skill;
     [SerializeField] PlayerChargeAttack heavyCharge; // 우클릭 차지도 Q 차지와 같은 번개 연출
+    [SerializeField] PlayerEnchant enchant; // 뇌검 각성: 칼에 계속 흐르는 번개 · 적중 낙뢰 · 방전
     [SerializeField] SwordTrail trail;
     [SerializeField] BoxCollider blade;
     [SerializeField] GameObject boltPrefab;
@@ -33,7 +34,7 @@ public class PlayerVfx : MonoBehaviour
     [SerializeField] float strikeHeight = 12f;
     [SerializeField] float strikeSpread = 2f;
     [SerializeField] float strikeFlickerDelay = 0.07f;
-    [SerializeField] float strikeStagger = 0.08f; // [변경] 한 번에 여러 명이 베이면 낙뢰를 이 간격으로 차례차례 (동시에 떨어져 화면이 하얗게 타는 것 방지)
+    [SerializeField] float strikeStagger = 0.08f; // 한 번에 여러 명이 베이면 낙뢰를 이 간격으로 차례차례 (동시에 떨어져 화면이 하얗게 타는 것 방지)
     [SerializeField] int impactArcs = 4;
     [SerializeField] float impactRadius = 1.6f;
     [SerializeField] LightningBoltStyle strikeStyle = DefaultStrikeStyle(); // 타입 이름만 변경 (저장된 값은 유지)
@@ -51,6 +52,15 @@ public class PlayerVfx : MonoBehaviour
     LightningBoltPrefabScriptBase strikeBolt;
     LightningBoltPrefabScriptBase chargeBolt;
 
+    // 뇌검 각성 연출 (기존 번개 스타일 재사용)
+    [Header("Enchant")]
+    [SerializeField] float enchantBladeInterval = 0.07f;
+    [SerializeField] float enchantStrikeHeight = 5f;
+    [SerializeField] int enchantStartArcs = 6;
+    [SerializeField] int dischargeArcs = 10;
+    bool enchanted;
+    float enchantTimer;
+
     bool bladeActive;
     float bladeTimer;
 
@@ -64,10 +74,12 @@ public class PlayerVfx : MonoBehaviour
         if (combat == null) combat = GetComponent<PlayerCombat>();
         if (skill == null) skill = GetComponent<PlayerSkill>();
         if (heavyCharge == null) heavyCharge = GetComponent<PlayerChargeAttack>();
+        if (enchant == null) enchant = GetComponent<PlayerEnchant>();
 
         bladeBolt = CreateBolt("BladeLightning", bladeStyle);
         dashBolt = CreateBolt("DashLightning", dashStyle);
         strikeBolt = CreateBolt("StrikeLightning", strikeStyle);
+        strikeBoltSoft = CreateBolt("StrikeLightningSoft", SoftCopy(strikeStyle)); // [변경]
         chargeBolt = CreateBolt("ChargeLightning", chargeStyle);
     }
 
@@ -94,6 +106,13 @@ public class PlayerVfx : MonoBehaviour
             heavyCharge.Dashed += OnDashed;       // 섬격도 일섬과 같은 번개 궤적 · 낙뢰
             heavyCharge.TargetCut += OnTargetCut;
         }
+        if (enchant != null)
+        {
+            enchant.Started += OnEnchantStarted;
+            enchant.Struck += OnEnchantStruck;
+            enchant.Discharged += OnDischarged;
+            enchant.Ended += OnEnchantEnded;
+        }
     }
 
     void OnDisable()
@@ -119,6 +138,14 @@ public class PlayerVfx : MonoBehaviour
             heavyCharge.Dashed -= OnDashed;
             heavyCharge.TargetCut -= OnTargetCut;
         }
+        if (enchant != null)
+        {
+            enchant.Started -= OnEnchantStarted;
+            enchant.Struck -= OnEnchantStruck;
+            enchant.Discharged -= OnDischarged;
+            enchant.Ended -= OnEnchantEnded;
+        }
+        enchanted = false;
         OnSwingFinished();
         OnHoldEnded();
     }
@@ -137,6 +164,66 @@ public class PlayerVfx : MonoBehaviour
         }
 
         if (charging) UpdateCharge(Time.unscaledDeltaTime); // 차지 중 timeScale이 느려져도 일정한 빈도
+        if (enchanted) UpdateEnchant(Time.deltaTime);
+    }
+
+    // ===== 뇌검 각성 ===== [변경]
+    void OnEnchantStarted()
+    {
+        enchanted = true;
+        enchantTimer = 0f;
+        if (chargeBolt == null || blade == null) return;
+        // 발동: 칼에서 땅으로 번개가 사방으로 터짐
+        GetBladeEnds(out Vector3 hilt, out Vector3 tip);
+        Vector3 feet = transform.position + Vector3.up * 0.05f;
+        for (int i = 0; i < enchantStartArcs; i++)
+        {
+            Vector2 d = Random.insideUnitCircle.normalized * Random.Range(1f, 2f);
+            chargeBolt.Trigger(Vector3.Lerp(hilt, tip, Random.value), feet + new Vector3(d.x, 0f, d.y));
+        }
+    }
+
+    void OnEnchantEnded() => enchanted = false;
+
+    // 지속 중: 칼날을 따라 짧은 번개가 계속 흐름
+    void UpdateEnchant(float dt)
+    {
+        if (bladeBolt == null || blade == null) return;
+        enchantTimer -= dt;
+        if (enchantTimer > 0f) return;
+        enchantTimer = enchantBladeInterval;
+        GetBladeEnds(out Vector3 hilt, out Vector3 tip);
+        bladeBolt.Trigger(hilt, tip);
+    }
+
+    // 적중마다 작은 낙뢰 (일섬 낙뢰보다 낮고 한 번만)
+    void OnEnchantStruck(Vector3 position)
+    {
+        if (strikeBolt == null) return;
+        Vector2 o = Random.insideUnitCircle;
+        Vector3 ground = position + Vector3.up * 0.1f;
+        strikeBolt.Trigger(position + new Vector3(o.x, enchantStrikeHeight, o.y), ground);
+        if (chargeBolt == null) return;
+        for (int i = 0; i < 2; i++)
+        {
+            Vector2 d = Random.insideUnitCircle.normalized;
+            chargeBolt.Trigger(ground, ground + new Vector3(d.x, 0.05f, d.y));
+        }
+    }
+
+    // 종료 방전: 발밑에서 반경까지 번개가 둥글게 퍼지고 머리 위로 낙뢰
+    void OnDischarged(Vector3 center, float radius)
+    {
+        Vector3 ground = center + Vector3.up * 0.1f;
+        if (chargeBolt != null)
+        {
+            for (int i = 0; i < dischargeArcs; i++)
+            {
+                float a = (i + Random.value * 0.5f) / dischargeArcs * Mathf.PI * 2f;
+                chargeBolt.Trigger(ground, ground + new Vector3(Mathf.Cos(a), 0.05f, Mathf.Sin(a)) * radius);
+            }
+        }
+        OnTargetCut(center);
     }
 
     void OnAttackStarted(AttackData attack, AttackInput input)
@@ -165,11 +252,25 @@ public class PlayerVfx : MonoBehaviour
     int strikeFrame = -1;
     int strikeOrder;
 
+    // [변경] 한 번에 여럿을 베면 앞의 몇 개만 빛·번짐을 세게, 나머지는 빛 없는 약한 번개 (화면이 하얗게 타는 것 방지)
+    [SerializeField] int brightStrikes = 3;
+    [SerializeField, Range(0f, 1f)] float softStrikeGlow = 0.35f;
+    LightningBoltPrefabScriptBase strikeBoltSoft;
+
+    LightningBoltStyle SoftCopy(LightningBoltStyle s)
+    {
+        var c = JsonUtility.FromJson<LightningBoltStyle>(JsonUtility.ToJson(s));
+        c.lightRange = 0f;
+        c.glowIntensity *= softStrikeGlow;
+        c.intensity *= Mathf.Lerp(softStrikeGlow, 1f, 0.5f);
+        return c;
+    }
+
     void OnTargetCut(Vector3 position)
     {
         if (!strikeLightning || strikeBolt == null) return;
 
-        // [변경] 같은 프레임에 들어온 낙뢰는 순서대로 지연
+        // 같은 프레임에 들어온 낙뢰는 순서대로 지연
         if (Time.frameCount != strikeFrame)
         {
             strikeFrame = Time.frameCount;
@@ -180,12 +281,18 @@ public class PlayerVfx : MonoBehaviour
         Vector2 offset = Random.insideUnitCircle * strikeSpread;
         Vector3 sky = position + new Vector3(offset.x, strikeHeight, offset.y);
         Vector3 ground = position + Vector3.up * 0.1f;
-        StartCoroutine(StrikeFollowUp(sky, ground, delay));
+        StartCoroutine(StrikeFollowUp(sky, ground, delay, strikeOrder > brightStrikes)); // [변경]
     }
 
-    IEnumerator StrikeFollowUp(Vector3 sky, Vector3 ground, float delay)
+    IEnumerator StrikeFollowUp(Vector3 sky, Vector3 ground, float delay, bool soft)
     {
         if (delay > 0f) yield return new WaitForSecondsRealtime(delay);
+        // [변경] 약한 낙뢰: 빛 없는 번개 한 번만 (재점멸 · 바닥 잔번개 생략)
+        if (soft)
+        {
+            if (strikeBoltSoft != null) strikeBoltSoft.Trigger(sky, ground);
+            yield break;
+        }
         if (strikeBolt != null) strikeBolt.Trigger(sky, ground);
 
         yield return new WaitForSecondsRealtime(strikeFlickerDelay);

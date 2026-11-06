@@ -435,6 +435,7 @@ GameObject:
   - component: {fileID: 4498633949859688452}
   - component: {fileID: 8033109656775331062}
   - component: {fileID: 1285893297518870779}
+  - component: {fileID: 5394472063361926110}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -519,6 +520,9 @@ MonoBehaviour:
   airJumps: 1
   doubleJumpHeight: 1.1
   doubleJumpMinAirTime: 0.12
+  doubleJumpTailAt: 0.75
+  doubleJumpTailStart: 0.45
+  doubleJumpTailFade: 0.15
   walkClipSpeed: 1.4997509
   runClipSpeed: 5
   sprintClipSpeed: 10
@@ -540,11 +544,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db0f54ab177619d48b7288400fd22770, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat
+  launcher: {fileID: 11400000, guid: fa116a623c6ab2846b9fa45da5941240, type: 2}
+  airStarter: {fileID: 11400000, guid: 33d3bc200ba286448a20fa5cd6f2184b, type: 2}
+  followLaunchHeight: 2.6
+  airGravityScale: 0.12
+  airHangLift: 0.6
+  slamMinHeight: 0.8
+  slamPop: 2
+  slamStartTime: 0.18
+  slamDiveSpeed: 26
+  slamHomingRange: 4
+  slamDamage: 28
+  slamPostureDamage: 25
+  slamRadius: 3
+  slamDiveRadius: 1.4
+  slamRecoverTime: 0.45
+  slamMoveCancel: 0.3
+  followCamera: {fileID: 0}
   lightAttackAction: {fileID: 1120369429361536294, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   lightStarter: {fileID: 11400000, guid: e48cc411e3e8c1f4da88da5c4547be0e, type: 2}
   heavyStarter: {fileID: 11400000, guid: 29867278508338c41aee8014d75f0a5f, type: 2}
+  heavyStartsCombo: 0
   runStarter: {fileID: 11400000, guid: 92bfc9c24c936414bb808d8e95f1489e, type: 2}
   runAttackSpeed: 7
+  counterStarter: {fileID: 11400000, guid: 193178f467407684e9921fac35b3af87, type: 2}
+  dodge: {fileID: 118300998889972725}
+  counterWindow: 0.9
+  counterDamageScale: 1.5
+  counterPostureScale: 2
   animator: {fileID: 9054350018550051993}
   weapon: {fileID: 8066946278627523393}
   locomotion: {fileID: 8946055058242759463}
@@ -578,7 +605,10 @@ MonoBehaviour:
   dashTrail: {fileID: 1737536271964613677}
   stats: {fileID: 7268560931724845920}
   thunder: {fileID: 8397257810525060709}
+  stance: {fileID: 0}
+  sheatheAfterSkill: 1
   aimTurnSpeed: 720
+  staggerOnly: 0
   hideBodyWhileDashing: 1
   obstacleMask:
     serializedVersion: 2
@@ -603,6 +633,7 @@ MonoBehaviour:
   heavyHitDamage: 15
   knockDownTime: 1.1
   getUpTime: 0.8
+  dodgeOutAfter: 0.15
   animator: {fileID: 9054350018550051993}
   combat: {fileID: 3750847782795144091}
   locomotion: {fileID: 8946055058242759463}
@@ -612,6 +643,7 @@ MonoBehaviour:
   kanpa: {fileID: 8781555882832531804}
   followCamera: {fileID: 0}
   execution: {fileID: 1285893297518870779}
+  charge: {fileID: 0}
 --- !u!114 &118300998889972725
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -726,6 +758,7 @@ MonoBehaviour:
   combat: {fileID: 3750847782795144091}
   skill: {fileID: 3070939792974395059}
   heavyCharge: {fileID: 5087689224789762330}
+  enchant: {fileID: 0}
   trail: {fileID: 6587575302745953988}
   blade: {fileID: 8589396617217203519}
   boltPrefab: {fileID: 1600819035976254, guid: 9bcfdd98d29605342a31a197383939a1, type: 3}
@@ -775,6 +808,7 @@ MonoBehaviour:
   strikeHeight: 12
   strikeSpread: 2
   strikeFlickerDelay: 0.07
+  strikeStagger: 0.08
   impactArcs: 4
   impactRadius: 1.6
   strikeStyle:
@@ -823,6 +857,10 @@ MonoBehaviour:
     lightIntensity: 1
     lightPercent: 0.02
     lightColor: {r: 0.6, g: 0.75, b: 1, a: 1}
+  enchantBladeInterval: 0.07
+  enchantStrikeHeight: 5
+  enchantStartArcs: 6
+  dischargeArcs: 10
 --- !u!114 &2319970398063733898
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -983,36 +1021,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerThunder
   weapon: {fileID: 8066946278627523393}
   combat: {fileID: 3750847782795144091}
-  parry: {fileID: 4353746522782798047}
   kanpa: {fileID: 8781555882832531804}
   dodge: {fileID: 118300998889972725}
+  execution: {fileID: 0}
   maxGauge: 4
   startGauge: 0
   lightHitGain: 0.2
   heavyHitGain: 0.4
-  justDodgeGain: 1
-  markCompleteGain: 0.3
-  useGaugeForSkill: 1
-  skillCost:
-  - 2
-  - 3
-  - 4
-  parryCost: 1
-  lightHitMarks: 1
-  heavyHitMarks: 2
-  chargeMarks: 020000000300000003000000
-  chargeFullRadius: 3
-  chargeFullMarks: 2
   chargeGainPerLevel: 0.3
-  spread: 2
-  finisherRadius: 3.5
-  parryRadius: 3
+  justDodgeGain: 1
   kanpaGain: 0.5
-  kanpaRadius: 3.5
-  smashMarks: 2
-  smashRadius: 3
-  transferRadius: 3
-  unmarkedSkillDamage: 30
+  executionGain: 1.5
+  useGaugeForSkill: 1
+  qCost: 1
+  parryCost: 1
+  normalSkillDamage: 30
+  bossPostureScale: 2
+  bossStaggerDamageScale: 2.5
   logThunder: 1
 --- !u!114 &5087689224789762330
 MonoBehaviour:
@@ -1037,6 +1062,12 @@ MonoBehaviour:
   skill: {fileID: 3070939792974395059}
   health: {fileID: 4005965994054678145}
   followCamera: {fileID: 0}
+  lockOn: {fileID: 0}
+  stats: {fileID: 0}
+  afterimage: {fileID: 0}
+  dashTrail: {fileID: 0}
+  stance: {fileID: 0}
+  sheatheAfterDash: 1
   holdThreshold: 0.2
   levelTimes:
   - 0
@@ -1048,6 +1079,20 @@ MonoBehaviour:
   - 3
   turnSpeed: 360
   logCharge: 1
+  dashFromLevel: 3
+  dashDistances:
+  - 4.5
+  - 6
+  - 8
+  dashDuration: 0.14
+  dashPathRadius: 1
+  behindDistance: 1.6
+  cutDelay: 0.12
+  dashRecovery: 0.3
+  cutHitStop: 0.08
+  obstacleMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!114 &6301437402645275699
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1221,6 +1266,7 @@ MonoBehaviour:
   sheatheCrossFade: 0.2
   returnCrossFade: 0.25
   sheatheEnd: 0.92
+  actionSheatheStart: 0.1
   startRelaxed: 1
   stayDrawnInZoneFight: 1
   logStance: 0
@@ -1241,6 +1287,7 @@ MonoBehaviour:
   health: {fileID: 4005965994054678145}
   lockRange: 18
   breakRange: 24
+  switchByMouseFlick: 0
   flickThreshold: 60
   flickDecay: 10
   switchCooldown: 0.3
@@ -1269,12 +1316,77 @@ MonoBehaviour:
   followCamera: {fileID: 0}
   range: 2.8
   coneAngle: 110
-  alignDistance: 1.2
-  killTime: 0.55
-  endTime: 0.92
+  motions:
+  - distance: 1.2
+    side: 0
+    yaw: 0
+    killTime: 0.55
+    endTime: 0.97
+  - distance: 1.2
+    side: 0
+    yaw: 0
+    killTime: 0.55
+    endTime: 0.97
+  - distance: 1.2
+    side: 0
+    yaw: 0
+    killTime: 0.55
+    endTime: 0.97
+  playbackSpeed: 0.8
+  alignTime: 0.12
+  freezeTime: 0.09
   slowScale: 0.25
   slowTime: 0.25
+  cinematicCamera: 1
+  cameraSideAngle: 70
+  cameraPitch: 8
+  cameraDistance: 3.4
   logExecution: 1
+--- !u!114 &5394472063361926110
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab3ed6f66aae29f42b328454c61af702, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerEnchant
+  enchantAction:
+    m_Name: Enchant
+    m_Type: 1
+    m_ExpectedControlType: 
+    m_Id: efbf5ef0-9ef8-4ba4-8702-4fec1644b17d
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 6a5ee2f2-597f-493b-9ddf-5a52854b6105
+      m_Path: <Keyboard>/r
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Enchant
+      m_Flags: 0
+    m_Flags: 0
+  thunder: {fileID: 0}
+  weapon: {fileID: 0}
+  skill: {fileID: 0}
+  health: {fileID: 0}
+  execution: {fileID: 0}
+  followCamera: {fileID: 0}
+  minCells: 1
+  secondsPerCell: 3.5
+  postureScale: 1.5
+  strikeDamage: 6
+  strikePostureDamage: 3
+  strikeRadius: 1.5
+  dischargeDamage: 20
+  dischargePostureDamage: 20
+  dischargeRadius: 3
+  logEnchant: 1
 --- !u!1 &1515010326207606855
 GameObject:
   m_ObjectHideFlags: 0
@@ -2193,7 +2305,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 563129190470504868}
-  m_LocalEulerAnglesHint: {x: -5.0202065, y: -0.4852721, z: -159.02827}
+  m_LocalEulerAnglesHint: {x: -1.8347263, y: 12.514479, z: 158.25023}
 --- !u!1 &4212727519411449491
 GameObject:
   m_ObjectHideFlags: 0
@@ -3334,7 +3446,7 @@ Transform:
   - {fileID: 7117908773678089895}
   - {fileID: 4076426485361985546}
   m_Father: {fileID: 5090184323580091682}
-  m_LocalEulerAnglesHint: {x: 20.318016, y: 55.044655, z: 44.94927}
+  m_LocalEulerAnglesHint: {x: 89.687836, y: 0.019544046, z: -179.98045}
 --- !u!1 &7744667127320898915
 GameObject:
   m_ObjectHideFlags: 0

@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
 
-public partial class PlayerCombat : MonoBehaviour // [변경] 공중 콤보는 PlayerCombat.Air.cs
+public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerCombat.Air.cs
 {
     static readonly int LocomotionHash = Animator.StringToHash("Locomotion");
 
@@ -58,7 +58,7 @@ public partial class PlayerCombat : MonoBehaviour // [변경] 공중 콤보는 P
     float counterUntil = -1f;
     bool pendingCounter, counterAttack;
 
-    public bool IsAttacking => current != null || IsSlamming; // [변경] 내려찍기도 공격 중
+    public bool IsAttacking => current != null || IsSlamming; // 내려찍기도 공격 중
     public bool CurrentIsBranch { get; private set; } // 콤보 분기로 이어진 공격인지 (간파 판정용)
     public AttackData CurrentAttack => current;
     public float AttackElapsed => current != null ? elapsed : 0f; // 회피가 공격을 끊을 수 있는 시점 판단용
@@ -73,6 +73,9 @@ public partial class PlayerCombat : MonoBehaviour // [변경] 공중 콤보는 P
     public event System.Action AttackSwingFinished;
     public event System.Action<AttackData> SwingStarted; // 판정이 켜지는 순간 (뇌락 착지 효과용)
 
+    PlayerEnchant enchant; // [변경]
+    bool Enchanted => enchant != null && enchant.IsActive;
+
     void Awake()
     {
         if (animator == null) animator = GetComponentInChildren<Animator>();
@@ -82,7 +85,8 @@ public partial class PlayerCombat : MonoBehaviour // [변경] 공중 콤보는 P
         if (targeting == null) targeting = GetComponent<PlayerTargeting>();
         if (stats == null) stats = GetComponent<PlayerStats>();
         if (dodge == null) dodge = GetComponent<PlayerDodge>();
-        if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>(); // [변경]
+        if (enchant == null) enchant = GetComponent<PlayerEnchant>(); // [변경]
+        if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
     }
 
     void OnEnable()
@@ -104,7 +108,7 @@ public partial class PlayerCombat : MonoBehaviour // [변경] 공중 콤보는 P
     void OnWeaponHit(IDamageable target, DamageInfo info, HitResult result)
     {
         if (result == HitResult.Blocked && current != null && current.Weight == AttackWeight.Light) deflected = true;
-        FollowLaunch(target, result); // [변경] 띄우기가 들어가면 같이 떠오름
+        FollowLaunch(target, result); // 띄우기가 들어가면 같이 떠오름
     }
 
     void OnJustDodged() => counterUntil = Time.unscaledTime + counterWindow;
@@ -133,8 +137,8 @@ public partial class PlayerCombat : MonoBehaviour // [변경] 공중 콤보는 P
 
     void Update()
     {
-        if (IsGrounded()) airUsed = false; // [변경]
-        if (IsSlamming) // [변경] 내려찍기는 자체 흐름 (도약 → 낙하 → 착지 충격파)
+        if (IsGrounded()) airUsed = false;
+        if (IsSlamming) // 내려찍기는 자체 흐름 (도약 → 낙하 → 착지 충격파)
         {
             UpdateSlam(Time.deltaTime);
             return;
@@ -148,7 +152,7 @@ public partial class PlayerCombat : MonoBehaviour // [변경] 공중 콤보는 P
                 AttackData starter = lastPressInput == AttackInput.Light ? LightStarter() : heavyStartsCombo ? heavyStarter : null;
                 if (starter != null) StartAttack(starter, true);
             }
-            else if (HasBufferedPress) TryStartAirAttack(); // [변경] 공중: □ = 공중 콤보(한 번 뜰 때 한 번), 우클릭 = 내려찍기
+            else if (HasBufferedPress) TryStartAirAttack(); // 공중: □ = 공중 콤보(한 번 뜰 때 한 번), 우클릭 = 내려찍기
             return;
         }
 
@@ -164,16 +168,16 @@ public partial class PlayerCombat : MonoBehaviour // [변경] 공중 콤보는 P
         else if (!inHitWindow && swingActive) EndSwing();
 
         if (swingFxActive && t >= current.HitEnd + swingFxTail) FinishSwingFx();
-        if (EndAirAttackOnLanding()) return; // [변경] 공중 공격 중 착지하면 끝
+        if (EndAirAttackOnLanding()) return; // 공중 공격 중 착지하면 끝
 
         // inputOpen 이후 눌린 입력만 인정하고, 그 입력에 연결된 다음 공격이 있으면 comboTransition에 분기
         bool buffered = lastPressTime >= attackStartTime + current.InputOpen * current.Duration / AttackSpeed; // 실제 시간으로 환산
-        if (TryLauncher(t)) return;               // [변경] 지상 콤보 중 Space = 띄우기
-        if (TryAirSlam(buffered, t)) return;      // [변경] 공중 콤보 마지막 □ 또는 우클릭 = 내려찍기
+        if (TryLauncher(t)) return;               // 지상 콤보 중 Space = 띄우기
+        if (TryAirSlam(buffered, t)) return;      // 공중 콤보 마지막 □ 또는 우클릭 = 내려찍기
         if (buffered && !deflected && t >= current.ComboTransition)
         {
             AttackData next = current.GetNext(lastPressInput);
-            if (next != null && next.AirAttack && IsGrounded()) next = null; // [변경] 띄우기가 빗나가 땅에 있으면 공중 공격으로 잇지 않음
+            if (next != null && next.AirAttack && IsGrounded()) next = null; // 띄우기가 빗나가 땅에 있으면 공중 공격으로 잇지 않음
             if (next != null)
             {
                 StartAttack(next, false);
@@ -207,7 +211,7 @@ public partial class PlayerCombat : MonoBehaviour // [변경] 공중 콤보는 P
         stepTraveled = 0f;
         attackStartTime = Time.time;
         lastPressTime = float.NegativeInfinity;
-        ApplyAirPhysics(attack); // [변경] 공중 공격이면 체공, 아니면 중력 원래대로
+        ApplyAirPhysics(attack); // 공중 공격이면 체공, 아니면 중력 원래대로
 
         float baseStep = attack.StepDistance * stepWeight;
         stepTotal = baseStep;
@@ -241,7 +245,7 @@ public partial class PlayerCombat : MonoBehaviour // [변경] 공중 콤보는 P
 
         if (logComboRoute)
         {
-            route = (isStarter ? "" : route) + RouteMark(input); // [변경] 띄우기 ↑ · 공중 공격 ○
+            route = (isStarter ? "" : route) + RouteMark(input); // 띄우기 ↑ · 공중 공격 ○
             Debug.Log($"[Combo] {route}  ({attack.name})");
         }
     }
@@ -252,7 +256,7 @@ public partial class PlayerCombat : MonoBehaviour // [변경] 공중 콤보는 P
         if (swingActive) EndSwing();
         FinishSwingFx();
         current = null;
-        ResetAir(); // [변경] 내려찍기·체공 해제
+        ResetAir(); // 내려찍기·체공 해제
         lastPressTime = float.NegativeInfinity;
     }
 
@@ -261,9 +265,9 @@ public partial class PlayerCombat : MonoBehaviour // [변경] 공중 콤보는 P
         if (swingActive) EndSwing();
         FinishSwingFx();
         current = null;
-        ResetAir(); // [변경]
+        ResetAir();
         if (locomotion != null) locomotion.MovementLocked = false;
-        if (!IsGrounded() && locomotion != null) locomotion.EnterFall(crossFade); // [변경] 공중에서 끝나면 낙하 모션
+        if (!IsGrounded() && locomotion != null) locomotion.EnterFall(crossFade); // 공중에서 끝나면 낙하 모션
         else animator.CrossFadeInFixedTime(LocomotionHash, crossFade, 0, 0f);
     }
 
@@ -323,12 +327,12 @@ public partial class PlayerCombat : MonoBehaviour // [변경] 공중 콤보는 P
         {
             Attacker = gameObject,
             Damage = attack.Damage * damageMultiplier * (counterAttack ? counterDamageScale : 1f), // 반격 배율
-            PostureDamage = attack.PostureDamage * damageMultiplier * (counterAttack ? counterPostureScale : 1f),
+            PostureDamage = attack.PostureDamage * damageMultiplier * (counterAttack ? counterPostureScale : 1f) * (Enchanted ? enchant.PostureScale : 1f), // [변경] 각성 체간 배율
             Parryable = attack.Parryable,
             Weight = attack.Weight,
-            BreakArmor = counterAttack, // 반격은 휘두르는 적도 경직시킴
+            BreakArmor = counterAttack || Enchanted, // [변경] 반격·각성은 휘두르는 적도 경직시킴
             BreakGuard = chargeLevel >= 2, // 차지 강타 2단계 이상은 방패를 한 번에 깸
-            Launch = attack.LaunchHeight // [변경] 띄우기 높이 (떠 있는 적은 어떤 타격이든 다시 떠받쳐짐)
+            Launch = attack.LaunchHeight // 띄우기 높이 (떠 있는 적은 어떤 타격이든 다시 떠받쳐짐)
         });
     }
 

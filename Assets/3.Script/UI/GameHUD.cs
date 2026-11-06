@@ -75,7 +75,7 @@ public class GameHUD : MonoBehaviour
     Text followPrompt;      // 간파 직후 "우클릭 뇌락!" (런타임 생성 → HUD 셋업 재실행 불필요)
     CanvasGroup followGroup;
     Tween followLoop;
-    Text markHint;            // [변경] 일섬 슬롯 위 "흐트러짐 · Q" (흐트러진 적이 있고 쓸 수 있을 때)
+    Text markHint;            // 일섬 슬롯 위 "흐트러짐 · Q" (흐트러진 적이 있고 쓸 수 있을 때)
     CanvasGroup markHintGroup;
     CanvasGroup blockedGroup; // 뇌인 없이 Q를 눌렀을 때 화면 안내
     Sequence blockedSeq;
@@ -105,6 +105,7 @@ public class GameHUD : MonoBehaviour
         CreateFollowPrompt();
         CreateMarkGuide();
         CreateBossBar();
+        CreateEnchantRing(); // 뇌검 각성(R) 링
 
         SetThunderVisible(showThunder);
         SetAlpha(zoneBanner, 0f);
@@ -375,11 +376,11 @@ public class GameHUD : MonoBehaviour
 
         float ratio = skill.CooldownRatio;
         if (thunderSource != null && thunderSource.UseGaugeForSkill)
-            ratio = 1f - Mathf.Clamp01(shownThunder / thunderSource.SkillCost(0));
+            ratio = 1f - Mathf.Clamp01(thunderSource.Gauge / thunderSource.SkillCost(0)); // 각성 중 칸 표시는 남은 시간이라 실제 뇌기로 판단
         skillCooldown.fillAmount = ratio;
 
         Transform slot = skillCooldown.transform.parent;
-        bool ready = ratio <= 0f; // [변경] 뇌기만 차면 준비 (뇌인 조건 삭제)
+        bool ready = ratio <= 0f; // 뇌기만 차면 준비 (뇌인 조건 삭제)
         SetMarkHint(ready && skill.HasStaggerTarget && !skill.IsActive); // 지금 Q로 끝낼 적이 있음
         if (ready && !skillReady)
         {
@@ -406,6 +407,25 @@ public class GameHUD : MonoBehaviour
         skillWasActive = active;
     }
 
+    // 뇌검 각성 링: Q 슬롯 바로 위에 같은 크기로 (각성 중 남은 시간이 줄어드는 링, 평소엔 R 준비 표시) // [변경] 왼쪽은 키 안내 글자와 겹쳐 위로
+    void CreateEnchantRing()
+    {
+        if (skillCooldown == null || GetComponentInChildren<EnchantRing>(true) != null) return;
+        var enchant = FindAnyObjectByType<PlayerEnchant>();
+        if (enchant == null) return;
+        var slot = (RectTransform)skillCooldown.transform.parent;
+        var go = new GameObject("EnchantRing", typeof(RectTransform));
+        var rt = (RectTransform)go.transform;
+        rt.SetParent(slot.parent, false);
+        rt.anchorMin = slot.anchorMin;
+        rt.anchorMax = slot.anchorMax;
+        rt.pivot = slot.pivot;
+        float size = Mathf.Max(slot.rect.width, slot.rect.height);
+        rt.sizeDelta = new Vector2(size, size);
+        rt.anchoredPosition = slot.anchoredPosition + new Vector2(0f, slot.rect.height + 16f); // [변경]
+        go.AddComponent<EnchantRing>().Build(hpText != null ? hpText.font : null, enchant, thunderSource);
+    }
+
     // 보스 체력 막대: 화면 전체를 덮는 자식으로 만들고 BossHealthBar가 아래 가운데에 그림
     void CreateBossBar()
     {
@@ -426,7 +446,7 @@ public class GameHUD : MonoBehaviour
         if (skillCooldown != null)
         {
             var slot = (RectTransform)skillCooldown.transform.parent;
-            markHint = NewGuideText("MarkHint", slot, 22, new Color(1f, 0.92f, 0.55f), "흐트러짐 · Q"); // [변경]
+            markHint = NewGuideText("MarkHint", slot, 22, new Color(1f, 0.92f, 0.55f), "흐트러짐 · Q");
             var rt = markHint.rectTransform;
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
             rt.anchoredPosition = new Vector2(0f, 22f);
@@ -434,7 +454,7 @@ public class GameHUD : MonoBehaviour
             markHintGroup.alpha = 0f;
         }
 
-        Text blocked = NewGuideText("MarkBlocked", transform, 30, Gold, "뇌기가 부족합니다\n<size=22>간파 · 저스트 회피 · 처형으로 뇌기를 모은 뒤 Q</size>"); // [변경]
+        Text blocked = NewGuideText("MarkBlocked", transform, 30, Gold, "뇌기가 부족합니다\n<size=22>간파 · 저스트 회피 · 처형으로 뇌기를 모은 뒤 Q</size>");
         blocked.rectTransform.anchorMin = blocked.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
         blocked.rectTransform.anchoredPosition = new Vector2(0f, -190f);
         blocked.rectTransform.sizeDelta = new Vector2(620f, 90f);
@@ -470,7 +490,7 @@ public class GameHUD : MonoBehaviour
     {
         if (markHintGroup == null || show == markHintShown) return;
         markHintShown = show;
-        if (show && markHint != null) markHint.transform.DOPunchScale(Vector3.one * 0.3f, 0.3f, 6).SetUpdate(true).SetLink(markHint.gameObject); // [변경] 뜨는 순간 튐
+        if (show && markHint != null) markHint.transform.DOPunchScale(Vector3.one * 0.3f, 0.3f, 6).SetUpdate(true).SetLink(markHint.gameObject); // 뜨는 순간 튐
         DOTween.Kill(markHintGroup);
         DOTween.To(() => markHintGroup.alpha, a => markHintGroup.alpha = a, show ? 1f : 0f, 0.2f)
             .SetTarget(markHintGroup).SetUpdate(true).SetLink(markHintGroup.gameObject);

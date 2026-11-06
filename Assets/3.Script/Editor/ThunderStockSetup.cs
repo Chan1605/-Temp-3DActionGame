@@ -2,7 +2,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// [변경] 스톡형 되돌리기: Thunder Stock을 실행했다면 씬의 PlayerThunder 값을 이전(최대 4칸, 일섬 2/3/4칸)으로 복구
+// 스톡형 되돌리기: Thunder Stock을 실행했다면 씬의 PlayerThunder 값을 이전(최대 4칸, 일섬 2/3/4칸)으로 복구
 // 한 번 실행한 뒤(또는 Thunder Stock을 실행한 적이 없다면 바로) 이 파일은 지워도 됨
 public static class ThunderStockSetup
 {
@@ -26,10 +26,7 @@ public static class ThunderStockSetup
         Set(so, "executionGain", 1.5f);
         Set(so, "parryCost", 1f);
 
-        SerializedProperty cost = so.FindProperty("skillCost");
-        float[] values = { 2f, 3f, 4f };
-        cost.arraySize = values.Length;
-        for (int i = 0; i < values.Length; i++) cost.GetArrayElementAtIndex(i).floatValue = values[i];
+        // [변경] 일섬 비용은 qCost(1칸) 하나로 바뀌어 배열 복구는 없음
 
         so.ApplyModifiedProperties();
         EditorSceneManager.MarkSceneDirty(thunder.gameObject.scene);
