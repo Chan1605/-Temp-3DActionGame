@@ -123375,18 +123375,6 @@ PrefabInstance:
       propertyPath: followCamera
       value: 
       objectReference: {fileID: 330585548}
-    - target: {fileID: 4538197362500821654, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 89.6871
-      objectReference: {fileID: 0}
-    - target: {fileID: 4538197362500821654, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 13.133781
-      objectReference: {fileID: 0}
-    - target: {fileID: 4538197362500821654, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: -179.98097
-      objectReference: {fileID: 0}
     - target: {fileID: 5087689224789762330, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
       propertyPath: followCamera
       value: 
@@ -123399,14 +123387,6 @@ PrefabInstance:
       propertyPath: followCamera
       value: 
       objectReference: {fileID: 330585548}
-    - target: {fileID: 8136409319363074427, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: -1.8347247
-      objectReference: {fileID: 0}
-    - target: {fileID: 8136409319363074427, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 12.514478
-      objectReference: {fileID: 0}
     - target: {fileID: 8946055058242759463, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
       propertyPath: cameraTransform
       value: 

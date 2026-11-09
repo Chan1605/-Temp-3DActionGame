@@ -47,6 +47,19 @@ public class PlayerVfx : MonoBehaviour
     [SerializeField] int levelUpArcs = 5;
     [SerializeField] LightningBoltStyle chargeStyle = DefaultChargeStyle(); // 타입 이름만 변경 (저장된 값은 유지)
 
+    // [변경] 발도 자세: 주변 공중·땅에서 칼로 번개가 끌려 모임. 자세 시간이 지날수록·표식이 늘수록 빽빽해짐
+    [Header("Draw Stance")]
+    [SerializeField] bool stanceGather = true;
+    [SerializeField] float gatherRadius = 4f;
+    [SerializeField] Vector2 gatherHeight = new Vector2(0.1f, 2.8f);
+    [SerializeField] Vector2 gatherInterval = new Vector2(0.09f, 0.025f); // 처음 → 가득 찼을 때
+    [SerializeField] int gatherBurst = 2;
+    [SerializeField] int gatherEnterArcs = 10; // 자세에 들어가는 순간 사방에서 한꺼번에
+    [SerializeField] LightningBoltStyle gatherStyle = DefaultGatherStyle();
+    LightningBoltPrefabScriptBase gatherBolt;
+    float gatherTimer;
+    bool gathering;
+
     LightningBoltPrefabScriptBase bladeBolt;
     LightningBoltPrefabScriptBase dashBolt;
     LightningBoltPrefabScriptBase strikeBolt;
@@ -79,8 +92,9 @@ public class PlayerVfx : MonoBehaviour
         bladeBolt = CreateBolt("BladeLightning", bladeStyle);
         dashBolt = CreateBolt("DashLightning", dashStyle);
         strikeBolt = CreateBolt("StrikeLightning", strikeStyle);
-        strikeBoltSoft = CreateBolt("StrikeLightningSoft", SoftCopy(strikeStyle)); // [변경]
+        strikeBoltSoft = CreateBolt("StrikeLightningSoft", SoftCopy(strikeStyle));
         chargeBolt = CreateBolt("ChargeLightning", chargeStyle);
+        gatherBolt = CreateBolt("GatherLightning", gatherStyle); // [변경]
     }
 
     void OnEnable()
@@ -164,10 +178,11 @@ public class PlayerVfx : MonoBehaviour
         }
 
         if (charging) UpdateCharge(Time.unscaledDeltaTime); // 차지 중 timeScale이 느려져도 일정한 빈도
+        UpdateGather(Time.unscaledDeltaTime); // [변경]
         if (enchanted) UpdateEnchant(Time.deltaTime);
     }
 
-    // ===== 뇌검 각성 ===== [변경]
+    // ===== 뇌검 각성 =====
     void OnEnchantStarted()
     {
         enchanted = true;
@@ -252,7 +267,7 @@ public class PlayerVfx : MonoBehaviour
     int strikeFrame = -1;
     int strikeOrder;
 
-    // [변경] 한 번에 여럿을 베면 앞의 몇 개만 빛·번짐을 세게, 나머지는 빛 없는 약한 번개 (화면이 하얗게 타는 것 방지)
+    // 한 번에 여럿을 베면 앞의 몇 개만 빛·번짐을 세게, 나머지는 빛 없는 약한 번개 (화면이 하얗게 타는 것 방지)
     [SerializeField] int brightStrikes = 3;
     [SerializeField, Range(0f, 1f)] float softStrikeGlow = 0.35f;
     LightningBoltPrefabScriptBase strikeBoltSoft;
@@ -281,13 +296,13 @@ public class PlayerVfx : MonoBehaviour
         Vector2 offset = Random.insideUnitCircle * strikeSpread;
         Vector3 sky = position + new Vector3(offset.x, strikeHeight, offset.y);
         Vector3 ground = position + Vector3.up * 0.1f;
-        StartCoroutine(StrikeFollowUp(sky, ground, delay, strikeOrder > brightStrikes)); // [변경]
+        StartCoroutine(StrikeFollowUp(sky, ground, delay, strikeOrder > brightStrikes));
     }
 
     IEnumerator StrikeFollowUp(Vector3 sky, Vector3 ground, float delay, bool soft)
     {
         if (delay > 0f) yield return new WaitForSecondsRealtime(delay);
-        // [변경] 약한 낙뢰: 빛 없는 번개 한 번만 (재점멸 · 바닥 잔번개 생략)
+        // 약한 낙뢰: 빛 없는 번개 한 번만 (재점멸 · 바닥 잔번개 생략)
         if (soft)
         {
             if (strikeBoltSoft != null) strikeBoltSoft.Trigger(sky, ground);
@@ -361,6 +376,43 @@ public class PlayerVfx : MonoBehaviour
         }
     }
 
+    // [변경] 핵심: 발도 자세(조준) 동안 바깥 링의 공중·땅 지점 → 칼로 자라 들어오는 번개 (growth로 안쪽으로 뻗는 게 보임)
+    void UpdateGather(float dt)
+    {
+        bool active = stanceGather && skill != null && skill.InDrawStance && !skill.StanceAutoDraw;
+        if (!active)
+        {
+            gathering = false;
+            return;
+        }
+        if (gatherBolt == null || blade == null) return;
+
+        if (!gathering)
+        {
+            gathering = true;
+            gatherTimer = gatherInterval.x;
+            for (int i = 0; i < gatherEnterArcs; i++) TriggerGather(i / (float)gatherEnterArcs);
+            return;
+        }
+
+        float marks = skill.StanceMarkCount / (float)Mathf.Max(1, skill.StanceMaxMarks);
+        float fill = Mathf.Clamp01((1f - skill.StanceRemaining01) * 0.6f + marks);
+        gatherTimer -= dt;
+        if (gatherTimer > 0f) return;
+        gatherTimer = Mathf.Lerp(gatherInterval.x, gatherInterval.y, fill) * Random.Range(0.7f, 1.3f);
+        for (int i = 0; i < gatherBurst; i++) TriggerGather(Random.value);
+    }
+
+    // angle01: 링 위 각도 (0~1), 약간 흔들어서 고르게 퍼지게
+    void TriggerGather(float angle01)
+    {
+        GetBladeEnds(out Vector3 hilt, out Vector3 tip);
+        float a = (angle01 + Random.Range(-0.05f, 0.05f)) * Mathf.PI * 2f;
+        float r = gatherRadius * Random.Range(0.65f, 1f);
+        Vector3 from = transform.position + new Vector3(Mathf.Cos(a) * r, Random.Range(gatherHeight.x, gatherHeight.y), Mathf.Sin(a) * r);
+        gatherBolt.Trigger(from, Vector3.Lerp(hilt, tip, Random.Range(0.25f, 1f)));
+    }
+
     Vector3 RandomGroundPoint()
     {
         Vector2 c = Random.insideUnitCircle.normalized * Random.Range(chargeGroundRadius * 0.6f, chargeGroundRadius);
@@ -398,6 +450,14 @@ public class PlayerVfx : MonoBehaviour
         lightRange = 3f, lightIntensity = 1f, lightPercent = 0.02f
     };
 
+    // [변경] 모이는 번개: 시작점에서 칼 쪽으로 자라며(growth) 들어옴. 개수가 많아 조명은 끔
+    static LightningBoltStyle DefaultGatherStyle() => new LightningBoltStyle
+    {
+        width = new Vector2(0.025f, 0.045f), duration = new Vector2(0.12f, 0.2f), generations = 5,
+        chaos = 0.28f, forkedness = 0.35f, growth = 0.6f, intensity = 2.8f, glowIntensity = 1.6f, glowWidth = 5f,
+        lightRange = 0f, lightIntensity = 0f, lightPercent = 0f
+    };
+
     // 이미 씬·프리팹에 저장된 스타일 값은 코드 기본값으로 바뀌지 않으므로, 컴포넌트 메뉴에서 프리셋으로 되돌림
     [ContextMenu("Reset Bolt Styles To Default")]
     void ResetBoltStyles()
@@ -409,6 +469,7 @@ public class PlayerVfx : MonoBehaviour
         dashStyle = DefaultDashStyle();
         strikeStyle = DefaultStrikeStyle();
         chargeStyle = DefaultChargeStyle();
+        gatherStyle = DefaultGatherStyle(); // [변경]
 #if UNITY_EDITOR
         UnityEditor.EditorUtility.SetDirty(this);
 #endif

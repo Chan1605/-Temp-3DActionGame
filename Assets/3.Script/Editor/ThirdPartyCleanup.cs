@@ -2,12 +2,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.Animations;
 using UnityEngine;
 
 // 서드파티 정리 (git으로 되돌릴 수 있음)
 //  - MasterStylizedProjectiles: 지금 쓰는 타격 이펙트 + 앞으로 쓸 후보만 남기고 지움
 //    남길 프리팹과 그 의존성(머티리얼·텍스처·셰이더·스크립트), 팩 밖에서 참조하는 에셋은 모두 보존
 //  - 젠이츠 칼: Player 프리팹에서 빼고 모델 폴더와 칼 전환용 셋업 스크립트를 지움 (Samurai 팩 칼로 확정)
+//  - [변경] 안 쓰는 기능 정리: 저스트 회피 반격 · 손 축 보정(WeaponBoneRetarget) · 잔심 자세(Skill_Finish)의 데이터·상태·스크립트
 // 먼저 "(미리보기)" 메뉴로 콘솔에서 지울 목록을 확인한 뒤 실행
 public static class ThirdPartyCleanup
 {
@@ -21,8 +23,7 @@ public static class ThirdPartyCleanup
         Fx + "LightningExplosion/Prefabs/LightningExplosionHit.prefab",
         Fx + "EnergyExplosion/Prefabs/EnergyExplosionHit.prefab",
         Fx + "Shoot_Red/Prefabs/Par_RedShoot_Hit.prefab",
-        // 후보: 발도 자세 차징 · 벽력일섬 검기 · 베기 궤적 · 충격파 링 · 먼지
-        Fx + "LightningExplosion/Prefabs/LightningExplosionCharge.prefab",
+        // 후보: 벽력일섬 검기 · 베기 궤적 · 충격파 링 · 먼지
         Fx + "YellowSwordBeam/Prefabs/Par_YellowSwordBeam.prefab",
         Fx + "YellowSwordBeam/Prefabs/Par_YellowSwordBeam_Hit.prefab",
         Fx + "YellowSwordBeam/Prefabs/Par_YellowSwordBeam_Muzzle.prefab",
@@ -41,6 +42,19 @@ public static class ThirdPartyCleanup
     {
         "Assets/3.Script/Editor/KatanaEquipSetup.cs",
         "Assets/3.Script/Editor/SamuraiKatanaSetup.cs",
+    };
+
+    // [변경] 안 쓰는 기능
+    const string ControllerPath = "Assets/5.Animation/Player/Player.controller";
+    static readonly string[] UnusedStates = { "Dodge_Counter", "Skill_Finish" };
+    static readonly string[] UnusedComponents = { "WeaponBoneRetarget" }; // 이름으로 찾음 (스크립트를 지운 뒤에도 이 파일이 컴파일되게)
+    static readonly string[] UnusedAssets =
+    {
+        "Assets/11.Data/Attack/Dodge_Counter.asset",
+        "Assets/3.Script/Editor/PlayerDodgeCounterSetup.cs",
+        "Assets/3.Script/Editor/SkillFinishSetup.cs",
+        "Assets/3.Script/Editor/SamuraiGripFix.cs",
+        "Assets/3.Script/Player/WeaponBoneRetarget.cs",
     };
 
     [MenuItem("Tools/Cleanup/Trim Projectiles Pack (미리보기)")]
@@ -161,5 +175,54 @@ public static class ThirdPartyCleanup
         foreach (string script in KatanaScripts)
             if (File.Exists(script)) AssetDatabase.DeleteAsset(script);
         Debug.Log("[Cleanup] 젠이츠 칼 모델·셋업 스크립트 삭제 완료");
+    }
+
+    // [변경] 핵심: 프리팹 컴포넌트·애니메이터 상태를 먼저 떼고, 스크립트·데이터 삭제는 마지막 (재컴파일 전에 참조를 정리)
+    [MenuItem("Tools/Cleanup/Remove Unused Features")]
+    static void RemoveUnusedFeatures()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogError("[Cleanup] 플레이 모드가 아닐 때 실행하세요.");
+            return;
+        }
+        if (!EditorUtility.DisplayDialog("안 쓰는 기능 정리",
+                "저스트 회피 반격 · 손 축 보정 · 잔심 자세의 애니메이터 상태, Player 컴포넌트, 데이터·셋업 스크립트를 지웁니다.\n(git으로 되돌릴 수 있음)", "정리", "취소")) return;
+
+        GameObject root = PrefabUtility.LoadPrefabContents(PlayerPrefabPath);
+        try
+        {
+            int removed = 0;
+            foreach (MonoBehaviour mb in root.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || !UnusedComponents.Contains(mb.GetType().Name)) continue;
+                Object.DestroyImmediate(mb);
+                removed++;
+            }
+            if (removed > 0) PrefabUtility.SaveAsPrefabAsset(root, PlayerPrefabPath);
+            Debug.Log($"[Cleanup] Player 컴포넌트 {removed}개 제거");
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(root);
+        }
+
+        var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+        if (controller != null)
+        {
+            AnimatorStateMachine sm = controller.layers[0].stateMachine;
+            foreach (ChildAnimatorState child in sm.states.ToArray())
+            {
+                if (!UnusedStates.Contains(child.state.name)) continue;
+                sm.RemoveState(child.state); // 그 상태로 가는 전환도 함께 지워짐
+                Debug.Log($"[Cleanup] 애니메이터 상태 {child.state.name} 제거");
+            }
+            EditorUtility.SetDirty(controller);
+            AssetDatabase.SaveAssets();
+        }
+
+        var failed = new List<string>();
+        AssetDatabase.DeleteAssets(UnusedAssets.Where(p => File.Exists(p)).ToArray(), failed);
+        Debug.Log(failed.Count == 0 ? "[Cleanup] 안 쓰는 기능 정리 완료" : "[Cleanup] 지우지 못한 파일:\n" + string.Join("\n", failed));
     }
 }

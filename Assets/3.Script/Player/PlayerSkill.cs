@@ -28,8 +28,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
     [SerializeField] PlayerThunder thunder; // 있으면 뇌기 소모형 일섬 + 흐트러진 적만 즉사·연쇄
     [SerializeField] PlayerStance stance;   // 일섬이 끝나면 납도 → 평상시 자세 (락온 중이면 그대로 전투 자세)
     [SerializeField] bool sheatheAfterSkill = true;
-    [SerializeField] bool sheatheOnLand = true;  // [변경] 마지막 돌진이 끝나자마자 납도 → 칼이 들어가는 순간 일괄 낙뢰 (허공 베기 모션 없음)
-    [SerializeField] bool useFinishPose = false; // [변경] 켜면 납도 전에 Skill_Finish(잔심 자세) 재생
+    [SerializeField] bool sheatheOnLand = true;  // 마지막 돌진이 끝나자마자 납도 → 칼이 들어가는 순간 일괄 낙뢰 (허공 베기 모션 없음)
 
     [SerializeField] float aimTurnSpeed = 720f; // 자세·차지 중 고정한 대상을 따라 도는 속도(도/초, 실제 시간)
     // 끄면(기본) 대상 제약 없음: 아무 적이나 겨냥·연쇄하고 보스 외에는 전부 즉사. 켜면 흐트러진 적만 즉사·연쇄 (A/B 비교용)
@@ -46,9 +45,8 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
     Renderer[] bodyRenderers;
     bool[] bodyRendererStates;
     bool bodyHidden;
-    int stanceHash, chargeHash, releaseHash, finishHash;
-    bool hasFinishState; // 잔심 자세 상태가 컨트롤러에 있는지
-    bool sheathedEarly;  // [변경] 착지 직후 이미 납도를 시작함 → 끝낼 때 다시 틀지 않음
+    int stanceHash, chargeHash, releaseHash; // [변경] 잔심 자세(Skill_Finish) 삭제 → 착지 즉시 납도로 확정
+    bool sheathedEarly;  // 착지 직후 이미 납도를 시작함 → 끝낼 때 다시 틀지 않음
 
     Phase phase = Phase.Ready;
     float holdTime;
@@ -105,8 +103,6 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
             stanceHash = Animator.StringToHash(data.StanceState);
             chargeHash = Animator.StringToHash(data.ChargeState);
             releaseHash = Animator.StringToHash(data.ReleaseState);
-            finishHash = Animator.StringToHash(data.FinishState);
-            hasFinishState = animator != null && animator.HasState(0, finishHash);
         }
     }
 
@@ -378,9 +374,8 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
         finishTimer = 0f;
         killsApplied = false;
 
-        // [변경] 착지하자마자 납도 (락온 중이면 SheatheNow가 거절 → 아래 잔심 자세 또는 Release 유지)
+        // 착지하자마자 납도 (락온 중이면 SheatheNow가 거절 → Release 자세 유지) // [변경] 잔심 자세 분기 삭제
         sheathedEarly = sheatheOnLand && sheatheAfterSkill && stance != null && stance.SheatheNow();
-        if (!sheathedEarly && useFinishPose && hasFinishState) animator.CrossFadeInFixedTime(finishHash, 0.05f, 0, 0f);
     }
 
     // 칼을 거둔 뒤 한 박자 늦게 베인 대상들에 일괄 적용
@@ -394,8 +389,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
             killsApplied = true;
         }
 
-        float end = data.KillDelay + data.RecoveryTime;
-        if (!sheathedEarly && useFinishPose && hasFinishState) end = Mathf.Max(end, data.FinishDuration); // [변경] 잔심 자세를 쓸 때만
+        float end = data.KillDelay + data.RecoveryTime; // [변경] 잔심 자세 시간 삭제
         if (killsApplied && finishTimer >= end) EndSkill(true); // 끝까지 마친 경우만 납도
     }
 
@@ -454,7 +448,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
 
         if (locomotion != null) locomotion.MovementLocked = false;
         if (combat != null) combat.InputLocked = false;
-        // [변경] 이미 착지 때 납도를 시작했으면 그 모션을 그대로 둠
+        // 이미 착지 때 납도를 시작했으면 그 모션을 그대로 둠
         bool sheathed = sheathedEarly || (finished && sheatheAfterSkill && stance != null && stance.SheatheNow());
         sheathedEarly = false;
         if (!sheathed && animator != null) animator.CrossFadeInFixedTime(LocomotionHash, 0.2f, 0, 0f);
