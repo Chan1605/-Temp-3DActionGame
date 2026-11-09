@@ -578,11 +578,14 @@ MonoBehaviour:
   targeting: {fileID: 0}
   stats: {fileID: 7268560931724845920}
   attackCrossFade: 0.08
+  swingStartCrossFade: 0.03
   returnCrossFade: 0.2
   moveCancelCrossFade: 0.12
   idleInputBuffer: 0.2
   stepWeight: 1
   logComboRoute: 0
+  logMisses: 1
+  missLogRange: 3
   swingFxTail: 0.06
 --- !u!114 &3070939792974395059
 MonoBehaviour:
@@ -861,6 +864,8 @@ MonoBehaviour:
   enchantStrikeHeight: 5
   enchantStartArcs: 6
   dischargeArcs: 10
+  brightStrikes: 3
+  softStrikeGlow: 0.35
 --- !u!114 &2319970398063733898
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1036,7 +1041,7 @@ MonoBehaviour:
   qCost: 1
   parryCost: 1
   normalSkillDamage: 30
-  bossPostureScale: 2
+  bossQPostureScale: 0.3
   bossStaggerDamageScale: 2.5
   logThunder: 1
 --- !u!114 &5087689224789762330
@@ -1231,11 +1236,11 @@ MonoBehaviour:
   weapon: {fileID: 0}
   animator: {fileID: 0}
   attackPower: 1
-  attackSpeed: 2
+  attackSpeed: 1.8
   critChance: 0.1
   critDamage: 1.5
   level: 1
-  maxLevel: 10
+  maxLevel: 30
   powerPerLevel: 0.1
   speedPerLevel: 0.04
   critChancePerLevel: 0.03
@@ -1245,7 +1250,7 @@ MonoBehaviour:
   xpBase: 30
   xpStep: 15
   waveClearXp: 15
-  maxAttackSpeed: 2.8
+  maxAttackSpeed: 3
   logStats: 1
 --- !u!114 &4498633949859688452
 MonoBehaviour:
@@ -1377,7 +1382,7 @@ MonoBehaviour:
   health: {fileID: 0}
   execution: {fileID: 0}
   followCamera: {fileID: 0}
-  minCells: 1
+  minCellsToStart: 2
   secondsPerCell: 3.5
   postureScale: 1.5
   strikeDamage: 6
@@ -1709,6 +1714,9 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   targetTag: 
+  sweep: 1
+  sweepStep: 0.2
+  maxSubsteps: 10
 --- !u!114 &6587575302745953988
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -15,6 +15,7 @@ MonoBehaviour:
   stanceState: Skill_Stance
   chargeState: Skill_Charge
   releaseState: Skill_Release
+  finishState: Skill_Finish
   chargeStartTime: 0.2
   chargeLevelTime: 0.5
   maxChargeLevel: 2
@@ -33,6 +34,7 @@ MonoBehaviour:
   recoveryTime: 0.3
   hitStopTime: 0.08
   cooldown: 3
+  finishDuration: 1.2
   damage: 100
   postureDamage: 100
   instantKill: 1

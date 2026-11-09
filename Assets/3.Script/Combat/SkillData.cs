@@ -7,6 +7,7 @@ public class SkillData : ScriptableObject
     [SerializeField] string stanceState = "Skill_Stance";
     [SerializeField] string chargeState = "Skill_Charge";
     [SerializeField] string releaseState = "Skill_Release";
+    [SerializeField] string finishState = "Skill_Finish"; // [변경] 마지막 돌진 뒤 잔심 자세 (컨트롤러에 없으면 예전처럼 Release 그대로)
 
     // 이 시간보다 짧게 누르면 즉발, 길게 누르면 차지
     [Header("Charge")]
@@ -34,6 +35,7 @@ public class SkillData : ScriptableObject
     [SerializeField] float recoveryTime = 0.3f;
     [SerializeField] float hitStopTime = 0.08f;
     [SerializeField] float cooldown = 3f;
+    [SerializeField] float finishDuration = 0.7f; // [변경] 잔심 자세를 보여주는 최소 시간 (실제 시간). 끝나면 납도
 
     [Header("Damage")]
     [SerializeField] float damage = 100f;
@@ -43,6 +45,7 @@ public class SkillData : ScriptableObject
     public string StanceState => stanceState;
     public string ChargeState => chargeState;
     public string ReleaseState => releaseState;
+    public string FinishState => finishState; // [변경]
 
     public float ChargeStartTime => chargeStartTime;
     public float ChargeLevelTime => chargeLevelTime;
@@ -63,6 +66,7 @@ public class SkillData : ScriptableObject
     public float RecoveryTime => recoveryTime;
     public float HitStopTime => hitStopTime;
     public float Cooldown => cooldown;
+    public float FinishDuration => finishDuration; // [변경]
 
     public float Damage => damage;
     public float PostureDamage => postureDamage;

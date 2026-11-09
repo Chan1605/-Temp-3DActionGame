@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 
 // 뇌검 각성 (R): 남은 뇌기를 전부 써서 칼에 번개를 두름. 지속시간 = 쓴 칸 × 칸당 시간
 // 지속 중: 평타 적중마다 작은 낙뢰(추가 피해, 주변으로 번짐) · 체간 피해 배율 · 아머 무시 (PlayerCombat이 IsActive를 봄)
-//          패링은 칸 없이 됨 (PlayerThunder.Enchanted) // [변경] 뇌기는 계속 모이고, 남은 시간은 HUD 링(EnchantRing)
+//          패링은 칸 없이 됨 (PlayerThunder.Enchanted) // 뇌기는 계속 모이고, 남은 시간은 HUD 링(EnchantRing)
 // 끝나는 순간 주변 방전. 연출은 PlayerVfx가 이벤트를 받아 그림
 public class PlayerEnchant : MonoBehaviour
 {
@@ -18,7 +18,7 @@ public class PlayerEnchant : MonoBehaviour
     [SerializeField] ThirdPersonCamera followCamera;
 
     [Header("Duration")]
-    [SerializeField] float minCellsToStart = 2f; // [변경] 최소 2칸 (새 이름이라 기존 저장값 1 대신 2가 바로 적용)
+    [SerializeField] float minCellsToStart = 2f; // 최소 2칸 (새 이름이라 기존 저장값 1 대신 2가 바로 적용)
     [SerializeField] float secondsPerCell = 3.5f;
 
     [Header("While Active")]
@@ -43,8 +43,20 @@ public class PlayerEnchant : MonoBehaviour
     public bool IsActive => remaining > 0f;
     public float Remaining01 => total > 0f ? remaining / total : 0f;
     public float PostureScale => postureScale;
-    public float Remaining => remaining;           // [변경] HUD 링용
+    public float Remaining => remaining;           // HUD 링용
     public float MinCells => minCellsToStart;
+
+    // [변경] 각성 중 Q: 남은 시간을 떼어 "발도 시간"으로 바꿈. 그동안 각성 시계는 멈춤(Paused) → 실제로 쓰는 시간은 뗀 만큼만
+    public bool Paused { get; set; }
+
+    // 실제로 뗀 시간을 돌려줌 (남은 시간이 모자라면 남은 만큼). 0이 되면 IsActive가 꺼지므로 최소값을 남겨 끝날 때 방전되게 함
+    public float ConsumeTime(float seconds)
+    {
+        if (!IsActive) return 0f;
+        float before = remaining;
+        remaining = Mathf.Max(0.01f, remaining - seconds);
+        return before - remaining;
+    }
 
     public event Action Started;
     public event Action<Vector3> Struck;            // 낙뢰 지점
@@ -82,6 +94,7 @@ public class PlayerEnchant : MonoBehaviour
             return;
         }
 
+        if (Paused) return; // [변경] 발도 시간 동안은 각성 시계 정지
         remaining -= Time.deltaTime;
         if (remaining <= 0f)
         {
@@ -115,6 +128,7 @@ public class PlayerEnchant : MonoBehaviour
     void Finish(bool discharge)
     {
         remaining = 0f;
+        Paused = false; // [변경]
         if (discharge) Discharge();
         if (thunder != null) thunder.Enchanted = false;
         Ended?.Invoke();

@@ -17,13 +17,7 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
     [SerializeField] AttackData runStarter;      // 달리는 중 □ → 달리기 공격 (없으면 일반 □)
     [SerializeField] float runAttackSpeed = 7f;  // 이 속도 이상으로 달리고 있으면 달리기 공격
 
-    // 저스트 회피 반격: 저스트 회피 뒤 counterWindow초(실제 시간) 안에 □ → 전용 반격 베기 (아머 무시, 피해·체간 배율)
-    [Header("Just Dodge Counter")]
-    [SerializeField] AttackData counterStarter;
-    [SerializeField] PlayerDodge dodge;
-    [SerializeField] float counterWindow = 0.9f;
-    [SerializeField] float counterDamageScale = 1.5f;
-    [SerializeField] float counterPostureScale = 2f;
+    // [변경] 저스트 회피 반격(□) 삭제 → 저스트 회피 직후 Q = 무료 발도 자세(PlayerSkill.Stance)로 대체
 
     [SerializeField] Animator animator;
     [SerializeField] WeaponHitbox weapon;
@@ -32,12 +26,15 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
     [SerializeField] PlayerStats stats;         // 공격 속도 (없으면 1배)
 
     [SerializeField] float attackCrossFade = 0.08f;
+    [SerializeField] float swingStartCrossFade = 0.03f; // 판정이 크로스페이드 안에서 시작되는 공격은 짧게 섞음 (직전 자세와 섞여 칼이 덜 나가는 것 방지)
     [SerializeField] float returnCrossFade = 0.2f;
     [SerializeField] float moveCancelCrossFade = 0.12f;
     [SerializeField] float idleInputBuffer = 0.2f;
     [FormerlySerializedAs("rootMotionWeight")]
     [SerializeField] float stepWeight = 1f;
     [SerializeField] bool logComboRoute = true;
+    [SerializeField] bool logMisses = true;        // 근처에 적이 있는데 빗나간 휘두르기를 콘솔에 남김
+    [SerializeField] float missLogRange = 3f;
     [SerializeField] float swingFxTail = 0.06f; // 판정이 끝난 뒤 궤적·검기를 조금 더 유지하는 정규화 시간
 
     CharacterController controller;
@@ -55,8 +52,6 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
     int chargeLevel;             // 0 = 일반 공격
     bool deflected;              // 이번 타가 방패에 막힘 → 다음 타로 이어지지 않음
     string route = "";
-    float counterUntil = -1f;
-    bool pendingCounter, counterAttack;
 
     public bool IsAttacking => current != null || IsSlamming; // 내려찍기도 공격 중
     public bool CurrentIsBranch { get; private set; } // 콤보 분기로 이어진 공격인지 (간파 판정용)
@@ -73,7 +68,7 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
     public event System.Action AttackSwingFinished;
     public event System.Action<AttackData> SwingStarted; // 판정이 켜지는 순간 (뇌락 착지 효과용)
 
-    PlayerEnchant enchant; // [변경]
+    PlayerEnchant enchant;
     bool Enchanted => enchant != null && enchant.IsActive;
 
     void Awake()
@@ -84,8 +79,7 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
         controller = GetComponent<CharacterController>();
         if (targeting == null) targeting = GetComponent<PlayerTargeting>();
         if (stats == null) stats = GetComponent<PlayerStats>();
-        if (dodge == null) dodge = GetComponent<PlayerDodge>();
-        if (enchant == null) enchant = GetComponent<PlayerEnchant>(); // [변경]
+        if (enchant == null) enchant = GetComponent<PlayerEnchant>();
         if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
     }
 
@@ -93,14 +87,12 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
     {
         Subscribe(lightAttackAction, OnLightPressed);
         if (weapon != null) weapon.OnHit += OnWeaponHit;
-        if (dodge != null) dodge.JustDodged += OnJustDodged;
     }
 
     void OnDisable()
     {
         Unsubscribe(lightAttackAction, OnLightPressed);
         if (weapon != null) weapon.OnHit -= OnWeaponHit;
-        if (dodge != null) dodge.JustDodged -= OnJustDodged;
         if (IsAttacking) EndCombo(returnCrossFade);
     }
 
@@ -111,7 +103,6 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
         FollowLaunch(target, result); // 띄우기가 들어가면 같이 떠오름
     }
 
-    void OnJustDodged() => counterUntil = Time.unscaledTime + counterWindow;
 
     void OnLightPressed(InputAction.CallbackContext ctx) => RegisterPress(AttackInput.Light); // 처형은 F키(PlayerExecution)로 옮김
     public void PressHeavy() => RegisterPress(AttackInput.Heavy); // 우클릭을 짧게 눌렀다 뗐을 때 (PlayerChargeAttack이 호출)
@@ -201,8 +192,6 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
 
         AttackInput input = lastPressInput;
         current = attack;
-        counterAttack = pendingCounter && attack == counterStarter;
-        pendingCounter = false;
         CurrentIsBranch = !isStarter; // AttackStarted 구독자가 읽을 수 있게 이벤트 전에 설정
         damageMultiplier = 1f;
         chargeLevel = 0;
@@ -237,11 +226,12 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
             locomotion.MovementLocked = true;
         }
 
-        animator.CrossFadeInFixedTime(attack.StateHash, attackCrossFade, 0, 0f);
+        // 휘두르기가 클립 첫머리에 있으면(hitStart가 크로스페이드보다 이름) 짧게 섞어 칼 궤적을 살림
+        float fade = attack.HitStart * attack.Duration / AttackSpeed < attackCrossFade ? swingStartCrossFade : attackCrossFade;
+        animator.CrossFadeInFixedTime(attack.StateHash, fade, 0, 0f);
 
         swingFxActive = true;
         AttackStarted?.Invoke(attack, input);
-        if (counterAttack) DamageEvents.RaiseLabel(transform.position + Vector3.up * 2.2f, "반격", new Color(1f, 0.85f, 0.35f));
 
         if (logComboRoute)
         {
@@ -282,13 +272,6 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
     // 달리기 속도가 남아 있을 때 □를 누르면 달리기 공격으로 시작 (잠금 전 속도 기준)
     AttackData LightStarter()
     {
-        if (counterStarter != null && Time.unscaledTime <= counterUntil) // 저스트 회피 직후 □ = 반격
-        {
-            counterUntil = -1f;
-            pendingCounter = true;
-            if (logComboRoute) Debug.Log("[Combo] 저스트 회피 반격");
-            return counterStarter;
-        }
         bool running = runStarter != null && locomotion != null && locomotion.CurrentSpeed >= runAttackSpeed;
         return running ? runStarter : lightStarter;
     }
@@ -326,11 +309,11 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
         weapon.BeginSwing(new DamageInfo
         {
             Attacker = gameObject,
-            Damage = attack.Damage * damageMultiplier * (counterAttack ? counterDamageScale : 1f), // 반격 배율
-            PostureDamage = attack.PostureDamage * damageMultiplier * (counterAttack ? counterPostureScale : 1f) * (Enchanted ? enchant.PostureScale : 1f), // [변경] 각성 체간 배율
+            Damage = attack.Damage * damageMultiplier, // [변경] 반격 배율 삭제
+            PostureDamage = attack.PostureDamage * damageMultiplier * (Enchanted ? enchant.PostureScale : 1f), // 각성 체간 배율 // [변경] 반격 배율 삭제
             Parryable = attack.Parryable,
             Weight = attack.Weight,
-            BreakArmor = counterAttack || Enchanted, // [변경] 반격·각성은 휘두르는 적도 경직시킴
+            BreakArmor = Enchanted, // 각성은 휘두르는 적도 경직시킴 // [변경] 반격 삭제
             BreakGuard = chargeLevel >= 2, // 차지 강타 2단계 이상은 방패를 한 번에 깸
             Launch = attack.LaunchHeight // 띄우기 높이 (떠 있는 적은 어떤 타격이든 다시 떠받쳐짐)
         });
@@ -339,7 +322,23 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
     void EndSwing()
     {
         swingActive = false;
-        if (weapon != null) weapon.EndSwing();
+        if (weapon == null) return;
+        if (logMisses) LogMiss();
+        weapon.EndSwing();
+    }
+
+    // 빗나감 확인용: 이번 휘두르기에 아무도 못 맞혔고 직전 대상이 가까이 있으면 거리·공격 이름을 남김
+    void LogMiss()
+    {
+        if (weapon.HitCount > 0 || current == null || targeting == null) return;
+        Transform target = targeting.LastTarget;
+        if (target == null || !target.TryGetComponent(out IDamageable alive) || !alive.CanBeTargeted) return;
+        Vector3 to = target.position - transform.position;
+        to.y = 0f;
+        float distance = to.magnitude;
+        if (distance > missLogRange) return;
+        float angle = Vector3.Angle(transform.forward, to);
+        Debug.Log($"[Combo] 빗나감 {current.name}  거리 {distance:F2}m · 정면과 {angle:F0}°");
     }
 
     static void Subscribe(InputActionReference reference, System.Action<InputAction.CallbackContext> handler)

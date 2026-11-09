@@ -9,13 +9,14 @@ public static class CombatTime
     static readonly float[] scales = new float[MaxSlots];
     static readonly float[] ends = new float[MaxSlots];
     static readonly float[] rampOuts = new float[MaxSlots];
+    static float hold = 1f; // [변경] 끝 시간 없이 켜고 끄는 슬로 (발도 자세)
 
     public static float EnemyScale
     {
         get
         {
             float now = Time.unscaledTime;
-            float result = 1f;
+            float result = hold; // [변경]
 
             for (int i = 0; i < MaxSlots; i++)
             {
@@ -57,9 +58,14 @@ public static class CombatTime
         rampOuts[slot] = Mathf.Min(rampOutTime, duration);
     }
 
+    // [변경] 해제할 때까지 유지되는 슬로. 다른 슬로와 겹치면 더 느린 쪽
+    public static void SetHold(float scale) => hold = Mathf.Clamp01(scale);
+    public static void ClearHold() => hold = 1f;
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetOnPlay()
     {
         for (int i = 0; i < MaxSlots; i++) ends[i] = 0f;
+        hold = 1f; // [변경]
     }
 }

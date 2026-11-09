@@ -3,9 +3,9 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(CharacterController))]
-public class PlayerSkill : MonoBehaviour
+public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill.Stance.cs
 {
-    enum Phase { Ready, Holding, Dashing, ChainWindow, Finishing }
+    enum Phase { Ready, Holding, Dashing, ChainWindow, Finishing, Stance } // Stance 추가
 
     struct PendingHit
     {
@@ -28,10 +28,13 @@ public class PlayerSkill : MonoBehaviour
     [SerializeField] PlayerThunder thunder; // 있으면 뇌기 소모형 일섬 + 흐트러진 적만 즉사·연쇄
     [SerializeField] PlayerStance stance;   // 일섬이 끝나면 납도 → 평상시 자세 (락온 중이면 그대로 전투 자세)
     [SerializeField] bool sheatheAfterSkill = true;
+    [SerializeField] bool sheatheOnLand = true;  // [변경] 마지막 돌진이 끝나자마자 납도 → 칼이 들어가는 순간 일괄 낙뢰 (허공 베기 모션 없음)
+    [SerializeField] bool useFinishPose = false; // [변경] 켜면 납도 전에 Skill_Finish(잔심 자세) 재생
 
     [SerializeField] float aimTurnSpeed = 720f; // 자세·차지 중 고정한 대상을 따라 도는 속도(도/초, 실제 시간)
-    // [변경] 끄면(기본) 대상 제약 없음: 아무 적이나 겨냥·연쇄하고 보스 외에는 전부 즉사. 켜면 흐트러진 적만 즉사·연쇄 (A/B 비교용)
+    // 끄면(기본) 대상 제약 없음: 아무 적이나 겨냥·연쇄하고 보스 외에는 전부 즉사. 켜면 흐트러진 적만 즉사·연쇄 (A/B 비교용)
     [SerializeField] bool staggerOnly = false;
+    [SerializeField] bool tapChain = false; // 탭 Q는 한 명만 (QQQQ 리듬 연쇄 끔). 켜면 예전 연쇄
     [SerializeField] bool hideBodyWhileDashing = true;
     [SerializeField] LayerMask obstacleMask = ~0;
 
@@ -43,7 +46,9 @@ public class PlayerSkill : MonoBehaviour
     Renderer[] bodyRenderers;
     bool[] bodyRendererStates;
     bool bodyHidden;
-    int stanceHash, chargeHash, releaseHash;
+    int stanceHash, chargeHash, releaseHash, finishHash;
+    bool hasFinishState; // 잔심 자세 상태가 컨트롤러에 있는지
+    bool sheathedEarly;  // [변경] 착지 직후 이미 납도를 시작함 → 끝낼 때 다시 틀지 않음
 
     Phase phase = Phase.Ready;
     float holdTime;
@@ -89,6 +94,9 @@ public class PlayerSkill : MonoBehaviour
         if (combat == null) combat = GetComponent<PlayerCombat>();
         if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
         if (thunder == null) thunder = GetComponent<PlayerThunder>();
+        if (enchant == null) enchant = GetComponent<PlayerEnchant>(); // 발도 자세 (각성·저스트 회피 진입)
+        if (dodge == null) dodge = GetComponent<PlayerDodge>();
+        if (GetComponent<DrawStanceFx>() == null) gameObject.AddComponent<DrawStanceFx>(); // 흑백·표식 연출은 실행 중 자동 부착
 
         bodyRenderers = CollectBodyRenderers();
 
@@ -97,18 +105,23 @@ public class PlayerSkill : MonoBehaviour
             stanceHash = Animator.StringToHash(data.StanceState);
             chargeHash = Animator.StringToHash(data.ChargeState);
             releaseHash = Animator.StringToHash(data.ReleaseState);
+            finishHash = Animator.StringToHash(data.FinishState);
+            hasFinishState = animator != null && animator.HasState(0, finishHash);
         }
     }
 
     void OnEnable()
     {
         if (skillAction != null) skillAction.action.Enable();
+        if (dodge != null) dodge.JustDodged += OnJustDodged;
     }
 
     void OnDisable()
     {
         if (IsActive) EndSkill();
         RestoreTimeScale();
+        if (dodge != null) dodge.JustDodged -= OnJustDodged;
+        CloseEnchantWindow();
     }
 
     void Update()
@@ -117,8 +130,9 @@ public class PlayerSkill : MonoBehaviour
 
         float dt = Time.unscaledDeltaTime;
         if (cooldownTimer > 0f) cooldownTimer -= Time.deltaTime;
+        UpdateEnchantWindow(dt); // 각성 중 발도 시간
         UpdateHitStop(dt);
-        ThunderMark.ShowIcons = staggerOnly; // [변경] 흐트러짐 표시는 흐트러짐 모드에서만
+        ThunderMark.ShowIcons = staggerOnly; // 흐트러짐 표시는 흐트러짐 모드에서만
         if (phase == Phase.Ready) HasStaggerTarget = staggerOnly && NearestStaggered() != null;
 
         switch (phase)
@@ -138,13 +152,20 @@ public class PlayerSkill : MonoBehaviour
             case Phase.Finishing:
                 UpdateFinishing(dt);
                 break;
+            case Phase.Stance:
+                UpdateStance(dt);
+                break;
         }
     }
 
     void TryBegin()
     {
-        // 뇌기 소모형: 즉발 비용(2칸)이 없으면 시작 안 함. 쿨타임은 쓰지 않음
-        if (UsesGauge)
+        // 각성 중 · 저스트 회피 직후면 바로 발도 자세 (비용은 InstantStanceEntry에서 확인)
+        StanceEntry instant = InstantStanceEntry();
+        bool needsQCost = instant == StanceEntry.None;
+
+        // 뇌기 소모형: 즉발 비용(1칸)이 없으면 시작 안 함. 쿨타임은 쓰지 않음
+        if (needsQCost && UsesGauge)
         {
             if (thunder.MaxAffordableLevel(0) < 0)
             {
@@ -153,7 +174,7 @@ public class PlayerSkill : MonoBehaviour
                 return;
             }
         }
-        else if (cooldownTimer > 0f)
+        else if (needsQCost && cooldownTimer > 0f)
         {
             Debug.Log($"[Skill] 쿨타임 {cooldownTimer:F1}초");
             return;
@@ -178,8 +199,14 @@ public class PlayerSkill : MonoBehaviour
         pendingHits.Clear();
 
         aimTarget = FindTarget(transform.position, transform.forward, data.RangeAt(data.MaxChargeLevel), 360f, false); // 주변 360° 자동 선택
-        if (staggerOnly && (aimTarget == null || StaggerRank((Component)aimTarget) == 0)) aimTarget = NearestStaggered() ?? aimTarget; // [변경] 흐트러짐 모드에서만 흐트러진 적 우선
+        if (staggerOnly && (aimTarget == null || StaggerRank((Component)aimTarget) == 0)) aimTarget = NearestStaggered() ?? aimTarget; // 흐트러짐 모드에서만 흐트러진 적 우선
         FaceAimTarget(true, 0f); // 누른 순간 그 대상 쪽으로 바로 돌아서 차징 자세
+
+        if (instant != StanceEntry.None)
+        {
+            EnterStance(instant);
+            return;
+        }
         animator.CrossFadeInFixedTime(stanceHash, 0.05f, 0, 0f);
         HoldStarted?.Invoke();
     }
@@ -189,6 +216,14 @@ public class PlayerSkill : MonoBehaviour
     {
         holdTime += dt;
         FaceAimTarget(true, dt); // 자세·차지 중에는 고정한 대상을 자동으로 따라 돎
+
+        // 발도 자세를 쓸 수 있으면(2칸) 차지 대신 일정 시간 누르면 발도 자세. 짧게 떼면 기존 즉발
+        if (CanHoldIntoStance)
+        {
+            if (holdTime >= stanceEnterTime) EnterStance(StanceEntry.Hold);
+            else if (!skillAction.action.IsPressed()) Release();
+            return;
+        }
 
         int level = holdTime < data.ChargeStartTime
             ? 0
@@ -303,7 +338,7 @@ public class PlayerSkill : MonoBehaviour
         if (dashTrail != null) dashTrail.emitting = false;
         if (followCamera != null) followCamera.Shake(0.12f, 0.12f);
 
-        if (dashCount >= data.MaxChain)
+        if (dashCount >= data.MaxChain || (!stanceChain && !tapChain)) // 탭 Q는 한 번 돌진으로 끝
         {
             BeginFinish();
             return;
@@ -318,9 +353,15 @@ public class PlayerSkill : MonoBehaviour
     {
         windowTimer += dt;
 
+        if (stanceChain) // 표식 연쇄는 입력 없이 자동
+        {
+            UpdateStanceChain();
+            return;
+        }
+
         if (skillAction.action.WasPressedThisFrame())
         {
-            IDamageable next = FindTarget(transform.position, transform.forward, data.ChainRange, 360f, UsesGauge && staggerOnly); // [변경] 흐트러짐 모드에서만 흐트러진 적에게만 연쇄
+            IDamageable next = FindTarget(transform.position, transform.forward, data.ChainRange, 360f, UsesGauge && staggerOnly); // 흐트러짐 모드에서만 흐트러진 적에게만 연쇄
             if (next != null)
             {
                 StartDash(next, transform.forward);
@@ -336,6 +377,10 @@ public class PlayerSkill : MonoBehaviour
         phase = Phase.Finishing;
         finishTimer = 0f;
         killsApplied = false;
+
+        // [변경] 착지하자마자 납도 (락온 중이면 SheatheNow가 거절 → 아래 잔심 자세 또는 Release 유지)
+        sheathedEarly = sheatheOnLand && sheatheAfterSkill && stance != null && stance.SheatheNow();
+        if (!sheathedEarly && useFinishPose && hasFinishState) animator.CrossFadeInFixedTime(finishHash, 0.05f, 0, 0f);
     }
 
     // 칼을 거둔 뒤 한 박자 늦게 베인 대상들에 일괄 적용
@@ -349,7 +394,9 @@ public class PlayerSkill : MonoBehaviour
             killsApplied = true;
         }
 
-        if (killsApplied && finishTimer >= data.KillDelay + data.RecoveryTime) EndSkill(true); // 끝까지 마친 경우만 납도
+        float end = data.KillDelay + data.RecoveryTime;
+        if (!sheathedEarly && useFinishPose && hasFinishState) end = Mathf.Max(end, data.FinishDuration); // [변경] 잔심 자세를 쓸 때만
+        if (killsApplied && finishTimer >= end) EndSkill(true); // 끝까지 마친 경우만 납도
     }
 
     void ApplyPendingHits()
@@ -361,7 +408,7 @@ public class PlayerSkill : MonoBehaviour
 
             // 핵심: 흐트러진 적은 즉사, 아니면 큰 피해만. 보스는 즉사 없이 체간을 크게 (무너져 있으면 피해도 크게)
             // 쿨타임형(A/B)이면 예전처럼 데이터 값 그대로
-            bool staggered = !UsesGauge || !staggerOnly || PlayerThunder.IsStaggered((Component)hit.Target); // [변경] 제약 없음 모드면 모두 즉사 대상
+            bool staggered = !UsesGauge || !staggerOnly || PlayerThunder.IsStaggered((Component)hit.Target); // 제약 없음 모드면 모두 즉사 대상
             bool boss = UsesGauge && hit.Target is EnemySwordsman enemy && enemy.IsBoss;
             float damage = !UsesGauge ? data.Damage
                 : boss ? thunder.NormalSkillDamage * (staggered ? thunder.BossStaggerDamageScale : 1f)
@@ -395,7 +442,8 @@ public class PlayerSkill : MonoBehaviour
 
     void EndSkill(bool finished = false)
     {
-        if (phase == Phase.Holding) HoldEnded?.Invoke(); // 차지 도중 끊긴 경우에도 이펙트 정리
+        if (phase == Phase.Holding || phase == Phase.Stance) HoldEnded?.Invoke(); // 차지·발도 자세 도중 끊긴 경우에도 이펙트 정리 // Stance 포함
+        ClearStance(); // 적 정지 해제 · 표식 정리
         phase = Phase.Ready;
         RestoreTimeScale();
         hitStopTimer = 0f;
@@ -406,7 +454,9 @@ public class PlayerSkill : MonoBehaviour
 
         if (locomotion != null) locomotion.MovementLocked = false;
         if (combat != null) combat.InputLocked = false;
-        bool sheathed = finished && sheatheAfterSkill && stance != null && stance.SheatheNow();
+        // [변경] 이미 착지 때 납도를 시작했으면 그 모션을 그대로 둠
+        bool sheathed = sheathedEarly || (finished && sheatheAfterSkill && stance != null && stance.SheatheNow());
+        sheathedEarly = false;
         if (!sheathed && animator != null) animator.CrossFadeInFixedTime(LocomotionHash, 0.2f, 0, 0f);
 
         cooldownTimer = UsesGauge ? 0f : data.Cooldown;
@@ -446,7 +496,7 @@ public class PlayerSkill : MonoBehaviour
         return best;
     }
 
-    int StaggerRank(Component c) => staggerOnly && PlayerThunder.IsStaggered(c) ? 1 : 0; // [변경] 제약 없음 모드면 순위 없이 가까운 순
+    int StaggerRank(Component c) => staggerOnly && PlayerThunder.IsStaggered(c) ? 1 : 0; // 제약 없음 모드면 순위 없이 가까운 순
 
     // 최대 사거리 안에서 흐트러진 가장 가까운 적 (살아 있는 검병 목록을 직접 봄 → 물리 검색 없음)
     IDamageable NearestStaggered()
