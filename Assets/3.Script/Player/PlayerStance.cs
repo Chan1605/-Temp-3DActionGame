@@ -37,15 +37,29 @@ public class PlayerStance : MonoBehaviour
     float lastSheatheEnd = -10f;
     float idleTimer;
     bool hasSheatheState;
-    bool lockedRelaxed; // [변경] 락온 중 기술 납도 → 다음 행동·이동 전까지 평상시 자세 유지 (넣은 칼을 바로 다시 뽑지 않게)
+    bool lockedRelaxed; // 락온 중 기술 납도 → 다음 행동·이동 전까지 평상시 자세 유지 (넣은 칼을 바로 다시 뽑지 않게)
 
     public bool InCombatStance => combat;
+    // 칼 표시(SheathedSwordVisual)용: 납도 모션 진행도 (납도 중이 아니면 -1)
+    public float SheatheProgress
+    {
+        get
+        {
+            if (!sheathing || animator == null) return -1f;
+            AnimatorStateInfo info = animator.GetCurrentAnimatorStateInfo(0);
+            if (info.shortNameHash == SheatheHash) return info.normalizedTime;
+            if (animator.IsInTransition(0) && animator.GetNextAnimatorStateInfo(0).shortNameHash == SheatheHash)
+                return animator.GetNextAnimatorStateInfo(0).normalizedTime;
+            return 0f;
+        }
+    }
 
     void Awake()
     {
         if (animator == null) animator = GetComponentInChildren<Animator>();
         if (locomotion == null) locomotion = GetComponent<PlayerLocomotion>();
         if (lockOn == null) lockOn = GetComponent<PlayerLockOn>();
+        if (GetComponent<SheathedSwordVisual>() == null) gameObject.AddComponent<SheathedSwordVisual>(); // 평상시엔 칼집 속 칼을 보여줌 (실행 중 자동 부착)
     }
 
     void Start()
@@ -76,8 +90,8 @@ public class PlayerStance : MonoBehaviour
 
         // 핵심: 로코모션·점프·집어넣기 외의 상태 = 무언가 행동 중 → 전투 자세 유지, 대기 시간 초기화
         bool moveInput = locomotion != null && locomotion.GetInputDirection().sqrMagnitude > 0.0001f;
-        if (lockedRelaxed && (IsAction(current) || IsAction(next) || moveInput || lockOn == null || !lockOn.IsLocked)) lockedRelaxed = false; // [변경]
-        if (IsAction(current) || IsAction(next) || (lockOn != null && lockOn.IsLocked && !lockedRelaxed)) // [변경]
+        if (lockedRelaxed && (IsAction(current) || IsAction(next) || moveInput || lockOn == null || !lockOn.IsLocked)) lockedRelaxed = false;
+        if (IsAction(current) || IsAction(next) || (lockOn != null && lockOn.IsLocked && !lockedRelaxed))
         {
             SetStance(true);
             idleTimer = 0f;
@@ -99,12 +113,12 @@ public class PlayerStance : MonoBehaviour
     // 기술이 끝난 뒤 바로 납도 (벽력일섬 등). 평상시 자세로 바꿔 두므로 넣은 칼을 다시 뽑지 않음
     // 락온 중(ignoreLockOn 아니면)이거나 Sheathe 상태가 없으면 false → 호출한 쪽이 평소처럼 로코모션으로 돌아감
     // ignoreLockOn: 락온 중에도 납도 (섬격)
-    public bool SheatheNow(float crossFade = 0.12f, bool ignoreLockOn = false) // [변경]
+    public bool SheatheNow(float crossFade = 0.12f, bool ignoreLockOn = false)
     {
         bool locked = lockOn != null && lockOn.IsLocked;
-        if (animator == null || !hasSheatheState || (locked && !ignoreLockOn)) return false; // [변경]
+        if (animator == null || !hasSheatheState || (locked && !ignoreLockOn)) return false;
         StartSheathe(crossFade, actionSheatheStart);
-        lockedRelaxed = locked; // [변경]
+        lockedRelaxed = locked;
         return true;
     }
 
@@ -113,8 +127,13 @@ public class PlayerStance : MonoBehaviour
     void StartSheathe(float crossFade, float startOffset)
     {
         idleTimer = 0f;
-        SetStance(false); // 모션이 끝나고 로코모션으로 돌아올 때 평상시 클립이 나오도록 미리 바꿔 둠
-        if (!hasSheatheState) return;
+        if (!hasSheatheState)
+        {
+            SetStance(false);
+            return;
+        }
+        // [변경] 여기서 Stance를 0으로 바꾸지 않음: 로코모션(대기 블렌드)에서 넘어가는 동안 원본 자세가 한 프레임에 평상시 대기로 튀던 원인
+        //        (칼이 손에서 사라지고 허리로 순간이동 → 납도 모션이 묻힘). 평상시 자세는 납도가 끝나거나 이동으로 끊길 때 바꿈
 
         // 이미 납도 중이거나 방금 끝났으면 다시 틀지 않음 (두 번 재생 방지)
         int current = animator.GetCurrentAnimatorStateInfo(0).shortNameHash;
@@ -127,7 +146,7 @@ public class PlayerStance : MonoBehaviour
 
         sheathing = true;
         sheatheRequestedAt = Time.time;
-        animator.CrossFade(SheatheHash, crossFade, 0, startOffset);
+        animator.CrossFadeInFixedTime(SheatheHash, crossFade, 0, startOffset * SheatheLength()); // [변경] 초 단위 전환 (normalized는 이전 상태 길이 기준이라 대기 클립에선 길어짐)
         if (logStance) Debug.Log($"[Stance] 검 집어넣기 (현재 상태 {current}, 시작 {startOffset:0.00})");
     }
 
@@ -138,6 +157,7 @@ public class PlayerStance : MonoBehaviour
         if (!inSheathe)
         {
             sheathing = false; // 공격 등 다른 상태가 가져감 → 아래에서 전투 자세로 돌아감
+            if (logStance) Debug.Log("[Stance] 납도 끊김 (다른 상태)");
             return;
         }
 
@@ -148,8 +168,19 @@ public class PlayerStance : MonoBehaviour
         {
             sheathing = false;
             lastSheatheEnd = Time.time;
+            SetStance(false); // [변경] 납도가 끝난 시점에 평상시 자세로 (로코모션으로 돌아가면 평상시 대기·걷기)
+            if (logStance) Debug.Log($"[Stance] 납도 {(moving ? "이동으로 끊김" : "완료")} ({info.normalizedTime:0.00})");
             animator.CrossFadeInFixedTime(LocomotionHash, moving ? 0.15f : returnCrossFade, 0, 0f);
         }
+    }
+
+    // [변경] Sheathe 상태 클립 길이 (시작 지점을 초로 바꾸는 데 씀)
+    float SheatheLength()
+    {
+        if (animator.runtimeAnimatorController == null) return 1.333f;
+        foreach (AnimationClip clip in animator.runtimeAnimatorController.animationClips)
+            if (clip != null && clip.name == "Idle_Combat_To_Idle") return clip.length;
+        return 1.333f;
     }
 
     void SetStance(bool toCombat)

@@ -108,7 +108,7 @@ public class PlayerAfterimage : MonoBehaviour
         for (int i = 0; i < skinned.Length; i++)
         {
             SkinnedMeshRenderer src = skinned[i];
-            bool visible = src != null && src.enabled && src.gameObject.activeInHierarchy;
+            bool visible = src != null && src.enabled && !src.forceRenderingOff && src.gameObject.activeInHierarchy; // [변경] 숨긴 칼(SheathedSwordVisual)은 잔상에서도 뺌
             g.Parts[i].gameObject.SetActive(visible);
             if (!visible) continue;
 
@@ -121,7 +121,7 @@ public class PlayerAfterimage : MonoBehaviour
             int p = skinned.Length + i;
             MeshFilter src = statics[i];
             MeshRenderer srcRenderer = src != null ? src.GetComponent<MeshRenderer>() : null;
-            bool visible = srcRenderer != null && srcRenderer.enabled && src.gameObject.activeInHierarchy;
+            bool visible = srcRenderer != null && srcRenderer.enabled && !srcRenderer.forceRenderingOff && src.gameObject.activeInHierarchy; // [변경]
             g.Parts[p].gameObject.SetActive(visible);
             if (!visible) continue;
 
