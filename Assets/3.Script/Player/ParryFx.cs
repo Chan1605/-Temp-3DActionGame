@@ -42,7 +42,7 @@ public class ParryFx : MonoBehaviour
     [SerializeField] float vignette = 0.35f;
     [SerializeField] Color vignetteColor = new Color(0.55f, 0.03f, 0.03f);
     [SerializeField] float saturation = -50f;
-    // [변경] 간파 순간 화면이 0.5초 가까이 하얗게 덮여 정작 순간이 안 보였음 → 섬광 낮추고 낙뢰는 뇌락 전용
+    // 간파 순간 화면이 0.5초 가까이 하얗게 덮여 정작 순간이 안 보였음 → 섬광 낮추고 낙뢰는 뇌락 전용
     [SerializeField] float flashPeak = 0.5f;
     [SerializeField] bool kanpaStrike;
     [SerializeField, Range(0.1f, 1f)] float strikeGlowScale = 0.5f; // 낙뢰 번짐 폭 배율 (카메라 가까이서 화면을 덮지 않게)
@@ -134,7 +134,7 @@ public class ParryFx : MonoBehaviour
         audioSource.playOnAwake = false;
         audioSource.spatialBlend = 0f;
 
-        // [변경] 저장된 스타일은 그대로 두고 번짐 폭·밝기만 줄인 복사본으로 생성
+        // 저장된 스타일은 그대로 두고 번짐 폭·밝기만 줄인 복사본으로 생성
         var strike = JsonUtility.FromJson<LightningBoltStyle>(JsonUtility.ToJson(strikeStyle));
         strike.glowWidth *= strikeGlowScale;
         strike.glowIntensity *= Mathf.Lerp(0.6f, 1f, strikeGlowScale);
@@ -184,7 +184,7 @@ public class ParryFx : MonoBehaviour
     void OnParryClashed(GameObject enemy, Vector3 point) =>
         Play(enemy, point, parryStrength, parryStrike, null, innerRingColor, outerRingColor, vignetteColor);
     void OnKanpaClashed(GameObject enemy, Vector3 point) =>
-        Play(enemy, point, 1f, kanpaStrike, kanpaClip, kanpaInnerRingColor, kanpaOuterRingColor, kanpaVignetteColor); // [변경] 낙뢰는 뇌락에서
+        Play(enemy, point, 1f, kanpaStrike, kanpaClip, kanpaInnerRingColor, kanpaOuterRingColor, kanpaVignetteColor); // 낙뢰는 뇌락에서
 
     // strength(0~1)로 패링·간파 크기를 구분
     void Play(GameObject enemy, Vector3 point, float strength, bool strike, AudioClip extraClip,
@@ -216,9 +216,10 @@ public class ParryFx : MonoBehaviour
 
         if (strike && strikeBolt != null) strikeBolt.Trigger(enemy.transform.position + Vector3.up * strikeHeight, enemy.transform.position);
 
-        if (clashClip != null) audioSource.PlayOneShot(clashClip, volume);
-        if (impactClip != null) audioSource.PlayOneShot(impactClip, volume * Mathf.Lerp(0.6f, 1f, strength));
-        if (extraClip != null) audioSource.PlayOneShot(extraClip, volume);
+        float v = volume * AudioOptions.SfxVolume; // [변경] 효과음 볼륨 설정 반영
+        if (clashClip != null) audioSource.PlayOneShot(clashClip, v);
+        if (impactClip != null) audioSource.PlayOneShot(impactClip, v * Mathf.Lerp(0.6f, 1f, strength));
+        if (extraClip != null) audioSource.PlayOneShot(extraClip, v);
     }
 
     void Update()
@@ -324,13 +325,12 @@ public class ParryFx : MonoBehaviour
 
         float w = e < pulseHold ? 1f : 1f - Mathf.Clamp01((e - pulseHold) / fade);
         volumeFx.weight = w;
-        colorAdjust.postExposure.value = e < flashTime ? flashPeak * (1f - e / flashTime) : 0f; // [변경]
-
+        colorAdjust.postExposure.value = e < flashTime ? flashPeak * (1f - e / flashTime) : 0f;
         if (w <= 0f) pulseStart = -1f;
     }
 
     // ===== 충격 링 =====
-    // ===== 뇌락 ===== [변경]
+    // ===== 뇌락 =====
     void OnFollowReady(float duration)
     {
         if (bladeRoutine != null) StopCoroutine(bladeRoutine);
@@ -367,7 +367,7 @@ public class ParryFx : MonoBehaviour
         Vector3 ground = center + Vector3.up * 0.2f;
         if (strikeBolt != null)
         {
-            strikeBolt.Trigger(center + Vector3.up * strikeHeight, center); // [변경] 2줄 → 1줄
+            strikeBolt.Trigger(center + Vector3.up * strikeHeight, center); // 2줄 → 1줄
         }
         SpawnRing(ground, smashRingColor, smashRingSize, 0.35f, 0.25f);
         SpawnRing(ground, innerRingColor, smashRingSize * 0.6f, 0.2f, 0.08f);
@@ -376,7 +376,7 @@ public class ParryFx : MonoBehaviour
             followCamera.Punch(smashPunch, 0.03f, 0.12f, 0.3f, 0f);
             followCamera.Shake(0.22f, 0.25f);
         }
-        if (impactClip != null) audioSource.PlayOneShot(impactClip, volume);
+        if (impactClip != null) audioSource.PlayOneShot(impactClip, volume * AudioOptions.SfxVolume); // [변경]
     }
 
     void SpawnRing(Vector3 center, Color c, float size, float life, float width)

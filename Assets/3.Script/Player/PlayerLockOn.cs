@@ -14,7 +14,7 @@ public class PlayerLockOn : MonoBehaviour
 
     [SerializeField] float lockRange = 18f;
     [SerializeField] float breakRange = 24f;
-    [SerializeField] bool switchByMouseFlick;      // [변경] 마우스를 휙 움직여도 바뀌면 어지러워서 기본은 휠만
+    [SerializeField] bool switchByMouseFlick;      // 마우스를 휙 움직여도 바뀌면 어지러워서 기본은 휠만
     [SerializeField] float flickThreshold = 60f;  // 이만큼(픽셀) 빠르게 휙 움직이면 옆 대상으로
     [SerializeField] float flickDecay = 10f;
     [SerializeField] float switchCooldown = 0.3f;
@@ -32,6 +32,8 @@ public class PlayerLockOn : MonoBehaviour
     public bool IsLocked => target != null;
     public event Action<Transform> TargetChanged; // null = 해제 (락온 표시 UI용)
 
+    public void Release() => SetTarget(null); // 발도 자세 조준처럼 다른 기능이 락온을 풀 때
+
     void Awake()
     {
         if (followCamera == null) followCamera = FindAnyObjectByType<ThirdPersonCamera>();
@@ -43,6 +45,7 @@ public class PlayerLockOn : MonoBehaviour
 
     void Update()
     {
+        if (GamePause.IsPaused) return; // [변경] 일시정지 중엔 입력·진행을 멈춤
         if (cam == null) cam = Camera.main;
         Keyboard kb = Keyboard.current;
         Mouse mouse = Mouse.current;
@@ -77,7 +80,7 @@ public class PlayerLockOn : MonoBehaviour
         flick = Mathf.Lerp(flick, 0f, 1f - Mathf.Exp(-flickDecay * Time.unscaledDeltaTime)) + mouse.delta.ReadValue().x;
 
         int side = 0;
-        if (switchByMouseFlick && Mathf.Abs(flick) >= flickThreshold) side = flick > 0f ? 1 : -1; // [변경]
+        if (switchByMouseFlick && Mathf.Abs(flick) >= flickThreshold) side = flick > 0f ? 1 : -1;
         else if (Mathf.Abs(scroll) > 0.01f) side = scroll > 0f ? 1 : -1;
         if (side == 0 || Time.unscaledTime - lastSwitch < switchCooldown) return;
 

@@ -2,7 +2,7 @@ using UnityEngine;
 
 // partial: 방패병(EnemySwordsman.Guard.cs) · 돌격병(EnemySwordsman.Charge.cs) · 처형(EnemySwordsman.Execution.cs) · 보스(EnemySwordsman.Boss.cs) 행동을 파일로 나눔. 종류는 EnemyData.Kind
 [RequireComponent(typeof(CharacterController))]
-public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat, IStaggerable // [변경] 흐트러짐 = 일섬(Q) 즉사·연쇄 대상
+public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat, IStaggerable // 흐트러짐 = 일섬(Q) 즉사·연쇄 대상
 {
     enum State { Idle, Chase, Windup, Attack, Stun, Dead, ChargeWindup, Charge, Executed, // 처형 중
         BossGrabWindup, BossGrab, BossLeapWindup, BossLeapAir, BossLeapLand, BossRoar, // 보스 패턴
@@ -87,7 +87,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat,
     public static event System.Action<EnemySwordsman> AnyKilled;
     public bool IsTrainer => trainer;
 
-    // [변경] 흐트러짐: 강경직(패링·간파·가드 붕괴 포함) · 돌격 탈진 · 공중에 뜸 · 쓰러짐 · 처형 가능 · 보스 체간 붕괴 (약경직은 제외)
+    // 흐트러짐: 강경직(패링·간파·가드 붕괴 포함) · 돌격 탈진 · 공중에 뜸 · 쓰러짐 · 처형 가능 · 보스 체간 붕괴 (약경직은 제외)
     public bool IsStaggered => state != State.Dead &&
         (state == State.Airborne || state == State.Downed || (state == State.Stun && (stunHeavy || exhausted)) || IsExecutable || IsPostureBroken);
     bool stunHeavy;
@@ -138,7 +138,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat,
         if (state == State.Dead) return;
         moveSpeed = 0f;
         stunDuration = seconds;
-        stunHeavy = false; // [변경] 등장 직후 대기는 흐트러짐이 아님
+        stunHeavy = false; // 등장 직후 대기는 흐트러짐이 아님
         attackReadyTime = localTime + seconds + 0.5f;
         SetState(State.Stun);
     }
@@ -195,7 +195,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat,
 
         switch (state)
         {
-            case State.Idle: UpdateIdle(); break;
+            case State.Idle: UpdateIdle(dt); break; // [변경] 수련장 복귀 이동에 dt 필요
             case State.Chase: UpdateChase(dt); break;
             case State.Windup: UpdateWindup(dt); break;
             case State.Attack: UpdateAttack(dt); break;
@@ -219,15 +219,17 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat,
         UpdateColor(dt);
     }
 
-    void UpdateIdle()
+    void UpdateIdle(float dt)
     {
         moveSpeed = 0f;
+        if (UpdateTraining(dt)) return; // [변경] 허수아비 · 묶인 수련 상대는 제자리로
         if (alerted || DistanceToTarget() <= data.DetectRange) SetState(State.Chase);
     }
 
     // 사거리 밖이면 다가가고, 사거리 안에서 쿨타임이 끝나면 예고 동작으로 들어감
     void UpdateChase(float dt)
     {
+        if (UpdateTraining(dt)) return; // [변경] 허수아비는 쫓지 않고, 수련 상대는 묶인 범위 밖이면 돌아감
         float dist = DistanceToTarget();
         if (!alerted && dist > data.DetectRange * 1.2f)
         {
@@ -397,7 +399,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat,
         float duration = overrideDuration > 0f ? overrideDuration : heavy ? data.HeavyStunTime : data.LightStunTime;
         float remaining = state == State.Stun ? stunDuration - stateTime : 0f;
         stunDuration = Mathf.Max(duration, remaining);
-        stunHeavy = heavy || (state == State.Stun && stunHeavy); // [변경] 강경직 중 약하게 맞아도 흐트러짐 유지
+        stunHeavy = heavy || (state == State.Stun && stunHeavy); // 강경직 중 약하게 맞아도 흐트러짐 유지
         int dirIndex = HitDirectionIndex(hitDirection);
         if (localTime >= animLockUntil) animator.Play(heavy ? HeavyHitHashes[dirIndex] : LightHitHashes[dirIndex], 0, 0f); // 가드 붕괴 모션은 끊지 않음
 

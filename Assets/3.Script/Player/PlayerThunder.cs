@@ -30,7 +30,7 @@ public class PlayerThunder : MonoBehaviour
     [Header("Skill Damage")]
     [UnityEngine.Serialization.FormerlySerializedAs("unmarkedSkillDamage")]
     [SerializeField] float normalSkillDamage = 30f;        // 흐트러지지 않은 적은 즉사 대신 이 피해
-    [SerializeField] float bossQPostureScale = 0.3f;       // [변경] 보스는 즉사 없이 체간만 조금 (2배였을 땐 한 방에 체간 붕괴). 새 이름이라 0.3이 바로 적용
+    [SerializeField] float bossQPostureScale = 0.3f;       // 보스는 즉사 없이 체간만 조금 (2배였을 땐 한 방에 체간 붕괴). 새 이름이라 0.3이 바로 적용
     [SerializeField] float bossStaggerDamageScale = 2.5f;  // 체간이 무너진 보스에겐 피해도 크게
 
     [SerializeField] bool logThunder = true;
@@ -46,6 +46,15 @@ public class PlayerThunder : MonoBehaviour
     public float BossPostureScale => bossQPostureScale;
     public float BossStaggerDamageScale => bossStaggerDamageScale;
     public event Action<float> GaugeChanged;
+    public event Action<float> MaxGaugeChanged; // [변경] 뇌기 칸 수가 바뀜 (HUD 칸 추가)
+
+    // [변경] 수련(뇌기 확장): 칸 수를 늘림. 지금 뇌기는 그대로
+    public void AddMaxGauge(float amount)
+    {
+        maxGauge += amount;
+        MaxGaugeChanged?.Invoke(maxGauge);
+        GaugeChanged?.Invoke(gauge);
+    }
 
     // 뇌검 각성 중: 패링은 칸 없이 됨 // 뇌기는 계속 모이고, 남은 시간은 HUD 링(EnchantRing)이 보여 줌
     public bool Enchanted

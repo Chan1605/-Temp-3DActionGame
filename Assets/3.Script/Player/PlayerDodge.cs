@@ -124,6 +124,7 @@ public class PlayerDodge : MonoBehaviour
 
     void Update()
     {
+        if (GamePause.IsPaused) return; // [변경] 일시정지 중엔 입력·진행을 멈춤
         // 회피 도중 스킬이 시작되면 회피만 조용히 끝내고 제어권은 스킬에 넘김
         if (dodging && skill != null && skill.IsActive)
         {
@@ -147,7 +148,7 @@ public class PlayerDodge : MonoBehaviour
     bool CanDodge()
     {
         if (Time.time < readyTime) return false;
-        if (health != null && health.IsStunned && !health.CanDodgeOutOfStun) return false; // [변경] 피격 경직 후반은 회피 허용
+        if (health != null && health.IsStunned && !health.CanDodgeOutOfStun) return false; // 피격 경직 후반은 회피 허용
         if (skill != null && skill.IsActive) return false;
         if (parry != null && parry.IsActive) return false; // 간파 반격 중에는 회피 불가
         if (locomotion != null && !locomotion.IsGrounded) return false; // 공중 회피는 v1 범위 밖
@@ -167,7 +168,7 @@ public class PlayerDodge : MonoBehaviour
 
     void StartDodge()
     {
-        if (health != null && health.IsStunned) // [변경] 피격 경직을 회피로 끊음 (잠금은 회피가 다시 걸고 끝날 때 풂)
+        if (health != null && health.IsStunned) // 피격 경직을 회피로 끊음 (잠금은 회피가 다시 걸고 끝날 때 풂)
         {
             health.ClearStun();
             if (logDodge) Debug.Log("[Dodge] 피격 경직 회피 캔슬");

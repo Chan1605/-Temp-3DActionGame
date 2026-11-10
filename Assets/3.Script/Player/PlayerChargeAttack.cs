@@ -172,6 +172,7 @@ public class PlayerChargeAttack : MonoBehaviour
 
     void Update()
     {
+        if (GamePause.IsPaused) return; // 일시정지 중엔 입력·진행을 멈춤
         float dt = Time.deltaTime;
         if (hitStopUntil > 0f && Time.unscaledTime >= hitStopUntil) RestoreTime();
         if (IsDashing)
@@ -198,7 +199,8 @@ public class PlayerChargeAttack : MonoBehaviour
 
         chargeTime += dt;
         int next = 1;
-        for (int i = 1; i < levelTimes.Length; i++)
+        int levels = SkillTree.IsUnlocked(SkillId.ChargeLevel3) ? levelTimes.Length : Mathf.Min(2, levelTimes.Length); // [변경] 3단계는 해금 후
+        for (int i = 1; i < levels; i++)
             if (chargeTime >= levelTimes[i]) next = i + 1;
         if (next != level) SetLevel(next);
 
@@ -389,7 +391,7 @@ public class PlayerChargeAttack : MonoBehaviour
             };
             if (stats != null) info = stats.Modify(info);
             target.ReceiveDamage(info);
-            // [변경] 뇌인 스택 삭제 → 차지 섬격은 더 이상 표식을 쌓지 않음
+            // 뇌인 스택 삭제 → 차지 섬격은 더 이상 표식을 쌓지 않음
             if (full) TargetCut?.Invoke(t.position);
             hit++;
         }

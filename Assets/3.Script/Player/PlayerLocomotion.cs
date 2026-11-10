@@ -88,7 +88,7 @@ public class PlayerLocomotion : MonoBehaviour
     public bool HasBufferedJump => Time.time - lastJumpPress <= jumpBuffer;
     public Transform StrafeTarget { get; set; } // PlayerLockOn이 지정
 
-    // [변경] 공중 콤보(PlayerCombat)용: 중력 배율(체공) · 강제 상승 · 점프 입력 가로채기(띄우기)
+    // 공중 콤보(PlayerCombat)용: 중력 배율(체공) · 강제 상승 · 점프 입력 가로채기(띄우기)
     public float GravityScale { get; set; } = 1f;
     public float VerticalVelocity => verticalVelocity;
     public float LastJumpPressTime => lastJumpPress;
@@ -130,6 +130,7 @@ public class PlayerLocomotion : MonoBehaviour
 
     void Update()
     {
+        if (GamePause.IsPaused) return; // [변경] 일시정지 중엔 입력·진행을 멈춤
         // 스킬 돌진 중처럼 컨트롤러가 꺼져 있으면 이동·중력 모두 건너뜀
         if (!controller.enabled) return;
 
@@ -188,7 +189,7 @@ public class PlayerLocomotion : MonoBehaviour
         else if (!MovementLocked && !wasGrounded && HasBufferedJump && airJumpsLeft > 0 && airTime >= doubleJumpMinAirTime) DoubleJump();
 
         if (controller.isGrounded && verticalVelocity < 0f) verticalVelocity = -2f;
-        verticalVelocity += gravity * GravityScale * dt; // [변경] 공중 공격 중 체공
+        verticalVelocity += gravity * GravityScale * dt; // 공중 공격 중 체공
 
         if (MovementLocked) moveHeading = transform.forward;
         CollisionFlags flags = controller.Move((moveHeading * currentSpeed + Vector3.up * verticalVelocity) * dt); // 바라보는 방향이 아니라 이동 방향으로

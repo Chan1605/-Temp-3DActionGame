@@ -46,7 +46,7 @@ public class PlayerEnchant : MonoBehaviour
     public float Remaining => remaining;           // HUD 링용
     public float MinCells => minCellsToStart;
 
-    // [변경] 각성 중 Q: 남은 시간을 떼어 "발도 시간"으로 바꿈. 그동안 각성 시계는 멈춤(Paused) → 실제로 쓰는 시간은 뗀 만큼만
+    // 각성 중 Q: 남은 시간을 떼어 "발도 시간"으로 바꿈. 그동안 각성 시계는 멈춤(Paused) → 실제로 쓰는 시간은 뗀 만큼만
     public bool Paused { get; set; }
 
     // 실제로 뗀 시간을 돌려줌 (남은 시간이 모자라면 남은 만큼). 0이 되면 IsActive가 꺼지므로 최소값을 남겨 끝날 때 방전되게 함
@@ -88,13 +88,14 @@ public class PlayerEnchant : MonoBehaviour
 
     void Update()
     {
+        if (GamePause.IsPaused) return; // [변경] 일시정지 중엔 입력·진행을 멈춤
         if (!IsActive)
         {
             if (enchantAction.WasPressedThisFrame()) TryStart();
             return;
         }
 
-        if (Paused) return; // [변경] 발도 시간 동안은 각성 시계 정지
+        if (Paused) return; // 발도 시간 동안은 각성 시계 정지
         remaining -= Time.deltaTime;
         if (remaining <= 0f)
         {
@@ -128,7 +129,7 @@ public class PlayerEnchant : MonoBehaviour
     void Finish(bool discharge)
     {
         remaining = 0f;
-        Paused = false; // [변경]
+        Paused = false;
         if (discharge) Discharge();
         if (thunder != null) thunder.Enchanted = false;
         Ended?.Invoke();

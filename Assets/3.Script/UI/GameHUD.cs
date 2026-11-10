@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
@@ -157,6 +158,7 @@ public class GameHUD : MonoBehaviour
         ZoneArena.AnyCleared += OnZoneCleared;
         if (health != null) health.Damaged += OnDamaged;
         if (thunderSource != null) thunderSource.GaugeChanged += OnGaugeChanged;
+        if (thunderSource != null) thunderSource.MaxGaugeChanged += OnMaxGaugeChanged; // [변경]
         if (kanpaSource != null)
         {
             kanpaSource.FollowReady += ShowFollowPrompt;
@@ -171,6 +173,7 @@ public class GameHUD : MonoBehaviour
         ZoneArena.AnyCleared -= OnZoneCleared;
         if (health != null) health.Damaged -= OnDamaged;
         if (thunderSource != null) thunderSource.GaugeChanged -= OnGaugeChanged;
+        if (thunderSource != null) thunderSource.MaxGaugeChanged -= OnMaxGaugeChanged; // [변경]
         if (kanpaSource != null)
         {
             kanpaSource.FollowReady -= ShowFollowPrompt;
@@ -314,6 +317,42 @@ public class GameHUD : MonoBehaviour
     }
 
     // ===== 뇌기 =====
+    // [변경] 뇌기 칸 수가 늘면(수련 · 뇌기 확장) 마지막 칸을 복제해 붙이고, 전체 폭은 체력바와 같게 다시 나눔
+    void OnMaxGaugeChanged(float max)
+    {
+        if (thunderFills == null || thunderFills.Length == 0 || thunderFills[0] == null) return;
+        int want = Mathf.Max(1, Mathf.CeilToInt(max - 0.001f));
+        if (want <= thunderFills.Length) return;
+
+        var first = (RectTransform)thunderFills[0].parent;
+        var last = (RectTransform)thunderFills[thunderFills.Length - 1].parent;
+        float total = last.anchoredPosition.x + last.sizeDelta.x - first.anchoredPosition.x;
+        float gap = thunderFills.Length > 1
+            ? ((RectTransform)thunderFills[1].parent).anchoredPosition.x - first.anchoredPosition.x - first.sizeDelta.x
+            : 8f;
+
+        var fills = new List<RectTransform>(thunderFills);
+        var colors = new List<Color>(thunderColors);
+        while (fills.Count < want)
+        {
+            var cell = Instantiate(last, last.parent);
+            cell.name = $"Thunder_{fills.Count + 1}";
+            cell.localScale = Vector3.one;
+            fills.Add((RectTransform)cell.Find(thunderFills[0].name));
+            colors.Add(colors[colors.Count - 1]);
+        }
+
+        float width = (total - gap * (want - 1)) / want;
+        for (int i = 0; i < want; i++)
+        {
+            var cell = (RectTransform)fills[i].parent;
+            cell.anchoredPosition = new Vector2(first.anchoredPosition.x + i * (width + gap), first.anchoredPosition.y);
+            cell.sizeDelta = new Vector2(width, cell.sizeDelta.y);
+        }
+        thunderFills = fills.ToArray();
+        thunderColors = colors.ToArray();
+    }
+
     void OnGaugeChanged(float value)
     {
         thunderTween?.Kill();
@@ -407,7 +446,7 @@ public class GameHUD : MonoBehaviour
         skillWasActive = active;
     }
 
-    // 뇌검 각성 링: Q 슬롯 바로 위에 같은 크기로 (각성 중 남은 시간이 줄어드는 링, 평소엔 R 준비 표시) // [변경] 왼쪽은 키 안내 글자와 겹쳐 위로
+    // 뇌검 각성 링: Q 슬롯 바로 위에 같은 크기로 (각성 중 남은 시간이 줄어드는 링, 평소엔 R 준비 표시) // 왼쪽은 키 안내 글자와 겹쳐 위로
     void CreateEnchantRing()
     {
         if (skillCooldown == null || GetComponentInChildren<EnchantRing>(true) != null) return;
@@ -422,7 +461,7 @@ public class GameHUD : MonoBehaviour
         rt.pivot = slot.pivot;
         float size = Mathf.Max(slot.rect.width, slot.rect.height);
         rt.sizeDelta = new Vector2(size, size);
-        rt.anchoredPosition = slot.anchoredPosition + new Vector2(0f, slot.rect.height + 16f); // [변경]
+        rt.anchoredPosition = slot.anchoredPosition + new Vector2(0f, slot.rect.height + 16f);
         go.AddComponent<EnchantRing>().Build(hpText != null ? hpText.font : null, enchant, thunderSource);
     }
 

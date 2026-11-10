@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -13,7 +14,7 @@ public class DrawStanceFx : MonoBehaviour
     [SerializeField] float fadeIn = 0.12f;
     [SerializeField] float fadeOut = 0.2f;
     [SerializeField] float vignette = 0.35f;
-    [SerializeField] Color markColor = new Color(1f, 0.22f, 0.18f, 1f); // [변경] 표식·조준 게이지 빨강 (흑백 화면에서 가장 잘 보임)
+    [SerializeField] Color markColor = new Color(1f, 0.22f, 0.18f, 1f); // 표식·조준 게이지 빨강 (흑백 화면에서 가장 잘 보임)
     [SerializeField] Color doneColor = new Color(1f, 1f, 1f, 0.35f);
     [SerializeField] Color reticleColor = new Color(1f, 1f, 1f, 0.8f);
     [SerializeField] float markHeight = 1.1f;
@@ -25,8 +26,9 @@ public class DrawStanceFx : MonoBehaviour
 
     RectTransform canvasRect;
     Image reticle, timerRing, markingRing;
-    Image[] markRings;
-    Text[] markNumbers;
+    readonly List<Image> markRings = new List<Image>(); // [변경] 각성 발도는 표식 수 제한이 없어 필요한 만큼 늘림
+    readonly List<Text> markNumbers = new List<Text>();
+    Font markFont;
     Text hint;
     static Sprite ringSprite, discSprite;
 
@@ -58,7 +60,8 @@ public class DrawStanceFx : MonoBehaviour
         }
 
         bool aiming = stance && !skill.StanceAutoDraw; // 회피 직후 자동 발도는 흑백·표식만 (조준 UI 없음)
-        reticle.enabled = timerRing.enabled = hint.enabled = aiming;
+        reticle.enabled = timerRing.enabled = aiming;
+        hint.enabled = aiming && !RecordingMode.Active; // 녹화 모드에선 조준점·표식만 남기고 안내 문구는 숨김
         if (aiming)
         {
             hint.text = skill.StanceByHold ? "조준점을 적에게 올려 표식 · 떼면 발도" : "조준점을 적에게 올려 표식 · Q로 발도";
@@ -76,7 +79,8 @@ public class DrawStanceFx : MonoBehaviour
 
         // 표식: 순서 번호 (이미 벤 표식은 흐리게)
         bool showMarks = skill.ShowStanceMarks;
-        for (int i = 0; i < markRings.Length; i++)
+        while (showMarks && markRings.Count < skill.StanceMarkCount) AddMark(); // [변경]
+        for (int i = 0; i < markRings.Count; i++)
         {
             Transform t = showMarks && i < skill.StanceMarkCount ? skill.StanceMark(i) : null;
             bool visible = t != null && Place(markRings[i].rectTransform, t);
@@ -84,7 +88,7 @@ public class DrawStanceFx : MonoBehaviour
             if (!visible) continue;
             bool done = skill.StanceMarkDone(i);
             markRings[i].color = done ? doneColor : markColor;
-            markNumbers[i].color = done ? doneColor : Color.white; // [변경] 숫자는 흰색 유지
+            markNumbers[i].color = done ? doneColor : Color.white; // 숫자는 흰색 유지
         }
     }
 
@@ -145,22 +149,24 @@ public class DrawStanceFx : MonoBehaviour
         hint.rectTransform.anchoredPosition = new Vector2(0f, -120f);
         hint.rectTransform.sizeDelta = new Vector2(600f, 40f);
 
-        int count = skill != null ? Mathf.Max(1, skill.StanceMaxMarks) : 6;
-        markRings = new Image[count];
-        markNumbers = new Text[count];
-        for (int i = 0; i < count; i++)
-        {
-            markRings[i] = NewImage("Mark" + (i + 1), discSprite, markColor);
-            markRings[i].rectTransform.sizeDelta = Vector2.one * (markSize * 0.6f);
-            markNumbers[i] = NewText("No", font, 22, Color.white); // [변경] 빨간 바탕이라 흰 숫자
-            markNumbers[i].transform.SetParent(markRings[i].transform, false);
-            markNumbers[i].rectTransform.anchoredPosition = Vector2.zero;
-            markNumbers[i].text = (i + 1).ToString();
-        }
+        markFont = font;
+        for (int i = 0; i < 6; i++) AddMark(); // [변경] 기본 6개를 미리 만들고, 더 필요하면 LateUpdate에서 추가
 
         reticle.enabled = timerRing.enabled = markingRing.enabled = hint.enabled = false;
-        foreach (Image img in markRings) img.enabled = false;
-        foreach (Text t in markNumbers) t.enabled = false;
+    }
+
+    void AddMark()
+    {
+        int n = markRings.Count + 1;
+        Image ring = NewImage("Mark" + n, discSprite, markColor);
+        ring.rectTransform.sizeDelta = Vector2.one * (markSize * 0.6f);
+        Text number = NewText("No", markFont, 22, Color.white); // 빨간 바탕이라 흰 숫자
+        number.transform.SetParent(ring.transform, false);
+        number.rectTransform.anchoredPosition = Vector2.zero;
+        number.text = n.ToString();
+        ring.enabled = number.enabled = false;
+        markRings.Add(ring);
+        markNumbers.Add(number);
     }
 
     Image NewImage(string name, Sprite sprite, Color color)

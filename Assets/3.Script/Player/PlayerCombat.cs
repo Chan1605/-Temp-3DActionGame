@@ -17,7 +17,7 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
     [SerializeField] AttackData runStarter;      // 달리는 중 □ → 달리기 공격 (없으면 일반 □)
     [SerializeField] float runAttackSpeed = 7f;  // 이 속도 이상으로 달리고 있으면 달리기 공격
 
-    // [변경] 저스트 회피 반격(□) 삭제 → 저스트 회피 직후 Q = 무료 발도 자세(PlayerSkill.Stance)로 대체
+    // 저스트 회피 반격(□) 삭제 → 저스트 회피 직후 Q = 무료 발도 자세(PlayerSkill.Stance)로 대체
 
     [SerializeField] Animator animator;
     [SerializeField] WeaponHitbox weapon;
@@ -128,6 +128,7 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
 
     void Update()
     {
+        if (GamePause.IsPaused) return; // [변경] 일시정지 중엔 입력·진행을 멈춤
         if (IsGrounded()) airUsed = false;
         if (IsSlamming) // 내려찍기는 자체 흐름 (도약 → 낙하 → 착지 충격파)
         {
@@ -309,11 +310,11 @@ public partial class PlayerCombat : MonoBehaviour // 공중 콤보는 PlayerComb
         weapon.BeginSwing(new DamageInfo
         {
             Attacker = gameObject,
-            Damage = attack.Damage * damageMultiplier, // [변경] 반격 배율 삭제
-            PostureDamage = attack.PostureDamage * damageMultiplier * (Enchanted ? enchant.PostureScale : 1f), // 각성 체간 배율 // [변경] 반격 배율 삭제
+            Damage = attack.Damage * damageMultiplier, // 반격 배율 삭제
+            PostureDamage = attack.PostureDamage * damageMultiplier * (Enchanted ? enchant.PostureScale : 1f), // 각성 체간 배율 // 반격 배율 삭제
             Parryable = attack.Parryable,
             Weight = attack.Weight,
-            BreakArmor = Enchanted, // 각성은 휘두르는 적도 경직시킴 // [변경] 반격 삭제
+            BreakArmor = Enchanted, // 각성은 휘두르는 적도 경직시킴 // 반격 삭제
             BreakGuard = chargeLevel >= 2, // 차지 강타 2단계 이상은 방패를 한 번에 깸
             Launch = attack.LaunchHeight // 띄우기 높이 (떠 있는 적은 어떤 타격이든 다시 떠받쳐짐)
         });

@@ -33,7 +33,8 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
     [SerializeField] float aimTurnSpeed = 720f; // 자세·차지 중 고정한 대상을 따라 도는 속도(도/초, 실제 시간)
     // 끄면(기본) 대상 제약 없음: 아무 적이나 겨냥·연쇄하고 보스 외에는 전부 즉사. 켜면 흐트러진 적만 즉사·연쇄 (A/B 비교용)
     [SerializeField] bool staggerOnly = false;
-    [SerializeField] bool tapChain = false; // 탭 Q는 한 명만 (QQQQ 리듬 연쇄 끔). 켜면 예전 연쇄
+    [SerializeField] bool tapChain = false; // 탭 Q는 한 명만 켜면 예전 연쇄
+    [SerializeField] float tapChainCost = 0.5f; // 탭 Q 연격 한 번마다 드는 뇌기
     [SerializeField] bool hideBodyWhileDashing = true;
     [SerializeField] LayerMask obstacleMask = ~0;
 
@@ -45,7 +46,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
     Renderer[] bodyRenderers;
     bool[] bodyRendererStates;
     bool bodyHidden;
-    int stanceHash, chargeHash, releaseHash; // [변경] 잔심 자세(Skill_Finish) 삭제 → 착지 즉시 납도로 확정
+    int stanceHash, chargeHash, releaseHash; // 잔심 자세(Skill_Finish) 삭제 → 착지 즉시 납도로 확정
     bool sheathedEarly;  // 착지 직후 이미 납도를 시작함 → 끝낼 때 다시 틀지 않음
 
     Phase phase = Phase.Ready;
@@ -122,6 +123,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
 
     void Update()
     {
+        if (GamePause.IsPaused) return; // 일시정지 중엔 입력·진행을 멈춤 (이전 반영분이 덮어써져 다시 넣음)
         if (data == null || skillAction == null) return;
 
         float dt = Time.unscaledDeltaTime;
@@ -305,6 +307,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
         dashEnd = end;
         dashTimer = 0f;
         dashCount++;
+        ArmPass(target, start, end); // 대상 옆을 지나는 순간 슬로 (PlayerSkill.PassSlow.cs)
         phase = Phase.Dashing;
         Dashed?.Invoke(start, end);
 
@@ -323,7 +326,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
 
     void UpdateDash(float dt)
     {
-        dashTimer += dt;
+        dashTimer += PassDashDelta(dt); // 지나가는 순간엔 돌진 진행을 늦춤
         float t = Mathf.Clamp01(dashTimer / data.DashDuration);
         transform.position = Vector3.Lerp(dashStart, dashEnd, t);
 
@@ -334,7 +337,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
         if (dashTrail != null) dashTrail.emitting = false;
         if (followCamera != null) followCamera.Shake(0.12f, 0.12f);
 
-        if (dashCount >= data.MaxChain || (!stanceChain && !tapChain)) // 탭 Q는 한 번 돌진으로 끝
+        if (dashCount >= ChainLimit()) // 탭 Q 연격 횟수는 스킬트리 해금 단계를 따름
         {
             BeginFinish();
             return;
@@ -358,14 +361,26 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
         if (skillAction.action.WasPressedThisFrame())
         {
             IDamageable next = FindTarget(transform.position, transform.forward, data.ChainRange, 360f, UsesGauge && staggerOnly); // 흐트러짐 모드에서만 흐트러진 적에게만 연쇄
-            if (next != null)
+            // 연격 한 번마다 뇌기 tapChainCost. 모자라면 이어지지 않음
+            if (next != null && (!UsesGauge || tapChainCost <= 0f || thunder.TrySpend(tapChainCost)))
             {
                 StartDash(next, transform.forward);
                 return;
             }
+            if (next != null) Blocked?.Invoke();
         }
 
         if (windowTimer >= data.ChainWindow) BeginFinish();
+    }
+
+    // 이번 일섬에서 이어 갈 수 있는 최대 돌진 수
+    //  - 발도 자세 표식 연쇄: 찍은 표식 수 (최소 데이터 최대치)
+    //  - 탭 Q: 스킬트리가 있으면 1 + 연격 단계(0~3), 없으면 예전처럼 tapChain 토글
+    int ChainLimit()
+    {
+        if (stanceChain) return Mathf.Max(data.MaxChain, stanceMarks.Count); // [변경] 표식 연쇄는 찍은 만큼 (각성 발도 무제한 표식이 6번째에서 끊기던 문제)
+        if (SkillTree.Active) return Mathf.Min(1 + SkillTree.ChainLevel, data.MaxChain);
+        return tapChain ? data.MaxChain : 1;
     }
 
     void BeginFinish()
@@ -374,7 +389,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
         finishTimer = 0f;
         killsApplied = false;
 
-        // 착지하자마자 납도 (락온 중이면 SheatheNow가 거절 → Release 자세 유지) // [변경] 잔심 자세 분기 삭제
+        // 착지하자마자 납도 (락온 중이면 SheatheNow가 거절 → Release 자세 유지) // 잔심 자세 분기 삭제
         sheathedEarly = sheatheOnLand && sheatheAfterSkill && stance != null && stance.SheatheNow();
     }
 
@@ -389,7 +404,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
             killsApplied = true;
         }
 
-        float end = data.KillDelay + data.RecoveryTime; // [변경] 잔심 자세 시간 삭제
+        float end = data.KillDelay + data.RecoveryTime; // 잔심 자세 시간 삭제
         if (killsApplied && finishTimer >= end) EndSkill(true); // 끝까지 마친 경우만 납도
     }
 
@@ -438,6 +453,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
     {
         if (phase == Phase.Holding || phase == Phase.Stance) HoldEnded?.Invoke(); // 차지·발도 자세 도중 끊긴 경우에도 이펙트 정리 // Stance 포함
         ClearStance(); // 적 정지 해제 · 표식 정리
+        ClearPassSlow();
         phase = Phase.Ready;
         RestoreTimeScale();
         hitStopTimer = 0f;

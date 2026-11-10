@@ -71,6 +71,7 @@ public class PlayerStance : MonoBehaviour
 
     void Update()
     {
+        if (GamePause.IsPaused) return; // [변경] 일시정지 중엔 입력·진행을 멈춤
         if (animator == null) return;
 
         AnimatorStateInfo info = animator.GetCurrentAnimatorStateInfo(0);
@@ -132,7 +133,7 @@ public class PlayerStance : MonoBehaviour
             SetStance(false);
             return;
         }
-        // [변경] 여기서 Stance를 0으로 바꾸지 않음: 로코모션(대기 블렌드)에서 넘어가는 동안 원본 자세가 한 프레임에 평상시 대기로 튀던 원인
+        // 여기서 Stance를 0으로 바꾸지 않음: 로코모션(대기 블렌드)에서 넘어가는 동안 원본 자세가 한 프레임에 평상시 대기로 튀던 원인
         //        (칼이 손에서 사라지고 허리로 순간이동 → 납도 모션이 묻힘). 평상시 자세는 납도가 끝나거나 이동으로 끊길 때 바꿈
 
         // 이미 납도 중이거나 방금 끝났으면 다시 틀지 않음 (두 번 재생 방지)
@@ -146,7 +147,7 @@ public class PlayerStance : MonoBehaviour
 
         sheathing = true;
         sheatheRequestedAt = Time.time;
-        animator.CrossFadeInFixedTime(SheatheHash, crossFade, 0, startOffset * SheatheLength()); // [변경] 초 단위 전환 (normalized는 이전 상태 길이 기준이라 대기 클립에선 길어짐)
+        animator.CrossFadeInFixedTime(SheatheHash, crossFade, 0, startOffset * SheatheLength()); // 초 단위 전환 (normalized는 이전 상태 길이 기준이라 대기 클립에선 길어짐)
         if (logStance) Debug.Log($"[Stance] 검 집어넣기 (현재 상태 {current}, 시작 {startOffset:0.00})");
     }
 
@@ -168,13 +169,13 @@ public class PlayerStance : MonoBehaviour
         {
             sheathing = false;
             lastSheatheEnd = Time.time;
-            SetStance(false); // [변경] 납도가 끝난 시점에 평상시 자세로 (로코모션으로 돌아가면 평상시 대기·걷기)
+            SetStance(false); // 납도가 끝난 시점에 평상시 자세로 (로코모션으로 돌아가면 평상시 대기·걷기)
             if (logStance) Debug.Log($"[Stance] 납도 {(moving ? "이동으로 끊김" : "완료")} ({info.normalizedTime:0.00})");
             animator.CrossFadeInFixedTime(LocomotionHash, moving ? 0.15f : returnCrossFade, 0, 0f);
         }
     }
 
-    // [변경] Sheathe 상태 클립 길이 (시작 지점을 초로 바꾸는 데 씀)
+    // Sheathe 상태 클립 길이 (시작 지점을 초로 바꾸는 데 씀)
     float SheatheLength()
     {
         if (animator.runtimeAnimatorController == null) return 1.333f;

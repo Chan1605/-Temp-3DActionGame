@@ -45,6 +45,7 @@ public partial class PlayerCombat
     bool TryLauncher(float t)
     {
         if (launcher == null || locomotion == null || deflected || !IsGrounded()) return false;
+        if (!SkillTree.IsUnlocked(SkillId.Launcher)) return false; // [변경] 띄우기는 스킬트리 해금
         if (current == launcher || current.AirAttack || current.LaunchHeight > 0f) return false;
         float openAt = attackStartTime + current.InputOpen * current.Duration / AttackSpeed;
         if (locomotion.LastJumpPressTime < openAt || t < current.ComboTransition) return false;

@@ -29,7 +29,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     [SerializeField] float heavyHitDamage = 15f;
     [SerializeField] float knockDownTime = 1.1f; // 쓰러져 있는 시간
     [SerializeField] float getUpTime = 0.8f;
-    [SerializeField] float dodgeOutAfter = 0.15f; // [변경] 일반·강 피격 경직이 이만큼 지나면 회피로 빠져나올 수 있음 (넉다운·잡힘은 불가)
+    [SerializeField] float dodgeOutAfter = 0.15f; // 일반·강 피격 경직이 이만큼 지나면 회피로 빠져나올 수 있음 (넉다운·잡힘은 불가)
 
     [SerializeField] Animator animator;
     [SerializeField] PlayerCombat combat;
@@ -44,7 +44,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
 
     float health;
     float stunTimer;
-    float stunStartedAt = -1f; // [변경]
+    float stunStartedAt = -1f;
     float invulnerableTimer;
     bool dead;
     bool knockedDown;
@@ -54,7 +54,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     public float MaxHealth => maxHealth;
     public bool IsStunned => stunTimer > 0f || grabbed || (execution != null && execution.IsActive); // 회피·패링·차지가 이 값으로 막힘 // 잡힘 포함
     public bool IsGrabbed => grabbed;
-    // [변경] 연타를 끝까지 다 맞지 않게: 경직 후반에는 회피로 끊을 수 있음
+    // 연타를 끝까지 다 맞지 않게: 경직 후반에는 회피로 끊을 수 있음
     public bool CanDodgeOutOfStun => !dead && !grabbed && !knockedDown && stunTimer > 0f && !float.IsInfinity(stunTimer)
         && (execution == null || !execution.IsActive) && Time.time - stunStartedAt >= dodgeOutAfter;
     public bool CanBeTargeted => !dead;
@@ -244,7 +244,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
 
         PlayOr((air ? AirHitHashes : heavy ? HeavyHitHashes : HitHashes)[dir], HitHash);
         stunTimer = heavy ? heavyStunTime : stunTime;
-        stunStartedAt = Time.time; // [변경]
+        stunStartedAt = Time.time;
         invulnerableTimer = Mathf.Max(invulnerableTime, stunTimer);
         if (followCamera != null) followCamera.Shake(heavy ? 0.13f : 0.08f, heavy ? 0.16f : 0.12f);
     }
@@ -323,6 +323,20 @@ public class PlayerHealth : MonoBehaviour, IDamageable
         int hash = heavy ? DeathKnockDownHash : DeathCombatHash;
         if (!animator.HasState(0, hash)) hash = heavy ? DeathCombatHash : DeathKnockDownHash; // 하나만 있으면 그걸로
         if (animator.HasState(0, hash)) animator.CrossFadeInFixedTime(hash, 0.08f, 0, 0f);
+    }
+
+    // [변경] 수련(체력 단련): 최대 체력을 늘리고 늘어난 만큼 바로 채움
+    public void AddMaxHealth(float amount)
+    {
+        maxHealth += amount;
+        if (!dead) health = Mathf.Min(maxHealth, health + amount);
+    }
+
+    // 화톳불 휴식: 살아 있으면 체력을 가득
+    public void HealFull()
+    {
+        if (dead) return;
+        health = maxHealth;
     }
 
     public void Revive(float invulnerable = 1.5f)

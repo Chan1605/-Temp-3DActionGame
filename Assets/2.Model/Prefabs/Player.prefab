@@ -893,11 +893,22 @@ MonoBehaviour:
   sheatheOnLand: 1
   aimTurnSpeed: 720
   staggerOnly: 0
-  tapChain: 0
+  tapChain: 1
   hideBodyWhileDashing: 1
   obstacleMask:
     serializedVersion: 2
     m_Bits: 4294967295
+  passFreeze: 1
+  freezeTime: 0.08
+  lastFreezeTime: 0.14
+  freezeWorldScale: 0.02
+  freezeBudget: 0.6
+  holdFreezeScale: 1
+  enchantFreezeScale: 0.7
+  dodgeFreezeScale: 0.6
+  tapFreezeScale: 0
+  releaseShake: 0.12
+  lastFreezePunch: 0.3
   drawStance: 1
   stanceCost: 2
   stanceEnterTime: 0.25
@@ -1497,7 +1508,7 @@ MonoBehaviour:
     lightIntensity: 4
     lightPercent: 1
     lightColor: {r: 0.6, g: 0.75, b: 1, a: 1}
-  clashClip: {fileID: 0}
+  clashClip: {fileID: 8300000, guid: be8b6585e4f872242a2e7542c5b63204, type: 3}
   impactClip: {fileID: 0}
   kanpaClip: {fileID: 0}
   volume: 0.9
@@ -1752,8 +1763,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 252140ebcf3276a43b5d4f3a7a102031, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerSfx
+  combat: {fileID: 3750847782795144091}
+  stats: {fileID: 7268560931724845920}
   skill: {fileID: 3070939792974395059}
+  heavyCharge: {fileID: 5087689224789762330}
   weapon: {fileID: 8066946278627523393}
+  airSwingClips:
+  - {fileID: 8300000, guid: 05bd991bc7bd4e944b717367367f06ce, type: 3}
+  - {fileID: 8300000, guid: 7f61e6ef4328c284d92c54ae355d39a8, type: 3}
+  - {fileID: 8300000, guid: e4139c13353e1b64da61072ee2e46304, type: 3}
+  airSwingVolume: 0.7
+  airSwingPitch: {x: 0.97, y: 1.03}
+  airSwingLead: 0.08
   swingClips:
   - {fileID: 8300000, guid: 75ce1cc4155622c49a0fe02ab6ff344e, type: 3}
   - {fileID: 8300000, guid: e29e74bb575b26044b327b06628b8682, type: 3}
@@ -1772,6 +1793,19 @@ MonoBehaviour:
   loopFadeIn: 0.08
   stanceFadeOut: 0.15
   maxChargeLevel: 2
+  dashCutClips:
+  - {fileID: 8300000, guid: 5b17c3846b09b1746ac7299b16735509, type: 3}
+  - {fileID: 8300000, guid: 426d4eac2963f584e971c4bc86500f3f, type: 3}
+  - {fileID: 8300000, guid: 5ec232906b088fc4a886edac2d750da5, type: 3}
+  dashCutVolume: 0.9
+  strikeClips:
+  - {fileID: 8300000, guid: 9f60bb410e5703649820117e5e6b8281, type: 3}
+  - {fileID: 8300000, guid: ee9c16986817942469379a7a49c4f0c2, type: 3}
+  - {fileID: 8300000, guid: 180ed55845687594f9884e0e1c07676b, type: 3}
+  strikeVolume: 0.833
+  strikeExtra: 2
+  strikeExtraDelay: 0.07
+  strikeExtraVolume: 0.5
 --- !u!1 &1515010326207606855
 GameObject:
   m_ObjectHideFlags: 0

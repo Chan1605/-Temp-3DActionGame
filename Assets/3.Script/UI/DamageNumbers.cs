@@ -56,6 +56,7 @@ public class DamageNumbers : MonoBehaviour
     // 글자 알림은 치명타 크기로 조금 더 오래
     void OnLabeled(Vector3 position, string label, Color color)
     {
+        if (!GameSettings.ShowDamageNumbers) return; // [변경]
         Entry e = pool[next];
         next = (next + 1) % pool.Count;
         e.Text.text = label;
@@ -71,15 +72,16 @@ public class DamageNumbers : MonoBehaviour
 
     void OnDealt(Vector3 position, DamageInfo info)
     {
+        if (!GameSettings.ShowDamageNumbers) return; // [변경] 설정에서 끄면 숫자를 띄우지 않음
         if (showEnemyOnly && (info.Attacker == null || !info.Attacker.CompareTag("Player"))) return;
-        if (info.Weight == AttackWeight.Execution) return; // [변경] 처형은 숫자 없이 연출만
+        if (info.Weight == AttackWeight.Execution) return; // 처형은 숫자 없이 연출만
 
         Entry e = pool[next];
         next = (next + 1) % pool.Count;
 
         if (info.InstantKill)
         {
-            e.Text.text = "999"; // [변경] 일섬 즉사 (주석 처리 시 풀에 남아 있던 이전 숫자가 그대로 보였음)
+            e.Text.text = "999"; // 일섬 즉사 (주석 처리 시 풀에 남아 있던 이전 숫자가 그대로 보였음)
             e.Color = killColor;
             e.Scale = critScale;
         }
