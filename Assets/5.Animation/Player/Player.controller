@@ -1508,32 +1508,6 @@ AnimatorStateTransition:
   m_InterruptionSource: 0
   m_OrderedInterruption: 1
   m_CanTransitionToSelf: 1
---- !u!1102 &1767003311795046110
-AnimatorState:
-  serializedVersion: 6
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: Dodge_Counter
-  m_Speed: 1
-  m_CycleOffset: 0
-  m_Transitions: []
-  m_StateMachineBehaviours: []
-  m_Position: {x: 50, y: 50, z: 0}
-  m_IKOnFeet: 0
-  m_WriteDefaultValues: 1
-  m_Mirror: 0
-  m_SpeedParameterActive: 0
-  m_MirrorParameterActive: 0
-  m_CycleOffsetParameterActive: 0
-  m_TimeParameterActive: 0
-  m_Motion: {fileID: 7400000, guid: 911c7be779e3a0b4888d470c9ebcd5ef, type: 2}
-  m_Tag: 
-  m_SpeedParameter: 
-  m_MirrorParameter: 
-  m_CycleOffsetParameter: 
-  m_TimeParameter: 
 --- !u!206 &2232021025974082143
 BlendTree:
   m_ObjectHideFlags: 1
@@ -2315,9 +2289,6 @@ AnimatorStateMachine:
     m_State: {fileID: -6007943037911978903}
     m_Position: {x: 2030, y: 2140, z: 0}
   - serializedVersion: 1
-    m_State: {fileID: 1767003311795046110}
-    m_Position: {x: 2065, y: 2205, z: 0}
-  - serializedVersion: 1
     m_State: {fileID: 6427164043334875934}
     m_Position: {x: 2100, y: 2270, z: 0}
   - serializedVersion: 1
@@ -2338,9 +2309,6 @@ AnimatorStateMachine:
   - serializedVersion: 1
     m_State: {fileID: 6685891032743996089}
     m_Position: {x: 2310, y: 2660, z: 0}
-  - serializedVersion: 1
-    m_State: {fileID: 9218718317546776178}
-    m_Position: {x: 2345, y: 2725, z: 0}
   m_ChildStateMachines: []
   m_AnyStateTransitions: []
   m_EntryTransitions: []
@@ -3120,32 +3088,6 @@ AnimatorState:
   m_CycleOffsetParameterActive: 0
   m_TimeParameterActive: 0
   m_Motion: {fileID: 7400000, guid: 2eda5b55b2e475c409f1058e63eefc03, type: 2}
-  m_Tag: 
-  m_SpeedParameter: 
-  m_MirrorParameter: 
-  m_CycleOffsetParameter: 
-  m_TimeParameter: 
---- !u!1102 &9218718317546776178
-AnimatorState:
-  serializedVersion: 6
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: Skill_Finish
-  m_Speed: 1
-  m_CycleOffset: 0
-  m_Transitions: []
-  m_StateMachineBehaviours: []
-  m_Position: {x: 50, y: 50, z: 0}
-  m_IKOnFeet: 0
-  m_WriteDefaultValues: 1
-  m_Mirror: 0
-  m_SpeedParameterActive: 0
-  m_MirrorParameterActive: 0
-  m_CycleOffsetParameterActive: 0
-  m_TimeParameterActive: 0
-  m_Motion: {fileID: 7400000, guid: 37064b0e9919aa244b73225599ef8e65, type: 2}
   m_Tag: 
   m_SpeedParameter: 
   m_MirrorParameter: 

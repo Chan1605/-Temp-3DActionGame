@@ -719,8 +719,8 @@ GameObject:
   - component: {fileID: 8033109656775331062}
   - component: {fileID: 1285893297518870779}
   - component: {fileID: 5394472063361926110}
-  - component: {fileID: 8539011997095476573}
   - component: {fileID: 3411027780979314902}
+  - component: {fileID: 1927244825852473255}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -1718,21 +1718,6 @@ MonoBehaviour:
   dischargePostureDamage: 20
   dischargeRadius: 3
   logEnchant: 1
---- !u!114 &8539011997095476573
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1391606783692858250}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4876fef52636f57408d2e0ecb019acee, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WeaponBoneRetarget
-  bone: {fileID: 4538197362500821654}
-  handRotationOffset: {x: -0.0050735474, y: -0.019792058, z: -0.06914475, w: 0.99739796}
-  applyOffset: 0
 --- !u!114 &3411027780979314902
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1755,6 +1740,38 @@ MonoBehaviour:
   cutHitScale: 0.6
   cutHitHeight: 1
   lifetime: 3
+--- !u!114 &1927244825852473255
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 252140ebcf3276a43b5d4f3a7a102031, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerSfx
+  skill: {fileID: 3070939792974395059}
+  weapon: {fileID: 8066946278627523393}
+  swingClips:
+  - {fileID: 8300000, guid: 75ce1cc4155622c49a0fe02ab6ff344e, type: 3}
+  - {fileID: 8300000, guid: e29e74bb575b26044b327b06628b8682, type: 3}
+  - {fileID: 8300000, guid: 9e0002a297441e54d9236ec98cf2fd45, type: 3}
+  - {fileID: 8300000, guid: afc3dc191d4f3334b996823d42624f93, type: 3}
+  - {fileID: 8300000, guid: 5fcf9534c3336fb46a9344d615ceb9be, type: 3}
+  swingVolume: 0.8
+  swingPitch: {x: 0.97, y: 1.03}
+  heavyPitch: 0.9
+  hitSoundInterval: 0.06
+  stanceStart: {fileID: 8300000, guid: d54f3d545c7ab5c478c1ce24cf9ed879, type: 3}
+  stanceLoop: {fileID: 8300000, guid: 20fd263a5283d124e84b17f7a8219c88, type: 3}
+  stanceStartVolume: 0.9
+  stanceLoopVolume: {x: 0.55, y: 1}
+  stanceLoopPitch: {x: 1, y: 1.12}
+  loopFadeIn: 0.08
+  stanceFadeOut: 0.15
+  maxChargeLevel: 2
 --- !u!1 &1515010326207606855
 GameObject:
   m_ObjectHideFlags: 0
