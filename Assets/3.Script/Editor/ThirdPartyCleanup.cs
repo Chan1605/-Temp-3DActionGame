@@ -9,7 +9,8 @@ using UnityEngine;
 //  - MasterStylizedProjectiles: 지금 쓰는 타격 이펙트 + 앞으로 쓸 후보만 남기고 지움
 //    남길 프리팹과 그 의존성(머티리얼·텍스처·셰이더·스크립트), 팩 밖에서 참조하는 에셋은 모두 보존
 //  - 젠이츠 칼: Player 프리팹에서 빼고 모델 폴더와 칼 전환용 셋업 스크립트를 지움 (Samurai 팩 칼로 확정)
-//  - [변경] 안 쓰는 기능 정리: 저스트 회피 반격 · 손 축 보정(WeaponBoneRetarget) · 잔심 자세(Skill_Finish)의 데이터·상태·스크립트
+//  - 안 쓰는 기능 정리: 저스트 회피 반격 · 손 축 보정(WeaponBoneRetarget) · 잔심 자세(Skill_Finish)의 데이터·상태·스크립트
+//  - 팩 프리팹의 빠진 스크립트 컴포넌트 제거 (원본 팩에 없는 스크립트를 참조해 실행 중 경고가 뜸) // [변경]
 // 먼저 "(미리보기)" 메뉴로 콘솔에서 지울 목록을 확인한 뒤 실행
 public static class ThirdPartyCleanup
 {
@@ -44,7 +45,7 @@ public static class ThirdPartyCleanup
         "Assets/3.Script/Editor/SamuraiKatanaSetup.cs",
     };
 
-    // [변경] 안 쓰는 기능
+    // 안 쓰는 기능
     const string ControllerPath = "Assets/5.Animation/Player/Player.controller";
     static readonly string[] UnusedStates = { "Dodge_Counter", "Skill_Finish" };
     static readonly string[] UnusedComponents = { "WeaponBoneRetarget" }; // 이름으로 찾음 (스크립트를 지운 뒤에도 이 파일이 컴파일되게)
@@ -177,7 +178,7 @@ public static class ThirdPartyCleanup
         Debug.Log("[Cleanup] 젠이츠 칼 모델·셋업 스크립트 삭제 완료");
     }
 
-    // [변경] 핵심: 프리팹 컴포넌트·애니메이터 상태를 먼저 떼고, 스크립트·데이터 삭제는 마지막 (재컴파일 전에 참조를 정리)
+    // 핵심: 프리팹 컴포넌트·애니메이터 상태를 먼저 떼고, 스크립트·데이터 삭제는 마지막 (재컴파일 전에 참조를 정리)
     [MenuItem("Tools/Cleanup/Remove Unused Features")]
     static void RemoveUnusedFeatures()
     {
@@ -224,5 +225,41 @@ public static class ThirdPartyCleanup
         var failed = new List<string>();
         AssetDatabase.DeleteAssets(UnusedAssets.Where(p => File.Exists(p)).ToArray(), failed);
         Debug.Log(failed.Count == 0 ? "[Cleanup] 안 쓰는 기능 정리 완료" : "[Cleanup] 지우지 못한 파일:\n" + string.Join("\n", failed));
+    }
+
+    // [변경] Par_YellowSwordBeam_Muzzle 등 팩 프리팹에 원본 팩에도 없는 스크립트(그라데이션 매핑)가 붙어 있어 생성할 때마다 경고
+    // 파티클 머티리얼에 색이 이미 들어가 있어 지워도 겉모습은 그대로
+    [MenuItem("Tools/Cleanup/Remove Missing Scripts (Projectiles)")]
+    static void RemoveMissingScripts()
+    {
+        if (!AssetDatabase.IsValidFolder(PackRoot))
+        {
+            Debug.Log("[Cleanup] Projectiles 팩이 없습니다.");
+            return;
+        }
+
+        int removedTotal = 0;
+        var cleaned = new List<string>();
+        foreach (string guid in AssetDatabase.FindAssets("t:Prefab", new[] { PackRoot }))
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                int removed = 0;
+                foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+                    removed += GameObjectUtility.RemoveMonoBehavioursWithMissingScript(t.gameObject);
+                if (removed == 0) continue;
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+                removedTotal += removed;
+                cleaned.Add($"{path} ({removed})");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+        Debug.Log(removedTotal == 0 ? "[Cleanup] 빠진 스크립트가 없습니다."
+            : $"[Cleanup] 빠진 스크립트 {removedTotal}개 제거:\n" + string.Join("\n", cleaned));
     }
 }

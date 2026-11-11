@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using UnityEngine.Video;
 
 // 화톳불 스킬트리: 갈래(일섬·검술·방어)별 노드를 고르면 오른쪽에 미리보기 영상 · 설명 · 비용, 해금 버튼
-//  - [변경] 상단 탭 기술 | 수련. 수련(패시브: 체력 · 뇌기 칸)은 영상 대신 "지금 → 해금 후" 수치를 크게 보여 줌
+//  - 상단 탭 기술 | 수련. 수련(패시브: 체력 · 뇌기 칸)은 영상 대신 "지금 → 해금 후" 수치를 크게 보여 줌
 //  - 화톳불(Shrine)에서 E로 열림 · 열려 있는 동안 일시정지 · ESC/Back으로 닫음
 //  - 씬에 이 컴포넌트가 있으면 스킬트리가 켜짐(SkillTree.Active) → 해금 전 기능은 잠김
 //  - 레벨업마다 스킬 포인트. 화톳불 근처에서는 화면 아래 "E 휴식" 안내
@@ -19,8 +19,8 @@ public class SkillTreeMenu : MonoBehaviour
     [SerializeField] Font titleFont;
     [SerializeField] Font bodyFont;
     [SerializeField] PlayerStats stats;
-    [SerializeField] float vitalityAmount = 25f;    // [변경] 체력 단련 한 단계
-    [SerializeField] float thunderSlotAmount = 1f;  // [변경] 뇌기 확장 한 단계
+    [SerializeField] float vitalityAmount = 25f;    // 체력 단련 한 단계
+    [SerializeField] float thunderSlotAmount = 1f;  // 뇌기 확장 한 단계
     [SerializeField] bool unlockAllAtStart;      // 테스트용
     [SerializeField] bool debugKeys = true;      // F9: 포인트 +5
     [SerializeField] Color accent = new Color(0.91f, 0.78f, 0.55f, 1f);
@@ -31,18 +31,19 @@ public class SkillTreeMenu : MonoBehaviour
     class NodeView
     {
         public SkillTreeData.Node Node;
-        public Image Box, Outline;
+        public Image Box, Outline, Icon; // [변경] 스킬 아이콘 (개선 UI일 때만 보임)
         public Text Name, Cost;
     }
 
     readonly List<NodeView> views = new List<NodeView>();
-    readonly List<GameObject> tabRoots = new List<GameObject>(); // [변경]
+    readonly List<GameObject> tabRoots = new List<GameObject>();
     readonly List<Text> tabTexts = new List<Text>();
     readonly List<Image> tabLines = new List<Image>();
     int tab;
     PlayerHealth health;
     PlayerThunder thunder;
-    Image videoFrame;
+    Image videoFrame, previewIcon; // [변경]
+    Vector2 previewNamePos;
     Text statText;
     List<SkillTreeData.Node> nodes;
     Canvas menuCanvas, promptCanvas;
@@ -59,7 +60,7 @@ public class SkillTreeMenu : MonoBehaviour
     void Awake()
     {
         Instance = this;
-        nodes = data != null && data.nodes.Count > 0 ? SkillTreeData.WithMissingDefaults(data.nodes) : SkillTreeData.Defaults(); // [변경] 새 노드가 에셋에 없어도 보이게
+        nodes = data != null && data.nodes.Count > 0 ? SkillTreeData.WithMissingDefaults(data.nodes) : SkillTreeData.Defaults(); // 새 노드가 에셋에 없어도 보이게
         SkillTree.Activate(data != null ? data.startPoints : 1);
         if (unlockAllAtStart) SkillTree.UnlockAll();
 
@@ -72,7 +73,7 @@ public class SkillTreeMenu : MonoBehaviour
         menuCanvas.gameObject.SetActive(false);
     }
 
-    // [변경] 패시브를 걸 대상. 처음부터 전부 해금(테스트)이면 패시브도 바로 적용
+    // 패시브를 걸 대상. 처음부터 전부 해금(테스트)이면 패시브도 바로 적용
     void Start()
     {
         health = FindAnyObjectByType<PlayerHealth>();
@@ -86,12 +87,14 @@ public class SkillTreeMenu : MonoBehaviour
         if (stats == null) stats = FindAnyObjectByType<PlayerStats>();
         if (stats != null) stats.LeveledUp += OnLeveledUp;
         SkillTree.Changed += Refresh;
+        GameSettings.Changed += RefreshStyle; // [변경]
     }
 
     void OnDisable()
     {
         if (stats != null) stats.LeveledUp -= OnLeveledUp;
         SkillTree.Changed -= Refresh;
+        GameSettings.Changed -= RefreshStyle; // [변경]
         if (IsOpen && GamePause.IsPaused) GamePause.Set(false);
     }
 
@@ -145,7 +148,7 @@ public class SkillTreeMenu : MonoBehaviour
         GamePause.Set(true);
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
-        ShowTab(tab); // [변경]
+        ShowTab(tab);
     }
 
     public void Close() => closeRequested = true;
@@ -167,6 +170,12 @@ public class SkillTreeMenu : MonoBehaviour
             v.Name.color = owned || isSelected ? Color.white : ready ? new Color(1f, 1f, 1f, 0.8f) : new Color(1f, 1f, 1f, 0.35f);
             v.Cost.text = owned ? "해금" : $"{v.Node.cost}P";
             v.Cost.color = owned ? accent : affordable ? Color.white : new Color(1f, 1f, 1f, 0.35f);
+
+            // [변경] 아이콘이 보일 땐 이름을 그만큼 오른쪽으로. 잠긴 노드는 흐리게
+            bool icons = GameSettings.EnhancedUi && v.Icon.sprite != null;
+            v.Icon.gameObject.SetActive(icons);
+            v.Icon.color = new Color(1f, 1f, 1f, owned ? 1f : ready ? 0.85f : 0.4f);
+            v.Name.rectTransform.offsetMin = new Vector2(icons ? 62f : 18f, 0f);
         }
         UpdatePreviewText();
     }
@@ -178,13 +187,30 @@ public class SkillTreeMenu : MonoBehaviour
         return true;
     }
 
+    // [변경] 설정에서 개선 UI를 켜고 끄면 아이콘 표시를 다시 맞춤
+    void RefreshStyle()
+    {
+        Refresh();
+        ShowPreviewIcon();
+    }
+
+    void ShowPreviewIcon()
+    {
+        if (previewIcon == null) return;
+        Sprite icon = selected != null && GameSettings.EnhancedUi ? UiIcons.Get(selected.Node.id) : null;
+        previewIcon.sprite = icon;
+        previewIcon.gameObject.SetActive(icon != null);
+        previewName.rectTransform.anchoredPosition = previewNamePos + new Vector2(icon != null ? 64f : 0f, 0f);
+    }
+
     void Select(NodeView view)
     {
         selected = view;
+        ShowPreviewIcon(); // [변경]
         previewName.text = view.Node.displayName;
         previewDesc.text = view.Node.description;
 
-        // [변경] 수련 노드는 영상 칸 대신 수치 비교
+        // 수련 노드는 영상 칸 대신 수치 비교
         bool passive = view.Node.tab == 1;
         videoFrame.gameObject.SetActive(!passive);
         videoImage.gameObject.SetActive(!passive);
@@ -219,7 +245,7 @@ public class SkillTreeMenu : MonoBehaviour
         }
         previewInfo.text = info;
 
-        if (node.tab == 1) statText.text = PassiveText(node.id, owned); // [변경]
+        if (node.tab == 1) statText.text = PassiveText(node.id, owned);
 
         bool can = !owned && ready && SkillTree.Points >= node.cost;
         unlockButton.interactable = can;
@@ -237,12 +263,12 @@ public class SkillTreeMenu : MonoBehaviour
         if (selected == null) return;
         if (!RequirementsMet(selected.Node)) return;
         if (!SkillTree.TryUnlock(selected.Node.id, selected.Node.cost)) return;
-        ApplyPassive(selected.Node.id); // [변경]
+        ApplyPassive(selected.Node.id);
         UpdatePreviewText();
         Debug.Log($"[SkillTree] 해금 · {selected.Node.displayName} (남은 포인트 {SkillTree.Points})");
     }
 
-    // [변경] 수련 효과 적용 (해금하는 순간 한 번)
+    // 수련 효과 적용 (해금하는 순간 한 번)
     void ApplyPassive(SkillId id)
     {
         switch (id)
@@ -258,7 +284,7 @@ public class SkillTreeMenu : MonoBehaviour
         }
     }
 
-    // [변경] "최대 체력 100 → 125" 형식. 해금한 노드는 현재 값만
+    // "최대 체력 100 → 125" 형식. 해금한 노드는 현재 값만
     string PassiveText(SkillId id, bool owned)
     {
         string accentHex = ColorUtility.ToHtmlStringRGB(accent);
@@ -271,7 +297,7 @@ public class SkillTreeMenu : MonoBehaviour
         return $"<size=30>{label}</size>\n{Format(now)}  →  <color=#{accentHex}>{Format(now + add)}</color>";
     }
 
-    // [변경] 탭 전환: 그 탭의 노드만 보이고 첫 노드를 고름
+    // 탭 전환: 그 탭의 노드만 보이고 첫 노드를 고름
     void ShowTab(int index)
     {
         tab = Mathf.Clamp(index, 0, tabRoots.Count - 1);
@@ -316,7 +342,7 @@ public class SkillTreeMenu : MonoBehaviour
         // 머리글
         Text shrine = UIKit.Text(root, "SHRINE", titleFont, 30, dimText, TextAnchor.MiddleLeft);
         UIKit.Place(shrine.rectTransform, 100f, 97f, 200f, 50f);
-        // [변경] 탭: 기술 | 수련 (고른 탭은 하얗게 + 밑줄)
+        // 탭: 기술 | 수련 (고른 탭은 하얗게 + 밑줄)
         for (int i = 0; i < SkillTreeData.TabNames.Length; i++)
         {
             int index = i;
@@ -356,7 +382,7 @@ public class SkillTreeMenu : MonoBehaviour
     {
         const float colX0 = 140f, colStep = 300f, boxW = 250f, boxH = 62f, rowY0 = 300f, rowStep = 92f;
 
-        // [변경] 탭마다 노드 묶음을 따로 두고 켜고 끔
+        // 탭마다 노드 묶음을 따로 두고 켜고 끔
         var rowInBranch = new Dictionary<(int, int), int>();
         var lastInBranch = new Dictionary<(int, int), SkillId>();
         for (int t = 0; t < SkillTreeData.TabNames.Length; t++)
@@ -400,6 +426,9 @@ public class SkillTreeMenu : MonoBehaviour
             view.Outline = UIKit.Image(view.Box.transform, outlineSprite, Color.white);
             view.Outline.raycastTarget = false;
             UIKit.Stretch(view.Outline.rectTransform);
+            view.Icon = UIKit.Image(view.Box.transform, UiIcons.Get(node.id), Color.white); // [변경]
+            view.Icon.raycastTarget = false;
+            UIKit.Place(view.Icon.rectTransform, 9f, boxH * 0.5f, 44f, 44f);
             view.Name = UIKit.Text(view.Box.transform, node.displayName, bodyFont, 24, Color.white, TextAnchor.MiddleLeft);
             UIKit.Stretch(view.Name.rectTransform);
             view.Name.rectTransform.offsetMin = new Vector2(18f, 0f);
@@ -426,7 +455,7 @@ public class SkillTreeMenu : MonoBehaviour
         videoFrame = UIKit.Image(root, outlineSprite, new Color(1f, 1f, 1f, 0.35f));
         UIKit.Place(videoFrame.rectTransform, x - 4f, 210f + h * 0.5f, w + 8f, h + 8f);
 
-        // [변경] 수련 노드용 수치 비교 (영상 자리)
+        // 수련 노드용 수치 비교 (영상 자리)
         statText = UIKit.Text(root, "", titleFont, 64, Color.white, TextAnchor.MiddleCenter);
         statText.supportRichText = true;
         statText.lineSpacing = 1.2f;
@@ -454,6 +483,11 @@ public class SkillTreeMenu : MonoBehaviour
         float textY = 210f + h + 50f;
         previewName = UIKit.Text(root, "", titleFont, 38, Color.white, TextAnchor.MiddleLeft);
         UIKit.Place(previewName.rectTransform, x, textY, w, 50f);
+        previewNamePos = previewName.rectTransform.anchoredPosition; // [변경] 이름 왼쪽에 아이콘 자리
+        previewIcon = UIKit.Image(root, null, Color.white);
+        previewIcon.raycastTarget = false;
+        UIKit.Place(previewIcon.rectTransform, x, textY, 52f, 52f);
+        previewIcon.gameObject.SetActive(false);
         previewDesc = UIKit.Text(root, "", bodyFont, 24, new Color(1f, 1f, 1f, 0.8f), TextAnchor.UpperLeft);
         previewDesc.horizontalOverflow = HorizontalWrapMode.Wrap;
         previewDesc.lineSpacing = 1.15f;

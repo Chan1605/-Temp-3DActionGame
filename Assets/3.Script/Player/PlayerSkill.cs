@@ -36,6 +36,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
     [SerializeField] bool tapChain = false; // 탭 Q는 한 명만 켜면 예전 연쇄
     [SerializeField] float tapChainCost = 0.5f; // 탭 Q 연격 한 번마다 드는 뇌기
     [SerializeField] bool hideBodyWhileDashing = true;
+    [SerializeField] float landPoseFade = 0.15f; // [변경] 착지하면 돌진 모션(처형 클립)을 끊고 전투 대기 자세로
     [SerializeField] LayerMask obstacleMask = ~0;
 
     readonly Collider[] overlapBuffer = new Collider[128]; // 32칸이면 바위·풀 콜라이더로 꽉 차 적을 못 찾는 경우가 있었음
@@ -343,8 +344,15 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
             return;
         }
 
+        if (!stanceChain) PlayLandPose(); // [변경] 연격 입력을 기다리는 동안 처형 모션이 이어지던 문제
         phase = Phase.ChainWindow;
         windowTimer = 0f;
+    }
+
+    // 돌진 상태(Skill_Release)는 처형 클립을 같이 써서, 착지 뒤에도 그대로 두면 처형 동작이 보임 → 전투 대기 자세로 넘김
+    void PlayLandPose()
+    {
+        if (animator != null) animator.CrossFadeInFixedTime(LocomotionHash, landPoseFade, 0, 0f);
     }
 
     // 착지 후 창 안에 다시 누르면 아직 베지 않은 가장 가까운 적에게 연쇄 돌진
@@ -378,7 +386,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
     //  - 탭 Q: 스킬트리가 있으면 1 + 연격 단계(0~3), 없으면 예전처럼 tapChain 토글
     int ChainLimit()
     {
-        if (stanceChain) return Mathf.Max(data.MaxChain, stanceMarks.Count); // [변경] 표식 연쇄는 찍은 만큼 (각성 발도 무제한 표식이 6번째에서 끊기던 문제)
+        if (stanceChain) return Mathf.Max(data.MaxChain, stanceMarks.Count); // 표식 연쇄는 찍은 만큼 (각성 발도 무제한 표식이 6번째에서 끊기던 문제)
         if (SkillTree.Active) return Mathf.Min(1 + SkillTree.ChainLevel, data.MaxChain);
         return tapChain ? data.MaxChain : 1;
     }
@@ -391,6 +399,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
 
         // 착지하자마자 납도 (락온 중이면 SheatheNow가 거절 → Release 자세 유지) // 잔심 자세 분기 삭제
         sheathedEarly = sheatheOnLand && sheatheAfterSkill && stance != null && stance.SheatheNow();
+        if (!sheathedEarly) PlayLandPose(); // [변경] 락온 중 등 납도를 못 하면 처형 모션 대신 전투 대기 자세
     }
 
     // 칼을 거둔 뒤 한 박자 늦게 베인 대상들에 일괄 적용

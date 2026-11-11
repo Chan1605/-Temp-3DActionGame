@@ -71,7 +71,7 @@ public class SettingsMenu : MonoBehaviour
         if (kb == null || !kb.escapeKey.wasPressedThisFrame) return;
         if (!IsOpen)
         {
-            // [변경] 스킬트리가 열려 있으면 ESC는 스킬트리가 처리
+            // 스킬트리가 열려 있으면 ESC는 스킬트리가 처리
             if (inGame && (SkillTreeMenu.Instance == null || !SkillTreeMenu.Instance.IsOpen)) Open();
         }
         else Back();
@@ -173,6 +173,7 @@ public class SettingsMenu : MonoBehaviour
         int row = 0;
         AddSlider(row++, "Mouse Sensitivity", 1f, 100f, () => GameSettings.Sensitivity, v => GameSettings.Sensitivity = Mathf.Round(v), v => Mathf.RoundToInt(v).ToString());
         AddToggle(row++, "Damage Numbers", () => GameSettings.ShowDamageNumbers, v => GameSettings.ShowDamageNumbers = v);
+        AddToggle(row++, "Enhanced UI", () => GameSettings.EnhancedUi, v => GameSettings.EnhancedUi = v); // [변경] 끄면 개선 전 HUD · 아이콘 없는 스킬트리
     }
 
     void BuildGraphics()

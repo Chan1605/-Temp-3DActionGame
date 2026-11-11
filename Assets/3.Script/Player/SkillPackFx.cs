@@ -1,11 +1,5 @@
 using UnityEngine;
 
-// 벽력일섬 팩 이펙트 (Projectiles 팩 프리팹)
-// [변경] 발도 자세 차징(LightningExplosionCharge)은 삭제 (발밑에 보라색 띠로 크게 퍼져 어색함). 자세 연출은 흑백·PlayerVfx 번개로 충분
-//  - 돌진: 출발 지점 섬광(Muzzle) + 몸 대신 노란 검기(YellowSwordBeam)가 돌진 경로를 따라감
-//  - 일괄 베기 순간: 베인 적마다 검기 타격(YellowSwordBeam_Hit)
-// 기존 번개(PlayerVfx)는 그대로 두고 위에 얹음. 프리팹을 비우면 그 연출만 꺼짐
-// 연결은 Tools/Setup/Skill Pack Fx
 public class SkillPackFx : MonoBehaviour
 {
     [SerializeField] PlayerSkill skill;
