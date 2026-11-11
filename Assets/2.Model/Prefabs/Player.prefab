@@ -864,7 +864,7 @@ MonoBehaviour:
   idleInputBuffer: 0.2
   stepWeight: 1
   logComboRoute: 0
-  logMisses: 1
+  logMisses: 0
   missLogRange: 3
   swingFxTail: 0.06
 --- !u!114 &3070939792974395059
@@ -894,7 +894,9 @@ MonoBehaviour:
   aimTurnSpeed: 720
   staggerOnly: 0
   tapChain: 1
+  tapChainCost: 0.5
   hideBodyWhileDashing: 1
+  landPoseFade: 0.15
   obstacleMask:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -912,12 +914,14 @@ MonoBehaviour:
   drawStance: 1
   stanceCost: 2
   stanceEnterTime: 0.25
-  stanceDuration: 2.5
+  stanceDuration: 3
   stanceEnemyScale: 0.05
-  stanceRange: 20
-  markTime: 0.2
+  stanceRange: 25
+  markTime: 0.1
   reticleRadius: 0.08
   maxMarks: 6
+  baseMarks: 3
+  enchantMaxMarks: 0
   stanceChainDelay: 0.05
   dodgeStance: 1
   dodgeStanceWindow: 0.9
@@ -1058,7 +1062,7 @@ MonoBehaviour:
   freezeScale: 0.05
   freezeTime: 0.15
   shakeStrength: 0.2
-  logParry: 1
+  logParry: 0
 --- !u!114 &3880032383890577890
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1380,7 +1384,7 @@ MonoBehaviour:
   normalSkillDamage: 30
   bossQPostureScale: 0.3
   bossStaggerDamageScale: 2.5
-  logThunder: 1
+  logThunder: 0
 --- !u!114 &5087689224789762330
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1420,7 +1424,7 @@ MonoBehaviour:
   - 2
   - 3
   turnSpeed: 360
-  logCharge: 1
+  logCharge: 0
   dashFromLevel: 3
   dashDistances:
   - 4.5
@@ -1552,7 +1556,7 @@ MonoBehaviour:
   comboOnly: 1
   counterDamage: 40
   counterPostureDamage: 60
-  logKanpa: 1
+  logKanpa: 0
   smashAttack: {fileID: 11400000, guid: 2d37fc39a5ff42f4e8fbd733bb268165, type: 2}
   followWindow: 0.8
   smashRadius: 3
@@ -1588,7 +1592,7 @@ MonoBehaviour:
   xpStep: 15
   waveClearXp: 15
   maxAttackSpeed: 3
-  logStats: 1
+  logStats: 0
 --- !u!114 &4498633949859688452
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1683,7 +1687,7 @@ MonoBehaviour:
   cameraSideAngle: 70
   cameraPitch: 8
   cameraDistance: 3.4
-  logExecution: 1
+  logExecution: 0
 --- !u!114 &5394472063361926110
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1728,7 +1732,7 @@ MonoBehaviour:
   dischargeDamage: 20
   dischargePostureDamage: 20
   dischargeRadius: 3
-  logEnchant: 1
+  logEnchant: 0
 --- !u!114 &3411027780979314902
 MonoBehaviour:
   m_ObjectHideFlags: 0

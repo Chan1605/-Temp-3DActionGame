@@ -15,7 +15,6 @@ MonoBehaviour:
   stanceState: Skill_Stance
   chargeState: Skill_Charge
   releaseState: Skill_Release
-  finishState: Skill_Finish
   chargeStartTime: 0.2
   chargeLevelTime: 0.5
   maxChargeLevel: 2
@@ -34,7 +33,34 @@ MonoBehaviour:
   recoveryTime: 0.3
   hitStopTime: 0.08
   cooldown: 3
-  finishDuration: 1.2
   damage: 100
   postureDamage: 100
   instantKill: 1
+  tapChainCost: 0.5
+  stanceCost: 2
+  stanceEnterTime: 0.25
+  stanceDuration: 3
+  stanceEnemyScale: 0.05
+  stanceRange: 25
+  markTime: 0.1
+  reticleRadius: 0.08
+  baseMarks: 3
+  maxMarks: 6
+  stanceChainDelay: 0.05
+  enchantStanceSeconds: 3.5
+  enchantMaxMarks: 0
+  dodgeStanceWindow: 0.9
+  dodgeStanceCost: 0
+  dodgeAutoMarks: 3
+  dodgeAutoRange: 12
+  dodgeDrawDelay: 0.12
+  freezeTime: 0.08
+  lastFreezeTime: 0.14
+  freezeWorldScale: 0.02
+  freezeBudget: 0.6
+  holdFreezeScale: 1
+  enchantFreezeScale: 0.7
+  dodgeFreezeScale: 0.6
+  tapFreezeScale: 0
+  releaseShake: 0.12
+  lastFreezePunch: 0.3

@@ -17,7 +17,6 @@ public static class GameSettings
     const string BrightKey = "Display.Brightness";
     const string SensKey = "Gameplay.Sensitivity";
     const string DamageKey = "Gameplay.ShowDamage"; // 키 이름을 바꿔 테스트 중 저장된 값 대신 새 기본값(끔) 적용
-    const string UiKey = "Gameplay.EnhancedUi"; // [변경] 개선 UI 전/후 전환
     const string AAKey = "Graphics.AntiAliasing";
     const string ShadowKey = "Graphics.Shadows";
 
@@ -31,7 +30,6 @@ public static class GameSettings
     static int resolutionIndex, fpsIndex = 1, antiAliasing = -1; // -1 = 카메라 원래 값 유지
     static bool windowed, vSync = true, showDamage, shadows = true; // 데미지 숫자 기본 끔
     static float brightness = 1f, sensitivity = 50f;
-    static bool enhancedUi = true; // [변경]
     static Volume brightnessVolume;
     static ColorAdjustments colorAdjust;
 
@@ -44,7 +42,6 @@ public static class GameSettings
     public static float Brightness { get { Load(); return brightness; } set { Load(); brightness = Mathf.Clamp(value, 0.5f, 1.5f); PlayerPrefs.SetFloat(BrightKey, brightness); ApplyBrightness(); Changed?.Invoke(); } }
     public static float Sensitivity { get { Load(); return sensitivity; } set { Load(); sensitivity = Mathf.Clamp(value, 1f, 100f); PlayerPrefs.SetFloat(SensKey, sensitivity); Changed?.Invoke(); } }
     public static bool ShowDamageNumbers { get { Load(); return showDamage; } set { Load(); showDamage = value; PlayerPrefs.SetInt(DamageKey, value ? 1 : 0); Changed?.Invoke(); } }
-    public static bool EnhancedUi { get { Load(); return enhancedUi; } set { Load(); enhancedUi = value; PlayerPrefs.SetInt(UiKey, value ? 1 : 0); Changed?.Invoke(); } } // [변경] HUD · 스킬트리 아이콘 스킨
     public static int AntiAliasing { get { Load(); return antiAliasing < 0 ? CameraAA() : antiAliasing; } set { Load(); antiAliasing = Mathf.Clamp(value, 0, AAOptions.Length - 1); PlayerPrefs.SetInt(AAKey, antiAliasing); ApplyCamera(); Changed?.Invoke(); } }
     public static bool Shadows { get { Load(); return shadows; } set { Load(); shadows = value; PlayerPrefs.SetInt(ShadowKey, value ? 1 : 0); ApplyCamera(); Changed?.Invoke(); } }
 
@@ -90,7 +87,7 @@ public static class GameSettings
         brightness = PlayerPrefs.GetFloat(BrightKey, 1f);
         sensitivity = PlayerPrefs.GetFloat(SensKey, 50f);
         showDamage = PlayerPrefs.GetInt(DamageKey, 0) == 1;
-        enhancedUi = PlayerPrefs.GetInt(UiKey, 1) == 1; // [변경]
+        PlayerPrefs.DeleteKey("Gameplay.EnhancedUi"); // [변경] 전/후 토글 삭제 → 예전에 저장된 값 정리
         antiAliasing = PlayerPrefs.GetInt(AAKey, -1);
         shadows = PlayerPrefs.GetInt(ShadowKey, 1) == 1;
     }
@@ -120,7 +117,6 @@ public static class GameSettings
         Sensitivity = 50f;
         ShowDamageNumbers = false;
         Shadows = true;
-        EnhancedUi = true; // [변경]
         antiAliasing = -1;
         PlayerPrefs.DeleteKey(AAKey);
         AudioOptions.Master = 1f;

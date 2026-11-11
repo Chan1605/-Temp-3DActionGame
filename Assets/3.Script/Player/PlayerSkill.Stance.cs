@@ -10,27 +10,10 @@ public partial class PlayerSkill
 {
     enum StanceEntry { None, Hold, Dodge, Enchant }
 
-    [Header("Draw Stance")]
+    [Header("Draw Stance")] // [변경] 수치는 SkillData(ThunderFlash.asset)로 옮김. 여기엔 켜기/끄기와 연결만
     [SerializeField] bool drawStance = true;
-    [SerializeField] float stanceCost = 2f;
-    [SerializeField] float stanceEnterTime = 0.25f;       // 이만큼 누르고 있으면 진입 (짧게 떼면 기존 즉발)
-    [SerializeField] float stanceDuration = 2.5f;         // 실제 시간
-    [SerializeField] float stanceEnemyScale = 0.05f;
-    [SerializeField] float stanceRange = 20f;
-    [SerializeField] float markTime = 0.2f;               // 조준점에 이 시간 올려두면 표식
-    [SerializeField] float reticleRadius = 0.08f;         // 화면 높이 대비 반경
-    [SerializeField] int maxMarks = 6;
-    [SerializeField] int baseMarks = 3; // 스킬트리 '표식 확장' 전 최대 표식
-    [SerializeField] int enchantMaxMarks = 0; // 각성 발도(R → Q) 최대 표식. 0 = 제한 없음 (시간 안에 찍은 만큼)
-    [SerializeField] float stanceChainDelay = 0.05f;      // 표식 사이 다음 돌진까지 간격
     [SerializeField] bool dodgeStance = true;
-    [SerializeField] float dodgeStanceWindow = 0.9f;
-    [SerializeField] float dodgeStanceCost = 0f;          // 무료
-    [SerializeField] int dodgeAutoMarks = 3;              // 회피 직후 자동으로 벨 최대 인원 (가까운 순)
-    [SerializeField] float dodgeAutoRange = 12f;
-    [SerializeField] float dodgeDrawDelay = 0.12f;        // 풀차지 연출을 보여줄 짧은 정지 후 발도 (실제 시간)
     [SerializeField] bool enchantStance = true;
-    [SerializeField] float enchantStanceSeconds = 3.5f;   // 각성에서 떼어 쓰는 발도 시간 (그동안 발도 무제한)
     [SerializeField] PlayerEnchant enchant;
     [SerializeField] PlayerDodge dodge;
 
@@ -48,18 +31,18 @@ public partial class PlayerSkill
     // ===== 연출(DrawStanceFx)이 읽는 상태 =====
     public bool InDrawStance => phase == Phase.Stance;
     public bool ShowStanceMarks => phase == Phase.Stance || stanceChain;
-    public float StanceRemaining01 => phase == Phase.Stance ? Mathf.Clamp01(1f - stanceTimer / stanceDuration) : 0f;
+    public float StanceRemaining01 => phase == Phase.Stance ? Mathf.Clamp01(1f - stanceTimer / data.StanceDuration) : 0f;
     public int StanceMarkCount => stanceMarks.Count;
-    public int StanceMarkScale => Mathf.Max(1, Mathf.Min(StanceMaxMarks, maxMarks)); // 사운드 등 "얼마나 찼나" 계산용 (제한 없음이면 maxMarks 기준)
+    public int StanceMarkScale => Mathf.Max(1, Mathf.Min(StanceMaxMarks, data.MaxMarks)); // 사운드 등 "얼마나 찼나" 계산용 (제한 없음이면 data.MaxMarks 기준)
     // 각성 발도는 따로: 기본 제한 없음 → 일반 Q 차징(3명, 표식 확장 6명)과 차별
     public int StanceMaxMarks => stanceEntry == StanceEntry.Enchant
-        ? (enchantMaxMarks > 0 ? enchantMaxMarks : int.MaxValue)
-        : SkillTree.IsUnlocked(SkillId.StanceMarks) ? maxMarks : Mathf.Min(baseMarks, maxMarks);
+        ? (data.EnchantMaxMarks > 0 ? data.EnchantMaxMarks : int.MaxValue)
+        : SkillTree.IsUnlocked(SkillId.StanceMarks) ? data.MaxMarks : Mathf.Min(data.BaseMarks, data.MaxMarks);
     public Transform StanceMark(int i) => i < stanceMarks.Count && IsValidTarget(stanceMarks[i]) ? ((Component)stanceMarks[i]).transform : null;
     public bool StanceMarkDone(int i) => i < stanceMarks.Count && IsPending(stanceMarks[i]); // 이미 벤 표식
     public Transform StanceMarkingTarget => phase == Phase.Stance && IsValidTarget(markingTarget) ? ((Component)markingTarget).transform : null;
     public float StanceMarkProgress => markProgress;
-    public float StanceReticleRadius => reticleRadius;
+    public float StanceReticleRadius => data.ReticleRadius;
     public bool StanceByHold => stanceEntry == StanceEntry.Hold; // 안내 문구: 떼면 발도 / Q로 발도
     public float EnchantStanceWindow => enchantWindow; // 안내 문구용
     public bool StanceAutoDraw => stanceEntry == StanceEntry.Dodge; // 자동 발도는 조준 UI 없음
@@ -72,8 +55,8 @@ public partial class PlayerSkill
         // 각성 발도 · 회피 발도는 스킬트리에서 해금해야 함
         if (enchantStance && SkillTree.IsUnlocked(SkillId.EnchantDraw) && enchant != null && (enchantWindow > 0f || enchant.IsActive)) return StanceEntry.Enchant;
         // 저스트 회피 직후는 비용 0이 기본 (값을 올리면 그만큼 확인)
-        if (dodgeStance && SkillTree.IsUnlocked(SkillId.DodgeDraw) && Time.unscaledTime - lastJustDodgeTime <= dodgeStanceWindow
-            && (!UsesGauge || thunder.CanSpend(dodgeStanceCost))) return StanceEntry.Dodge;
+        if (dodgeStance && SkillTree.IsUnlocked(SkillId.DodgeDraw) && Time.unscaledTime - lastJustDodgeTime <= data.DodgeStanceWindow
+            && (!UsesGauge || thunder.CanSpend(data.DodgeStanceCost))) return StanceEntry.Dodge;
         return StanceEntry.None;
     }
 
@@ -81,7 +64,7 @@ public partial class PlayerSkill
     void OpenEnchantWindow()
     {
         if (enchantWindow > 0f || enchant == null) return;
-        enchantWindow = enchant.ConsumeTime(enchantStanceSeconds);
+        enchantWindow = enchant.ConsumeTime(data.EnchantStanceSeconds);
         if (enchantWindow > 0f) enchant.Paused = true;
         Debug.Log($"[Skill] 발도 시간 {enchantWindow:0.0}초");
     }
@@ -99,7 +82,7 @@ public partial class PlayerSkill
         if (enchant != null) enchant.Paused = false;
     }
 
-    bool CanHoldIntoStance => drawStance && UsesGauge && thunder.CanSpend(stanceCost);
+    bool CanHoldIntoStance => drawStance && UsesGauge && thunder.CanSpend(data.StanceCost);
 
     PlayerLockOn lockOn;
     void EnterStance(StanceEntry entry)
@@ -121,7 +104,7 @@ public partial class PlayerSkill
             if (lockOn != null && lockOn.IsLocked) lockOn.Release();
         }
 
-        CombatTime.SetHold(stanceEnemyScale); // 적만 멈춤 → 카메라·조준은 실시간 그대로
+        CombatTime.SetHold(data.StanceEnemyScale); // 적만 멈춤 → 카메라·조준은 실시간 그대로
         animator.CrossFadeInFixedTime(chargeHash, 0.1f, 0, 0f);
         if (entry != StanceEntry.Hold) HoldStarted?.Invoke(); // 홀드 진입은 이미 HoldStarted가 나감
         if (followCamera != null) followCamera.Shake(0.06f, 0.12f);
@@ -143,7 +126,7 @@ public partial class PlayerSkill
         // 회피 직후 자동 발도: 짧은 풀차지 정지 뒤 바로 돌진 (조준·입력 없음)
         if (stanceEntry == StanceEntry.Dodge)
         {
-            if (stanceTimer >= dodgeDrawDelay) ReleaseStance();
+            if (stanceTimer >= data.DodgeDrawDelay) ReleaseStance();
             return;
         }
 
@@ -155,7 +138,7 @@ public partial class PlayerSkill
             ? !skillAction.action.IsPressed()
             : stanceTimer > 0.1f && skillAction.action.WasPressedThisFrame();
 
-        if (release || stanceTimer >= stanceDuration || stanceMarks.Count >= StanceMaxMarks) ReleaseStance();
+        if (release || stanceTimer >= data.StanceDuration || stanceMarks.Count >= StanceMaxMarks) ReleaseStance();
     }
 
     void FaceCamera(float dt)
@@ -178,7 +161,7 @@ public partial class PlayerSkill
         }
         if (markingTarget == null) return;
 
-        markProgress += dt / Mathf.Max(markTime, 0.01f);
+        markProgress += dt / Mathf.Max(data.MarkTime, 0.01f);
         if (markProgress < 1f) return;
 
         stanceMarks.Add(markingTarget);
@@ -191,11 +174,11 @@ public partial class PlayerSkill
     // 가까운 순으로 dodgeAutoMarks명까지 표식 (적이 없으면 ReleaseStance가 비용 없이 취소)
     void AutoMarkNearest()
     {
-        int want = Mathf.Min(dodgeAutoMarks, StanceMaxMarks);
+        int want = Mathf.Min(data.DodgeAutoMarks, StanceMaxMarks);
         while (stanceMarks.Count < want)
         {
             EnemySwordsman best = null;
-            float bestDist = dodgeAutoRange;
+            float bestDist = data.DodgeAutoRange;
             foreach (EnemySwordsman enemy in EnemySwordsman.Alive)
             {
                 if (enemy == null || !enemy.CanBeTargeted || stanceMarks.Contains(enemy)) continue;
@@ -214,12 +197,12 @@ public partial class PlayerSkill
         if (stanceCam == null) return null;
 
         IDamageable best = null;
-        float bestDist = reticleRadius;
+        float bestDist = data.ReticleRadius;
         float aspect = stanceCam.aspect;
         foreach (EnemySwordsman enemy in EnemySwordsman.Alive)
         {
             if (enemy == null || !enemy.CanBeTargeted || stanceMarks.Contains(enemy)) continue;
-            if (Flat(enemy.transform.position - transform.position).magnitude > stanceRange) continue;
+            if (Flat(enemy.transform.position - transform.position).magnitude > data.StanceRange) continue;
 
             Vector3 v = stanceCam.WorldToViewportPoint(enemy.transform.position + Vector3.up * 1.1f);
             if (v.z <= 0f) continue;
@@ -265,10 +248,10 @@ public partial class PlayerSkill
             case StanceEntry.Enchant:
                 break; // 발도 시간 안에서는 무료 (시간은 열 때 이미 뗌)
             case StanceEntry.Dodge:
-                if (UsesGauge && dodgeStanceCost > 0f) thunder.TrySpend(dodgeStanceCost); // 기본 무료
+                if (UsesGauge && data.DodgeStanceCost > 0f) thunder.TrySpend(data.DodgeStanceCost); // 기본 무료
                 break;
             default:
-                thunder.TrySpend(stanceCost);
+                thunder.TrySpend(data.StanceCost);
                 break;
         }
     }
@@ -287,9 +270,9 @@ public partial class PlayerSkill
     // 표식 연쇄: 착지 후 짧은 간격 뒤 다음 표식으로 자동 돌진
     void UpdateStanceChain()
     {
-        if (windowTimer < stanceChainDelay) return;
+        if (windowTimer < data.StanceChainDelay) return;
         IDamageable next = NextStanceTarget();
-        if (next != null && dashCount < ChainLimit()) StartDash(next, transform.forward); // [변경] 착지 판정과 같은 한도
+        if (next != null && dashCount < ChainLimit()) StartDash(next, transform.forward); // 착지 판정과 같은 한도
         else BeginFinish();
     }
 

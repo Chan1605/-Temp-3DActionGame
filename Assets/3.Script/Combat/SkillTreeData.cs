@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Video;
 
-// 스킬트리 노드 정의 (이름 · 설명 · 비용 · 선행 · 갈래 · 미리보기 영상)
-// 에셋이 없으면 SkillTreeMenu가 Defaults()를 그대로 씀. 영상은 Tools/Setup/Skill Tree가 이름으로 찾아 연결
+
 [CreateAssetMenu(menuName = "Game/Skill Tree Data", fileName = "SkillTree")]
 public class SkillTreeData : ScriptableObject
 {

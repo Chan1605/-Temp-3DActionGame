@@ -1,0 +1,116 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 45ecd96f2a8443049bb740f73cbcd293, type: 3}
+  m_Name: Tutorial_Station4
+  m_EditorClassIdentifier: Assembly-CSharp::ZoneTheme
+  zoneName: Tutorial_4
+  seed: 105
+  origin: {x: 0, y: 0, z: 240}
+  displayNumber: "\uC218\uB828"
+  displayName: "\uAC01\uC131 \xB7 \uCC98\uD615"
+  combatRadius: 10
+  wallRadius: 13
+  gateHalfWidth: 3.5
+  terrainSize: 80
+  hillHeight: 10
+  hillNoise: 4
+  hillWidth: 14
+  groundLayer: {fileID: 8574412962073106934, guid: 10b4bf30f859a2243b48b86bb8759c8f, type: 2}
+  arenaLayer: {fileID: 8574412962073106934, guid: 200be16447503174a9c0e065e9f1c6d2, type: 2}
+  roadLayer: {fileID: 8574412962073106934, guid: 82a167d3820573d4995700bfcf9b3d08, type: 2}
+  wallRocks:
+  - {fileID: 8929002069413036059, guid: 3c93b2ebe78e2fa48b763dff787aaeef, type: 3}
+  - {fileID: 3977365282198030536, guid: 98bd1645b1b8d7a4d93c120852cde4a8, type: 3}
+  - {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+  - {fileID: 6503860231370189630, guid: dfba2029821729e49af979214c5837ba, type: 3}
+  - {fileID: 5279046732762050657, guid: 10f7890dcc972314eab7ccfcf445c176, type: 3}
+  - {fileID: 157542235833461988, guid: 3efef0c3914bf95429aeb0141ca3a994, type: 3}
+  wallRockSize: {x: 4.5, y: 7}
+  wallRockSpacing: 0.65
+  innerRocks:
+  - {fileID: 1151587133200583922, guid: 27cf8fcce199b284291e36c407c78ca1, type: 3}
+  - {fileID: 7018119237136094062, guid: c50c2430bda2db5498adb34b279a4c01, type: 3}
+  - {fileID: 8772648035309327700, guid: c8b1da0fbab714f47847c30e2149442d, type: 3}
+  - {fileID: 3537088891441082940, guid: e231d7402b790274eb6c0bfbca2323fa, type: 3}
+  - {fileID: 8292296469400219455, guid: 1c06eb4e970a3ed43872bf78aae3379f, type: 3}
+  - {fileID: 3799213099928599575, guid: a81763150bed0ad459b6743638ad5be4, type: 3}
+  - {fileID: 744361515233928351, guid: ef026dd1709640842b399870075f1474, type: 3}
+  - {fileID: 3937052456545036716, guid: 0e3de1693bf3e3a4c81779bb12633908, type: 3}
+  - {fileID: 4030430141933448729, guid: c27ead8d057c46847adb147c2e1ff641, type: 3}
+  - {fileID: 6450864058120680867, guid: 8d791b47a0bfcbe4f9a45c9867fbca4d, type: 3}
+  - {fileID: 3572727950408872325, guid: 4ba060a5d7981e541ba81f2dd0e96bbb, type: 3}
+  - {fileID: 7734347712533311796, guid: 515124c2b678a624aab273df36fc040a, type: 3}
+  innerRockCount: 4
+  innerRockSize: {x: 0.8, y: 2}
+  trees:
+  - {fileID: 4113716955782909747, guid: a2964a47a465cb248bd4606aeacd043c, type: 3}
+  - {fileID: 7374042172787549318, guid: 9a9abba1490ad754abc2f60e363774e4, type: 3}
+  - {fileID: 3083966034480623710, guid: 7010f8119673ff74da1df1c1a64db721, type: 3}
+  - {fileID: 1334049015609657910, guid: 519e6076f1bfe524ca7ca71ea0792d5a, type: 3}
+  - {fileID: 1291779440398340585, guid: 7f98bd6e451b28e4eb8e1655e1e0aa4c, type: 3}
+  - {fileID: 2119146855742771220, guid: 9e7aede7989640346ba42ed20571585c, type: 3}
+  - {fileID: 6586551855716688500, guid: 3982b557bbfda8144a4fcd1d3a25104a, type: 3}
+  - {fileID: 4924724865347486794, guid: 12fd8915d1b0e534caec9dae58b47f3d, type: 3}
+  - {fileID: 1093328680946537625, guid: 6a0ef581ca92be74b844bb57d869983c, type: 3}
+  - {fileID: 3302750347086940195, guid: 7a42ad71a0298f443a0ff65c82c24357, type: 3}
+  - {fileID: 6889231372287404672, guid: c0e469a31900c9b41b41ad136f9e0726, type: 3}
+  - {fileID: 879026889833343479, guid: 8cf6bff7d5bc7644ba7d3c2fcb763b48, type: 3}
+  - {fileID: 5658917810312865958, guid: 492d5f2a23539b24587fee746386ce00, type: 3}
+  - {fileID: 2785243016160518631, guid: 3613070b61f6c1346aff9bb08b697cdd, type: 3}
+  - {fileID: 3322310207158755874, guid: 718e63829b75f2b4097b88b96b8f40bc, type: 3}
+  treeHeight: {x: 9, y: 16}
+  treeMinDistance: 4.5
+  treeMaxCount: 110
+  arenaCover:
+  - {fileID: 5386681439892955923, guid: ba25351719974f7478500c06196de010, type: 3}
+  - {fileID: 6011617376074269759, guid: 171cfe3d347322148815a5dffb913f0b, type: 3}
+  - {fileID: 1129661737710331917, guid: 16b303e584c459b47b18692f8edd2030, type: 3}
+  - {fileID: 870801350360944892, guid: 2732ea62c0ccbb94d88392bb0fac1e5e, type: 3}
+  - {fileID: 870801350360944892, guid: faa1aa9a8a83b2341a63bd0c1532fd46, type: 3}
+  - {fileID: 870801350360944892, guid: 34f85763f33c1024a86f91a90fe6e4b5, type: 3}
+  - {fileID: 870801350360944892, guid: a76c164e44ec9a641878ebe204a8e786, type: 3}
+  arenaCoverCount: 16
+  outerCover:
+  - {fileID: 3443626255250016760, guid: df8e5e284fd16154f8312093c6310f81, type: 3}
+  - {fileID: 2149771049449920610, guid: 595f5eca079c9334e9c248680a3348cb, type: 3}
+  - {fileID: 6490491346398155316, guid: b1a5f6a42b3361645beb9457d27f8024, type: 3}
+  - {fileID: 1844814810695567223, guid: 82736f63a00e4d34a98f82ee438181f6, type: 3}
+  - {fileID: 5522324907791894135, guid: 5672c3f15c8e9bb4c9401ca32e4143c4, type: 3}
+  - {fileID: 1677196605531816420, guid: 37472b06bc6cd0149a9d60eb1c474fad, type: 3}
+  - {fileID: 7295565647549083207, guid: afb4147c0a55e0e458c75b164cd01418, type: 3}
+  - {fileID: 6510808458649195636, guid: b7ce2ec5e9528c74d8319e333d4c71c1, type: 3}
+  - {fileID: 3032024430391739711, guid: 4e5eef3041aab3b42b60a2d21c7c77ef, type: 3}
+  - {fileID: 5913877196626754589, guid: 82cad7b4391b0c947955f1200767996c, type: 3}
+  - {fileID: 5561396896073352922, guid: 71f67353b0539c24caf00890e0565e8a, type: 3}
+  - {fileID: 7790325201489237985, guid: 8ec4a3e59fe27b148af42d59d1267c74, type: 3}
+  outerCoverCount: 50
+  landmarks: []
+  landmarkSize: 9
+  landmarkDistance: 6
+  pathStones:
+  - {fileID: 2184874480338919190, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
+  - {fileID: 1005171171890641205, guid: 37e175973f8fe5f4aabfc8d0ec06c835, type: 3}
+  pathStoneSize: 1.6
+  pathStoneSpacing: 2.4
+  skybox: {fileID: 2100000, guid: 9873fbde6fe03504a9da2612241c5d71, type: 2}
+  fog: 1
+  fogColor: {r: 0.72, g: 0.8, b: 0.82, a: 1}
+  fogDensity: 0.008
+  sunColor: {r: 1, g: 0.94, b: 0.82, a: 1}
+  sunEuler: {x: 45, y: -35, z: 0}
+  groundParticles:
+  - {fileID: 159832, guid: a838e4fa071a15f49b2f897cccaa5c90, type: 3}
+  groundParticleCount: 6
+  overheadParticles:
+  - {fileID: 3922976577017554618, guid: b4f9e27016123374b9fb6ee9c71c4f3f, type: 3}
+  gateColor: {r: 0.72, g: 0.12, b: 0.1, a: 1}
+  barrierColor: {r: 0.45, g: 0.75, b: 1, a: 0.35}

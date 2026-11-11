@@ -195,7 +195,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat,
 
         switch (state)
         {
-            case State.Idle: UpdateIdle(dt); break; // [변경] 수련장 복귀 이동에 dt 필요
+            case State.Idle: UpdateIdle(dt); break; // 수련장 복귀 이동에 dt 필요
             case State.Chase: UpdateChase(dt); break;
             case State.Windup: UpdateWindup(dt); break;
             case State.Attack: UpdateAttack(dt); break;
@@ -222,14 +222,14 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat,
     void UpdateIdle(float dt)
     {
         moveSpeed = 0f;
-        if (UpdateTraining(dt)) return; // [변경] 허수아비 · 묶인 수련 상대는 제자리로
+        if (UpdateTraining(dt)) return; // 허수아비 · 묶인 수련 상대는 제자리로
         if (alerted || DistanceToTarget() <= data.DetectRange) SetState(State.Chase);
     }
 
     // 사거리 밖이면 다가가고, 사거리 안에서 쿨타임이 끝나면 예고 동작으로 들어감
     void UpdateChase(float dt)
     {
-        if (UpdateTraining(dt)) return; // [변경] 허수아비는 쫓지 않고, 수련 상대는 묶인 범위 밖이면 돌아감
+        if (UpdateTraining(dt)) return; // 허수아비는 쫓지 않고, 수련 상대는 묶인 범위 밖이면 돌아감
         float dist = DistanceToTarget();
         if (!alerted && dist > data.DetectRange * 1.2f)
         {
@@ -366,7 +366,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat,
         if (HandleAirHit(info)) return HitResult.Hit; // 떠 있으면 떠받침·내리꽂힘, 쓰러져 있으면 피해만
 
         // 휘두르는 중에는 경직 없이 맞기만 함 (토글로 비교)
-        if (data.ArmorDuringSwing && IsArmored() && !info.BreakArmor) // // 판정 중 → 휘두르는 내내(옵션)
+        if (((data.ArmorDuringSwing && IsArmored()) || SparArmored) && !info.BreakArmor) // [변경] 수련 상대는 예고부터 아머 (간파·패링 연습용)
         {
             Flash(armorColor);
             Flinch(info.Direction, info.Weight != AttackWeight.Light); // 경직 없이 상체만 움찔

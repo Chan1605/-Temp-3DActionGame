@@ -13,7 +13,7 @@ public enum SkillId
     ChargeLevel3,  // 차지 강타 3단계 (풀차지 섬격)
     KanpaSmash,    // 간파 뒤 뇌락
     DodgeDraw,     // 저스트 회피 뒤 무료 발도
-    // [변경] 수련(패시브)
+    // 수련(패시브)
     Vitality1,     // 최대 체력 +
     Vitality2,
     ThunderSlot1,  // 뇌기 칸 +1
@@ -31,6 +31,7 @@ public static class SkillTree
     public static event Action Changed;
 
     public static bool IsUnlocked(SkillId id) => !Active || unlocked.Contains(id);
+    public static IEnumerable<SkillId> Unlocked => unlocked; // [변경] 씬 이동 때 RunState가 저장
 
     // 탭 Q 연격 단계 (0 = 연격 없음, 1~3)
     public static int ChainLevel =>
@@ -41,6 +42,16 @@ public static class SkillTree
         Active = true;
         unlocked.Clear();
         Points = startPoints;
+        Changed?.Invoke();
+    }
+
+    // [변경] 씬 이동 뒤 이어받기 (RunState)
+    public static void Restore(int points, IEnumerable<SkillId> ids)
+    {
+        Active = true;
+        unlocked.Clear();
+        unlocked.UnionWith(ids);
+        Points = points;
         Changed?.Invoke();
     }
 

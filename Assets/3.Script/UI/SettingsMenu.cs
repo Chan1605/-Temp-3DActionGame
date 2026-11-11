@@ -22,6 +22,8 @@ public class SettingsMenu : MonoBehaviour
     [SerializeField, Range(0f, 1f)] float backdropAlpha = 0.72f;
 
     public bool IsOpen => root != null && root.activeSelf;
+    public Font TitleFont => titleFont; // [변경] 결과 화면이 같은 글꼴을 씀
+    public Font BodyFont => bodyFont;
     public event Action Closed; // 타이틀 화면에서 돌아갈 때 사용
 
     enum Page { Root, Display, Gameplay, Graphics, Audio, Quit }
@@ -46,6 +48,7 @@ public class SettingsMenu : MonoBehaviour
 
     Sprite circleSprite, pillSprite, pillOutlineSprite, gradientSprite;
     Text settingsTitle, backText;
+    Text skipTutorialText; // 튜토리얼 씬에서만 보임
     Image bottomLine;
     readonly List<Button> categoryButtons = new List<Button>();
 
@@ -72,7 +75,7 @@ public class SettingsMenu : MonoBehaviour
         if (!IsOpen)
         {
             // 스킬트리가 열려 있으면 ESC는 스킬트리가 처리
-            if (inGame && (SkillTreeMenu.Instance == null || !SkillTreeMenu.Instance.IsOpen)) Open();
+            if (inGame && !ResultScreen.IsShowing && (SkillTreeMenu.Instance == null || !SkillTreeMenu.Instance.IsOpen)) Open(); // [변경] 결과 화면 중엔 열지 않음
         }
         else Back();
     }
@@ -97,9 +100,17 @@ public class SettingsMenu : MonoBehaviour
     {
         root.SetActive(true);
         ShowPage(Page.Root);
+        if (skipTutorialText != null) // 진행 중인 튜토리얼이 있을 때만
+            skipTutorialText.gameObject.SetActive(TutorialDirector.Instance != null && !TutorialDirector.Instance.Finished);
         if (inGame) GamePause.Set(true);
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+    }
+
+    void SkipTutorial() // 남은 단계를 건너뛰고 모든 결계를 엶
+    {
+        if (TutorialDirector.Instance != null) TutorialDirector.Instance.SkipAll();
+        Close();
     }
 
     public void Close()
@@ -173,7 +184,6 @@ public class SettingsMenu : MonoBehaviour
         int row = 0;
         AddSlider(row++, "Mouse Sensitivity", 1f, 100f, () => GameSettings.Sensitivity, v => GameSettings.Sensitivity = Mathf.Round(v), v => Mathf.RoundToInt(v).ToString());
         AddToggle(row++, "Damage Numbers", () => GameSettings.ShowDamageNumbers, v => GameSettings.ShowDamageNumbers = v);
-        AddToggle(row++, "Enhanced UI", () => GameSettings.EnhancedUi, v => GameSettings.EnhancedUi = v); // [변경] 끄면 개선 전 HUD · 아이콘 없는 스킬트리
     }
 
     void BuildGraphics()
@@ -196,7 +206,14 @@ public class SettingsMenu : MonoBehaviour
     {
         Text question = MakeText(content, "Do you want to leave the game?", bodyFont, 32, Color.white, TextAnchor.MiddleLeft);
         Place(question.rectTransform, 170f, 500f, 900f, 50f);
-        AddTextButton(content, "Leave", 34, 170f, 575f, 300f, () =>
+        float y = 575f;
+        // 게임 중이고 타이틀 씬이 빌드에 있으면 타이틀로 돌아가기 (진행 상태는 버림)
+        if (inGame && Application.CanStreamedLevelBeLoaded(TitleScreen.SceneName))
+        {
+            AddTextButton(content, "Main Menu", 34, 170f, y, 300f, () => SceneTransition.Load(TitleScreen.SceneName, false));
+            y += 65f;
+        }
+        AddTextButton(content, "Leave", 34, 170f, y, 300f, () =>
         {
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
@@ -204,7 +221,7 @@ public class SettingsMenu : MonoBehaviour
             Application.Quit();
 #endif
         });
-        AddTextButton(content, "Back", 34, 170f, 640f, 300f, () => ShowPage(Page.Root));
+        AddTextButton(content, "Back", 34, 170f, y + 65f, 300f, () => ShowPage(Page.Root));
     }
 
     void OnRightButton()
@@ -401,6 +418,7 @@ public class SettingsMenu : MonoBehaviour
         if (inGame)
         {
             AddTextButton((RectTransform)menuGo.transform, "QUIT GAME", 26, 170f, 390f + 4 * 75f + 30f, 260f, () => ShowPage(Page.Quit));
+            skipTutorialText = AddTextButton((RectTransform)menuGo.transform, "SKIP TUTORIAL", 26, 170f, 390f + 4 * 75f + 80f, 260f, SkipTutorial);
         }
 
         var contentGo = new GameObject("Content", typeof(RectTransform));

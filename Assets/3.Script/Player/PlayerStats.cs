@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 // 성장 스탯: 공격력 배율 · 공격 속도 · 치명타 확률 · 치명타 피해. 레벨이 오르면 레벨당 증가량만큼 커짐
-// [변경] 레벨은 경험치로: 구역 적 처치 + 웨이브 클리어 보너스. 필요 경험치는 레벨마다 xpStep씩 늘어남
+// 레벨은 경험치로: 구역 적 처치 + 웨이브 클리어 보너스. 필요 경험치는 레벨마다 xpStep씩 늘어남
 // (장비·보상 등 레벨 외 추가분은 AddBonus)
 public class PlayerStats : MonoBehaviour
 {
@@ -26,7 +26,7 @@ public class PlayerStats : MonoBehaviour
     [SerializeField] float critDamagePerLevel = 0.1f;
     [SerializeField] bool levelUpOnZoneClear = true; // 경험치를 끄면(useXp=false) 예전처럼 구역 돌파 = 1레벨
 
-    // [변경] 목표 곡선: 구역 1 끝 Lv3 · 구역 2 끝 Lv5 (검병 10 · 정예 25 · 웨이브 15 기준)
+    // 목표 곡선: 구역 1 끝 Lv3 · 구역 2 끝 Lv5 (검병 10 · 정예 25 · 웨이브 15 기준)
     [Header("Experience")]
     [SerializeField] bool useXp = true;
     [SerializeField] int xpBase = 30;      // Lv1→2
@@ -44,7 +44,8 @@ public class PlayerStats : MonoBehaviour
 
     public int Level => level;
     public int MaxLevel => maxLevel;
-    public int Xp => xp; // [변경]
+    public int Xp => xp;
+    public Vector4 Bonus => new Vector4(bonusPower, bonusSpeed, bonusCritChance, bonusCritDamage); // [변경] 씬 이동 때 RunState가 저장
     public int XpToNext => level >= maxLevel ? 0 : xpBase + xpStep * (level - 1);
     public bool UsesXp => useXp;
     public float AttackPower => attackPower + powerPerLevel * (level - 1) + bonusPower;
@@ -71,7 +72,7 @@ public class PlayerStats : MonoBehaviour
     {
         if (weapon != null) weapon.ModifyDamage = Modify;
         ZoneArena.AnyCleared += OnZoneCleared;
-        ZoneArena.AnyWaveCleared += OnWaveCleared;  // [변경]
+        ZoneArena.AnyWaveCleared += OnWaveCleared; 
         EnemySwordsman.AnyKilled += OnEnemyKilled;
         ApplySpeed();
     }
@@ -80,7 +81,7 @@ public class PlayerStats : MonoBehaviour
     {
         if (weapon != null && weapon.ModifyDamage == (Func<DamageInfo, DamageInfo>)Modify) weapon.ModifyDamage = null;
         ZoneArena.AnyCleared -= OnZoneCleared;
-        ZoneArena.AnyWaveCleared -= OnWaveCleared;  // [변경]
+        ZoneArena.AnyWaveCleared -= OnWaveCleared; 
         EnemySwordsman.AnyKilled -= OnEnemyKilled;
     }
 
@@ -113,6 +114,18 @@ public class PlayerStats : MonoBehaviour
         if (logStats) Debug.Log($"[Stats] Lv {level} · 공격력 {AttackPower:P0} · 공속 {AttackSpeed:F2} · 치명 {CritChance:P0} · 치피 {CritDamage:P0}");
     }
 
+    // [변경] 씬 이동 뒤 이어받기: 레벨업 이벤트 없이 값만 (스킬 포인트가 다시 들어오지 않게)
+    public void Restore(int savedLevel, int savedXp, Vector4 savedBonus)
+    {
+        level = Mathf.Clamp(savedLevel, 1, maxLevel);
+        xp = savedXp;
+        bonusPower = savedBonus.x;
+        bonusSpeed = savedBonus.y;
+        bonusCritChance = savedBonus.z;
+        bonusCritDamage = savedBonus.w;
+        Refresh();
+    }
+
     public void AddBonus(float power, float speed, float chance, float damage)
     {
         bonusPower += power;
@@ -124,10 +137,10 @@ public class PlayerStats : MonoBehaviour
 
     void OnZoneCleared(ZoneArena zone)
     {
-        if (!useXp && levelUpOnZoneClear) LevelUp(); // [변경]
+        if (!useXp && levelUpOnZoneClear) LevelUp();
     }
 
-    // [변경] ===== 경험치 =====
+    // ===== 경험치 =====
     void OnEnemyKilled(EnemySwordsman enemy) => AddXp(enemy.XpReward);
     void OnWaveCleared(ZoneArena zone, Vector3 pos, bool final) => AddXp(waveClearXp);
 

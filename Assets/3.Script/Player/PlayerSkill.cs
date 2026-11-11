@@ -33,10 +33,9 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
     [SerializeField] float aimTurnSpeed = 720f; // 자세·차지 중 고정한 대상을 따라 도는 속도(도/초, 실제 시간)
     // 끄면(기본) 대상 제약 없음: 아무 적이나 겨냥·연쇄하고 보스 외에는 전부 즉사. 켜면 흐트러진 적만 즉사·연쇄 (A/B 비교용)
     [SerializeField] bool staggerOnly = false;
-    [SerializeField] bool tapChain = false; // 탭 Q는 한 명만 켜면 예전 연쇄
-    [SerializeField] float tapChainCost = 0.5f; // 탭 Q 연격 한 번마다 드는 뇌기
+    [SerializeField] bool tapChain = false; // 탭 Q는 한 명만 켜면 예전 연쇄 (연격 비용은 SkillData.tapChainCost) // [변경]
     [SerializeField] bool hideBodyWhileDashing = true;
-    [SerializeField] float landPoseFade = 0.15f; // [변경] 착지하면 돌진 모션(처형 클립)을 끊고 전투 대기 자세로
+    [SerializeField] float landPoseFade = 0.15f; // 착지하면 돌진 모션(처형 클립)을 끊고 전투 대기 자세로
     [SerializeField] LayerMask obstacleMask = ~0;
 
     readonly Collider[] overlapBuffer = new Collider[128]; // 32칸이면 바위·풀 콜라이더로 꽉 차 적을 못 찾는 경우가 있었음
@@ -219,7 +218,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
         // 발도 자세를 쓸 수 있으면(2칸) 차지 대신 일정 시간 누르면 발도 자세. 짧게 떼면 기존 즉발
         if (CanHoldIntoStance)
         {
-            if (holdTime >= stanceEnterTime) EnterStance(StanceEntry.Hold);
+            if (holdTime >= data.StanceEnterTime) EnterStance(StanceEntry.Hold);
             else if (!skillAction.action.IsPressed()) Release();
             return;
         }
@@ -344,7 +343,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
             return;
         }
 
-        if (!stanceChain) PlayLandPose(); // [변경] 연격 입력을 기다리는 동안 처형 모션이 이어지던 문제
+        if (!stanceChain) PlayLandPose(); // 연격 입력을 기다리는 동안 처형 모션이 이어지던 문제
         phase = Phase.ChainWindow;
         windowTimer = 0f;
     }
@@ -369,8 +368,8 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
         if (skillAction.action.WasPressedThisFrame())
         {
             IDamageable next = FindTarget(transform.position, transform.forward, data.ChainRange, 360f, UsesGauge && staggerOnly); // 흐트러짐 모드에서만 흐트러진 적에게만 연쇄
-            // 연격 한 번마다 뇌기 tapChainCost. 모자라면 이어지지 않음
-            if (next != null && (!UsesGauge || tapChainCost <= 0f || thunder.TrySpend(tapChainCost)))
+            // 연격 한 번마다 뇌기 data.TapChainCost. 모자라면 이어지지 않음
+            if (next != null && (!UsesGauge || data.TapChainCost <= 0f || thunder.TrySpend(data.TapChainCost)))
             {
                 StartDash(next, transform.forward);
                 return;
@@ -399,7 +398,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
 
         // 착지하자마자 납도 (락온 중이면 SheatheNow가 거절 → Release 자세 유지) // 잔심 자세 분기 삭제
         sheathedEarly = sheatheOnLand && sheatheAfterSkill && stance != null && stance.SheatheNow();
-        if (!sheathedEarly) PlayLandPose(); // [변경] 락온 중 등 납도를 못 하면 처형 모션 대신 전투 대기 자세
+        if (!sheathedEarly) PlayLandPose(); // 락온 중 등 납도를 못 하면 처형 모션 대신 전투 대기 자세
     }
 
     // 칼을 거둔 뒤 한 박자 늦게 베인 대상들에 일괄 적용
