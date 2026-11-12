@@ -182,7 +182,6 @@ public class GameHUD : MonoBehaviour
         if (skill != null) skill.Blocked -= ShowBlocked;
     }
 
-    // ===== 뇌락 안내 =====
     void CreateFollowPrompt()
     {
         var go = new GameObject("FollowPrompt", typeof(RectTransform));
@@ -204,7 +203,7 @@ public class GameHUD : MonoBehaviour
         followPrompt.horizontalOverflow = HorizontalWrapMode.Overflow;
         followPrompt.raycastTarget = false;
         followPrompt.color = Gold;
-        followPrompt.text = "우클릭  뇌락!";
+        followPrompt.text = "우클릭  벼락!";
         var outline = go.AddComponent<Outline>();
         outline.effectColor = new Color(0f, 0f, 0f, 0.85f);
         outline.effectDistance = new Vector2(2f, -2f);
@@ -493,7 +492,7 @@ public class GameHUD : MonoBehaviour
             markHintGroup.alpha = 0f;
         }
 
-        Text blocked = NewGuideText("MarkBlocked", transform, 30, Gold, "뇌기가 부족합니다\n<size=22>간파 · 저스트 회피 · 처형으로 뇌기를 모은 뒤 Q</size>");
+        Text blocked = NewGuideText("MarkBlocked", transform, 30, Gold, "뇌기가 부족합니다!");
         blocked.rectTransform.anchorMin = blocked.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
         blocked.rectTransform.anchoredPosition = new Vector2(0f, -190f);
         blocked.rectTransform.sizeDelta = new Vector2(620f, 90f);

@@ -64,7 +64,7 @@ public class DrawStanceFx : MonoBehaviour
         hint.enabled = aiming && !RecordingMode.Active; // 녹화 모드에선 조준점·표식만 남기고 안내 문구는 숨김
         if (aiming)
         {
-            hint.text = skill.StanceByHold ? "조준점을 적에게 올려 표식 · 떼면 발도" : "조준점을 적에게 올려 표식 · Q로 발도";
+            hint.text = skill.StanceByHold ? "조준점을 적에게 올려 표식 " : "조준점을 적에게 올려 표식 · Q로 일섬";
             if (skill.EnchantStanceWindow > 0f) hint.text += $"   ·   발도 시간 {skill.EnchantStanceWindow:0.0}"; // 각성 중 발도 시간
             float size = skill.StanceReticleRadius * Screen.height * 2f;
             reticle.rectTransform.sizeDelta = Vector2.one * size;

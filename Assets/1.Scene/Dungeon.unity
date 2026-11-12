@@ -24337,6 +24337,7 @@ MonoBehaviour:
   font: {fileID: 12800000, guid: 3117e2d6251c9154fb4945680a341259, type: 3}
   markerSettings: {fileID: 11400000, guid: f74bdcca98613cf4ba3c86443060f973, type: 2}
   refreshInterval: 0.2
+  roomRadius: 21
 --- !u!4 &289142496
 Transform:
   m_ObjectHideFlags: 0
@@ -85778,7 +85779,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1885940809510095838, guid: f152d92f6ac839a49b38617c0bb78c31, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2025958338}
   m_SourcePrefab: {fileID: 100100000, guid: f152d92f6ac839a49b38617c0bb78c31, type: 3}
 --- !u!4 &1017828529 stripped
 Transform:
@@ -140718,6 +140722,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player
       objectReference: {fileID: 0}
+    - target: {fileID: 1897956553433299075, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
+      propertyPath: descentStrikes
+      value: 10
+      objectReference: {fileID: 0}
     - target: {fileID: 2271414872424868255, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -140774,6 +140782,18 @@ PrefabInstance:
       propertyPath: followCamera
       value: 
       objectReference: {fileID: 330585548}
+    - target: {fileID: 4538197362500821654, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 89.687836
+      objectReference: {fileID: 0}
+    - target: {fileID: 4538197362500821654, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0.019544395
+      objectReference: {fileID: 0}
+    - target: {fileID: 4538197362500821654, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: -179.98045
+      objectReference: {fileID: 0}
     - target: {fileID: 5087689224789762330, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
       propertyPath: followCamera
       value: 
@@ -140786,6 +140806,18 @@ PrefabInstance:
       propertyPath: followCamera
       value: 
       objectReference: {fileID: 330585548}
+    - target: {fileID: 8136409319363074427, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: -1.8347272
+      objectReference: {fileID: 0}
+    - target: {fileID: 8136409319363074427, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 12.514479
+      objectReference: {fileID: 0}
+    - target: {fileID: 8136409319363074427, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 158.25023
+      objectReference: {fileID: 0}
     - target: {fileID: 8946055058242759463, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
       propertyPath: cameraTransform
       value: 
@@ -171387,6 +171419,40 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7790325201489464257, guid: 8ec4a3e59fe27b148af42d59d1267c74, type: 3}
   m_PrefabInstance: {fileID: 2025298990}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &2025958336 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1885940809510095838, guid: f152d92f6ac839a49b38617c0bb78c31, type: 3}
+  m_PrefabInstance: {fileID: 1017828528}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &2025958338
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2025958336}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_CustomShadowLayers: 0
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
+  m_RenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_ShadowRenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_Version: 4
+  m_LightLayerMask: 1
+  m_ShadowLayerMask: 1
+  m_RenderingLayers: 1
+  m_ShadowRenderingLayers: 1
 --- !u!1001 &2026742472
 PrefabInstance:
   m_ObjectHideFlags: 0
