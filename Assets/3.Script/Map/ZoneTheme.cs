@@ -16,6 +16,8 @@ public class ZoneTheme : ScriptableObject
     public float combatRadius = 16f;   // 이 안은 장애물 없이 비워 둠
     public float wallRadius = 19f;     // 바위 벽과 투명 벽 위치
     public float gateHalfWidth = 3.5f; // 남(입구)·북(출구) 문 폭의 절반
+    // [변경] 문이 나는 방향 (던전 허브 · 갈래 방용). 본편 구역은 남 · 북 그대로
+    public bool gateSouth = true, gateNorth = true, gateEast, gateWest;
 
     [Header("Terrain")]
     public float terrainSize = 140f;
@@ -49,7 +51,7 @@ public class ZoneTheme : ScriptableObject
     public GameObject[] outerCover;
     public int outerCoverCount = 80;
 
-    // [변경] 아레나 바깥 대각선 네 곳에 세우는 큰 구조물 (구역 3 폐사찰의 정자 등). 가장 긴 변 기준 크기
+    // 아레나 바깥 대각선 네 곳에 세우는 큰 구조물 (구역 3 폐사찰의 정자 등). 가장 긴 변 기준 크기
     [Header("Landmarks")]
     public GameObject[] landmarks;
     public float landmarkSize = 9f;

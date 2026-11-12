@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 
 public enum TutorialGoal
 {
-    ReachStation,   // 단계의 수련터 가운데로 이동
+    ReachCenter,    // 수련장 가운데로 이동
     LightCombo,     // □ 연속 n타
     HeavyInCombo,   // □ 콤보 중 △
     Dodge,
@@ -21,24 +21,17 @@ public enum TutorialGoal
     UnlockSkill,
 }
 
-// 동선형 튜토리얼 진행기 (수련장 씬, Tools/Setup/Tutorial Scene이 배치)
-// 수련터(구역)마다 단계를 차례로 깨면 그 수련터의 출구 결계가 열림. 완료 판정은 플레이어 컴포넌트 이벤트로만 확인
-// 단계 문구·순서·횟수는 인스펙터 Steps에서 수정
+// 한 구역 수련장 진행기 (Tools/Setup/Tutorial Scene이 배치)
+// 수련장 하나에서 단계를 차례로 배움. 단계마다 필요한 상대 무리(lineup)만 꺼내 놓고 나머지는 숨김
+// 모든 단계를 끝내면 북쪽 출구 결계가 열림. 완료 판정은 플레이어 컴포넌트 이벤트로만 확인
+// 단계 문구·순서·횟수·상대 무리는 인스펙터 Lessons에서 수정
 public class TutorialDirector : MonoBehaviour
 {
     [Serializable]
-    public class Station
+    public class Lesson
     {
-        public string name;
-        public Transform center;
-        public float radius = 13f;
-        public GameObject exitBarrier;
-    }
-
-    [Serializable]
-    public class Step
-    {
-        public int station;
+        public int chapter;      // chapters 번호 (안내 패널 머리말)
+        public int lineup = -1;  // lineups 번호, -1이면 상대 없음
         public TutorialGoal goal;
         public int count = 1;
         public string title;
@@ -48,12 +41,15 @@ public class TutorialDirector : MonoBehaviour
         public bool skippable;   // skipAfter초가 지나면 건너뛰기 안내
     }
 
-    [SerializeField] List<Station> stations = new List<Station>();
-    [SerializeField] List<Step> steps = DefaultSteps();
+    [SerializeField] Transform center;
+    [SerializeField] float centerRadius = 4f;     // 이 안으로 들어오면 가운데 도착
+    [SerializeField] GameObject exitBarrier;
+    [SerializeField] List<GameObject> lineups = new List<GameObject>();
+    [SerializeField] string[] chapters = { "기본기", "방어", "벽력일섬", "각성", "성장" };
+    [SerializeField] List<Lesson> lessons = DefaultLessons();
     [SerializeField] Font titleFont;
     [SerializeField] Font bodyFont;
     [SerializeField] float comboGap = 1.2f;       // 이 시간 안에 이어 눌러야 콤보로 셈
-    [SerializeField] float reachRatio = 0.6f;     // 수련터 반경의 이 비율 안으로 들어오면 도착
     [SerializeField] float skipAfter = 30f;       // 어려운 단계에서 건너뛰기 안내까지 (실제 시간)
     [SerializeField] float stepDelay = 0.9f;      // 완료 표시 뒤 다음 단계까지 (실제 시간)
     [SerializeField] Key skipKey = Key.Enter;
@@ -84,8 +80,9 @@ public class TutorialDirector : MonoBehaviour
     float lastAttackTime = -99f;
     int stanceCuts;
     int unlockedAtStart;
+    int activeLineup = -2; // 처음엔 무엇도 아님 → 첫 단계에서 반드시 정리
 
-    Step Current => index >= 0 && index < steps.Count ? steps[index] : null;
+    Lesson Current => index >= 0 && index < lessons.Count ? lessons[index] : null;
 
     void Awake() => Instance = this;
 
@@ -113,8 +110,7 @@ public class TutorialDirector : MonoBehaviour
         if (execution != null) execution.Executed += OnExecuted;
         SkillTree.Changed += OnSkillTreeChanged;
 
-        foreach (Station s in stations)
-            if (s.exitBarrier != null) s.exitBarrier.SetActive(true);
+        if (exitBarrier != null) exitBarrier.SetActive(true);
 
         guide = TutorialGuide.Create(transform, titleFont, bodyFont);
         NextStep();
@@ -136,7 +132,7 @@ public class TutorialDirector : MonoBehaviour
 
     void Update()
     {
-        Step step = Current;
+        Lesson step = Current;
         if (Finished || step == null) return;
 
         // 화톳불은 스킬트리가 게임을 멈추므로 일시정지 확인보다 먼저
@@ -147,11 +143,11 @@ public class TutorialDirector : MonoBehaviour
         if (doneTimer >= 0f)
         {
             doneTimer -= dt;
-            if (doneTimer < 0f) CompleteStep();
+            if (doneTimer < 0f) NextStep();
             return;
         }
 
-        if (step.goal == TutorialGoal.ReachStation && Reached(step.station)) Add(TutorialGoal.ReachStation);
+        if (step.goal == TutorialGoal.ReachCenter && ReachedCenter()) Add(TutorialGoal.ReachCenter);
 
         if (step.fillGauge && thunder != null && skill != null && !skill.IsActive && thunder.Gauge < thunder.MaxGauge)
             thunder.Add(thunder.MaxGauge - thunder.Gauge);
@@ -168,30 +164,63 @@ public class TutorialDirector : MonoBehaviour
     // ===== 진행 =====
     void NextStep()
     {
+        doneTimer = -1f;
+        int previousChapter = Current != null ? Current.chapter : -1;
+        TutorialGoal previousGoal = Current != null ? Current.goal : TutorialGoal.ReachCenter; // [변경]
         index++;
         progress = 0;
         stepTimer = 0f;
         lightStreak = 0;
         stanceCuts = 0;
 
-        Step step = Current;
+        Lesson step = Current;
         if (step == null)
         {
             Finish();
             return;
         }
-        if (step.goal == TutorialGoal.UnlockSkill) unlockedAtStart = CountUnlocked();
+        // [변경] 해금 수는 화톳불 단계부터 셈 → 스킬트리를 열자마자 해금해도 다음 해금 단계에서 인정
+        if (step.goal == TutorialGoal.ShrineRest || (step.goal == TutorialGoal.UnlockSkill && previousGoal != TutorialGoal.ShrineRest))
+            unlockedAtStart = CountUnlocked();
+        SetLineup(step.lineup);
+        if (step.chapter != previousChapter && index > 0) guide.ShowBanner(ChapterName(step.chapter));
 
-        int first = steps.FindIndex(s => s.station == step.station);
-        int total = steps.FindAll(s => s.station == step.station).Count;
-        guide.ShowStep(StationLabel(step.station), index - first + 1, total, step.title, step.description, step.keys, step.count);
+        int first = lessons.FindIndex(s => s.chapter == step.chapter);
+        int total = lessons.FindAll(s => s.chapter == step.chapter).Count;
+        guide.ShowStep(ChapterLabel(step.chapter), index - first + 1, total, step.title, step.description, step.keys, step.count);
+
+        if (step.goal == TutorialGoal.UnlockSkill) // [변경] 이미 해금했으면 바로 완료, 포인트가 없으면 막히지 않게 완료
+        {
+            OnSkillTreeChanged();
+            if (doneTimer < 0f && SkillTree.Active && SkillTree.Points <= 0) MarkDone();
+        }
+    }
+
+    // 핵심: 이번 단계에 필요한 상대 무리만 켬. 새로 나타나는 상대는 낙뢰와 함께 등장(ZoneFx)
+    void SetLineup(int lineup)
+    {
+        if (lineup == activeLineup) return;
+        activeLineup = lineup;
+        if (lockOn != null) lockOn.Release(); // 숨겨지는 상대에 락온이 남지 않게
+
+        for (int i = 0; i < lineups.Count; i++)
+        {
+            GameObject group = lineups[i];
+            if (group == null) continue;
+            bool show = i == lineup;
+            if (group.activeSelf == show) continue;
+            group.SetActive(show);
+            if (!show) continue;
+            foreach (EnemySwordsman e in group.GetComponentsInChildren<EnemySwordsman>())
+                ZoneArena.NotifyEnemySpawned(e.transform.position);
+        }
     }
 
     void Add(TutorialGoal goal) => SetProgress(goal, progress + 1);
 
     void SetProgress(TutorialGoal goal, int value)
     {
-        Step step = Current;
+        Lesson step = Current;
         if (step == null || step.goal != goal || doneTimer >= 0f || value <= progress) return;
         progress = Mathf.Min(value, step.count);
         guide.SetProgress(progress, step.count);
@@ -203,60 +232,42 @@ public class TutorialDirector : MonoBehaviour
         if (doneTimer >= 0f) return;
         doneTimer = stepDelay;
         guide.ShowDone();
-        if (Current.goal == TutorialGoal.ReachStation) guide.ShowBanner(StationLabel(Current.station));
-    }
-
-    // 핵심: 단계를 끝낼 때 다음 단계가 다른 수련터면 지금 수련터의 출구 결계를 엶
-    void CompleteStep()
-    {
-        doneTimer = -1f;
-        Step step = Current;
-        Step next = index + 1 < steps.Count ? steps[index + 1] : null;
-        if (next == null || next.station != step.station) OpenBarrier(step.station);
-        NextStep();
     }
 
     void Finish()
     {
         Finished = true;
-        foreach (Station s in stations)
-            if (s.exitBarrier != null) s.exitBarrier.SetActive(false);
+        SetLineup(-1);
+        if (exitBarrier != null) exitBarrier.SetActive(false);
         PlayerPrefs.SetInt(DoneKey, 1);
-        guide.ShowFinish("수련 완료", "출구 결계가 열렸습니다. 북쪽 길 끝에서 산문으로 이어집니다."); // [변경]
+        guide.ShowFinish("수련 완료", "북쪽 결계가 열렸습니다. 길을 따라 나가면 산문으로 이어집니다.");
     }
 
     // ESC 메뉴 "SKIP TUTORIAL"
     public void SkipAll()
     {
         if (Finished) return;
-        index = steps.Count;
+        index = lessons.Count;
         doneTimer = -1f;
         Finish();
     }
 
-    void OpenBarrier(int station)
+    bool ReachedCenter()
     {
-        if (station < 0 || station >= stations.Count) return;
-        GameObject barrier = stations[station].exitBarrier;
-        if (barrier != null && barrier.activeSelf)
-        {
-            barrier.SetActive(false);
-            guide.ShowBanner("결계가 열렸습니다");
-        }
-    }
-
-    bool Reached(int station)
-    {
-        if (player == null || station < 0 || station >= stations.Count || stations[station].center == null) return false;
-        Vector3 d = player.position - stations[station].center.position;
+        if (player == null || center == null) return false;
+        Vector3 d = player.position - center.position;
         d.y = 0f;
-        float r = stations[station].radius * reachRatio;
-        return d.sqrMagnitude <= r * r;
+        return d.sqrMagnitude <= centerRadius * centerRadius;
     }
 
-    string StationLabel(int station) =>
-        station >= 0 && station < stations.Count && !string.IsNullOrEmpty(stations[station].name)
-            ? $"수련 {station + 1} · {stations[station].name}" : $"수련 {station + 1}";
+    string ChapterName(int chapter) =>
+        chapters != null && chapter >= 0 && chapter < chapters.Length ? chapters[chapter] : "";
+
+    string ChapterLabel(int chapter)
+    {
+        string name = ChapterName(chapter);
+        return string.IsNullOrEmpty(name) ? "수련장" : $"수련장 · {name}";
+    }
 
     static int CountUnlocked()
     {
@@ -305,30 +316,29 @@ public class TutorialDirector : MonoBehaviour
     }
 
     // ===== 기본 단계 =====
-    public static List<Step> DefaultSteps() => new List<Step>
+    // 상대 무리 번호: 0 허수아비 2 · 1 수련 상대 · 2 허수아비 4 (셋업이 만드는 순서)
+    public static List<Lesson> DefaultLessons() => new List<Lesson>
     {
-        S(0, TutorialGoal.ReachStation, 1, "수련터로", "길을 따라 앞의 수련터 가운데로 가세요.", "WASD 이동 · Shift 홀드 달리기"),
-        S(0, TutorialGoal.LightCombo, 3, "연속 베기", "좌클릭을 이어 눌러 3연속으로 베세요.", "좌클릭"),
-        S(0, TutorialGoal.HeavyInCombo, 1, "강공격 섞기", "좌클릭 콤보 중에 우클릭을 섞으면 다른 갈래로 이어집니다.", "좌클릭 → 우클릭"),
+        L(0, 0, TutorialGoal.ReachCenter, 1, "수련장으로", "수련장 가운데로 걸어가세요.", "WASD 이동 · Shift 홀드 달리기"),
+        L(0, 0, TutorialGoal.LightCombo, 3, "연속 베기", "허수아비를 좌클릭으로 3연속 베세요.", "좌클릭"),
+        L(0, 0, TutorialGoal.HeavyInCombo, 1, "강공격 섞기", "좌클릭 콤보 중에 우클릭을 섞으면 다른 갈래로 이어집니다.", "좌클릭 → 우클릭"),
+        L(0, 0, TutorialGoal.Dodge, 2, "회피", "Shift를 짧게 눌러 원하는 방향으로 구르세요.", "Shift"),
+        L(0, 0, TutorialGoal.LockOn, 1, "락온", "허수아비를 시야에 두고 고정하세요. 다시 누르면 풀립니다.", "Tab / 휠 클릭"),
 
-        S(1, TutorialGoal.ReachStation, 1, "다음 수련터로", "결계가 열렸습니다. 다음 수련터로 가세요.", "WASD 이동"),
-        S(1, TutorialGoal.Dodge, 2, "회피", "Shift를 짧게 눌러 공격을 피하세요.", "Shift"),
-        S(1, TutorialGoal.JustDodge, 1, "저스트 회피", "공격이 닿기 직전에 회피하면 시간이 느려지고 뇌기 1칸을 얻습니다.", "Shift (타이밍)", skippable: true),
-        S(1, TutorialGoal.Parry, 1, "패링", "가만히 선 채로 적의 칼이 닿기 직전에 우클릭. 뇌기 1칸을 씁니다.", "우클릭 (대기 중)", fillGauge: true, skippable: true),
-        S(1, TutorialGoal.Kanpa, 1, "간파", "콤보 중 적이 공격하면 우클릭 강공격으로 맞받아치세요.", "좌클릭 콤보 → 우클릭", skippable: true),
+        L(1, 1, TutorialGoal.JustDodge, 1, "저스트 회피", "수련 상대가 나왔습니다. 공격이 닿기 직전에 회피하면 시간이 느려지고 뇌기 1칸을 얻습니다.", "Shift (타이밍)", skippable: true),
+        L(1, 1, TutorialGoal.Parry, 1, "패링", "가만히 선 채로 적의 칼이 닿기 직전에 우클릭. 뇌기 1칸을 씁니다.", "우클릭 (대기 중)", fillGauge: true, skippable: true),
+        L(1, 1, TutorialGoal.Kanpa, 1, "간파", "콤보 중 적이 공격하면 우클릭 강공격으로 맞받아치세요.", "좌클릭 콤보 → 우클릭", skippable: true),
+        L(1, 1, TutorialGoal.Execute, 1, "처형", "패링으로 적을 무너뜨린 뒤 가까이에서 F.", "우클릭 패링 → F", fillGauge: true, skippable: true),
 
-        S(2, TutorialGoal.ReachStation, 1, "다음 수련터로", "다음 수련터로 가세요. 모은 뇌기로 벽력일섬을 씁니다.", "WASD 이동"),
-        S(2, TutorialGoal.TapStrike, 1, "벽력일섬", "Q를 짧게 누르면 가까운 적에게 번개처럼 돌진해 벱니다. 뇌기 1칸.", "Q 탭", fillGauge: true),
-        S(2, TutorialGoal.StanceDraw, 3, "발도 자세", "Q를 길게 누른 채 화면 가운데 조준점을 적에게 올려 표식 3개. 떼면 차례로 벱니다.", "Q 홀드 → 조준 → 떼기", fillGauge: true),
+        L(2, 2, TutorialGoal.TapStrike, 1, "벽력일섬", "Q를 짧게 누르면 가까운 적에게 번개처럼 돌진해 벱니다. 뇌기 1칸.", "Q 탭", fillGauge: true),
+        L(2, 2, TutorialGoal.StanceDraw, 3, "발도 자세", "Q를 길게 누른 채 화면 가운데 조준점을 적에게 올려 표식 3개. 떼면 차례로 벱니다.", "Q 홀드 → 조준 → 떼기", fillGauge: true),
 
-        S(3, TutorialGoal.ReachStation, 1, "마지막 수련터로", "마지막 수련터로 가세요.", "WASD 이동"),
-        S(3, TutorialGoal.EnchantStrike, 3, "뇌검 각성", "뇌기 2칸 이상에서 R. 각성 중엔 평타마다 낙뢰가 떨어집니다.", "R → 좌클릭", fillGauge: true),
-        S(3, TutorialGoal.LockOn, 1, "락온", "적을 시야에 두고 고정하세요.", "Tab / 휠 클릭"),
-        S(3, TutorialGoal.Execute, 1, "처형", "패링으로 적을 무너뜨린 뒤 가까이에서 F.", "우클릭 패링 → F", fillGauge: true, skippable: true),
-        S(3, TutorialGoal.ShrineRest, 1, "화톳불", "화톳불 앞에서 E. 체력이 회복되고 스킬트리가 열립니다.", "E"),
-        S(3, TutorialGoal.UnlockSkill, 1, "스킬 해금", "스킬 포인트로 기술을 하나 해금하세요. 노드를 고르면 미리보기 영상이 나옵니다.", "클릭 → 해금"),
+        L(3, 2, TutorialGoal.EnchantStrike, 3, "뇌검 각성", "뇌기 2칸 이상에서 R. 각성 중엔 평타마다 낙뢰가 떨어집니다.", "R → 좌클릭", fillGauge: true),
+
+        L(4, -1, TutorialGoal.ShrineRest, 1, "화톳불", "수련장 가장자리의 화톳불 앞에서 E. 체력이 회복되고 스킬트리가 열립니다.", "E"),
+        L(4, -1, TutorialGoal.UnlockSkill, 1, "스킬 해금", "스킬 포인트로 기술을 하나 해금하세요. 노드를 고르면 미리보기 영상이 나옵니다.", "클릭 → 해금"),
     };
 
-    static Step S(int station, TutorialGoal goal, int count, string title, string description, string keys, bool fillGauge = false, bool skippable = false) =>
-        new Step { station = station, goal = goal, count = count, title = title, description = description, keys = keys, fillGauge = fillGauge, skippable = skippable };
+    static Lesson L(int chapter, int lineup, TutorialGoal goal, int count, string title, string description, string keys, bool fillGauge = false, bool skippable = false) =>
+        new Lesson { chapter = chapter, lineup = lineup, goal = goal, count = count, title = title, description = description, keys = keys, fillGauge = fillGauge, skippable = skippable };
 }

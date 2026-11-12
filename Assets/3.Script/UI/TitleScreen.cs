@@ -4,8 +4,8 @@ using UnityEngine.UI;
 using UnityEngine.Video;
 
 // 타이틀 화면: 뒤에는 기술 미리보기 영상을 돌려 틀고, 왼쪽에 로고 + 메뉴
-//  - NEW GAME: 수련을 끝낸 적이 없으면 수련장, 있으면 본편(산문)
-//  - TRAINING: 수련을 끝낸 뒤에만 보임 (수련장 다시 하기)
+//  - NEW GAME: 수련을 끝낸 적이 없으면 수련장, 있으면 "수련장부터 / 바로 산문" 선택 // [변경]
+//  - TRAINING: 자유 연습장 (스킬 전부 해금 · 뇌기 무한). 씬이 빌드에 있으면 항상 보임 // [변경]
 //  - SETTINGS: 같은 씬의 SettingsMenu(inGame 꺼짐)를 열고, 닫히면 메뉴로 돌아옴
 // UI는 실행할 때 코드로 만듦. 씬·연결은 Tools/Setup/Title Scene
 public class TitleScreen : MonoBehaviour
@@ -19,6 +19,7 @@ public class TitleScreen : MonoBehaviour
     [SerializeField] AudioClip bgm;
     [SerializeField] string tutorialScene = "Tutorial";
     [SerializeField] string mainScene = "SampleScene";
+    [SerializeField] string trainingScene = "Training"; // [변경] 자유 연습장
     [SerializeField] Color accent = new Color(0.95f, 0.8f, 0.45f);
     [SerializeField] Color bolt = new Color(0.62f, 0.82f, 1f);
     [SerializeField, Range(0f, 1f)] float videoDim = 0.45f;
@@ -28,6 +29,7 @@ public class TitleScreen : MonoBehaviour
 
     CanvasGroup group;
     GameObject menu;
+    GameObject startChoice; // [변경] 수련을 끝낸 뒤 NEW GAME 선택
     Text logo, logoGlow;
     Image flash;
     VideoPlayer video;
@@ -50,7 +52,7 @@ public class TitleScreen : MonoBehaviour
         Build();
         StartVideo();
         StartMusic();
-        if (settings != null) settings.Closed += () => menu.SetActive(true);
+        if (settings != null) settings.Closed += ShowMenu;
         flashTimer = 1.2f; // 화면이 밝아진 직후 첫 번개
         StartCoroutine(FadeIn());
     }
@@ -110,10 +112,23 @@ public class TitleScreen : MonoBehaviour
         menu.transform.SetParent(c, false);
         UIKit.Stretch((RectTransform)menu.transform);
         float y = 580f;
-        AddButton("NEW GAME", ref y, NewGame);
-        if (TutorialDirector.CompletedBefore) AddButton("TRAINING", ref y, () => Go(tutorialScene));
-        AddButton("SETTINGS", ref y, OpenSettings);
-        AddButton("QUIT", ref y, Quit);
+        AddButton(menu.transform, "NEW GAME", ref y, NewGame);
+        if (Application.CanStreamedLevelBeLoaded(trainingScene)) AddButton(menu.transform, "TRAINING", ref y, () => Go(trainingScene)); // [변경]
+        AddButton(menu.transform, "SETTINGS", ref y, OpenSettings);
+        AddButton(menu.transform, "QUIT", ref y, Quit);
+
+        // [변경] 시작 위치 선택 (메뉴와 같은 자리에 바꿔 보여 줌)
+        startChoice = new GameObject("StartChoice", typeof(RectTransform));
+        startChoice.transform.SetParent(c, false);
+        UIKit.Stretch((RectTransform)startChoice.transform);
+        Text ask = UIKit.Text(startChoice.transform, "어디서 시작할까요?", bodyFont, 24, accent, TextAnchor.MiddleLeft);
+        UIKit.Place(ask.rectTransform, 172f, 540f, 500f, 32f);
+        y = 600f;
+        AddButton(startChoice.transform, "수련장부터", ref y, () => Go(tutorialScene));
+        AddButton(startChoice.transform, "바로 산문으로", ref y, () => Go(mainScene));
+        y += 20f;
+        AddButton(startChoice.transform, "BACK", ref y, ShowMenu);
+        startChoice.SetActive(false);
 
         Text version = UIKit.Text(c, "Portfolio Build · " + Application.version, bodyFont, 18, new Color(1f, 1f, 1f, 0.35f), TextAnchor.MiddleRight);
         version.rectTransform.anchorMin = version.rectTransform.anchorMax = new Vector2(1f, 0f);
@@ -122,9 +137,9 @@ public class TitleScreen : MonoBehaviour
         version.rectTransform.sizeDelta = new Vector2(600f, 30f);
     }
 
-    void AddButton(string label, ref float y, System.Action onClick)
+    void AddButton(Transform parent, string label, ref float y, System.Action onClick)
     {
-        Text t = UIKit.Text(menu.transform, label, titleFont, 36, Dim, TextAnchor.MiddleLeft);
+        Text t = UIKit.Text(parent, label, titleFont, 36, Dim, TextAnchor.MiddleLeft);
         UIKit.Place(t.rectTransform, 170f, y, 360f, 56f);
         t.color = Color.white; // Button 색 배합이 곱해지므로 원본은 흰색
         UIKit.TextButton(t, Dim, accent, onClick);
@@ -132,13 +147,30 @@ public class TitleScreen : MonoBehaviour
     }
 
     // ===== 메뉴 =====
-    void NewGame() => Go(TutorialDirector.CompletedBefore ? mainScene : tutorialScene);
+    void NewGame()
+    {
+        if (!TutorialDirector.CompletedBefore)
+        {
+            Go(tutorialScene);
+            return;
+        }
+        menu.SetActive(false); // [변경] 수련을 끝낸 적이 있으면 시작 위치를 고름
+        startChoice.SetActive(true);
+    }
+
+    void ShowMenu()
+    {
+        if (leaving) return;
+        startChoice.SetActive(false);
+        menu.SetActive(true);
+    }
 
     void Go(string scene)
     {
         if (leaving) return;
         leaving = true;
         menu.SetActive(false);
+        startChoice.SetActive(false);
         StartCoroutine(FadeMusic());
         SceneTransition.Load(scene, false); // 새로 시작 → 이전 판의 스킬·레벨을 이어받지 않음
     }

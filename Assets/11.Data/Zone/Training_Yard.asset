@@ -1,0 +1,124 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 45ecd96f2a8443049bb740f73cbcd293, type: 3}
+  m_Name: Training_Yard
+  m_EditorClassIdentifier: Assembly-CSharp::ZoneTheme
+  zoneName: Training_Arena
+  seed: 109
+  origin: {x: 0, y: 0, z: 0}
+  displayNumber: "\uC218\uB828"
+  displayName: "\uC5F0\uC2B5\uC7A5"
+  combatRadius: 15
+  wallRadius: 19
+  gateHalfWidth: 3.5
+  terrainSize: 110
+  hillHeight: 8
+  hillNoise: 4
+  hillWidth: 18
+  groundLayer: {fileID: 8574412962073106934, guid: 5ae6a6247d9fd7145bd438b27f9badc2, type: 2}
+  arenaLayer: {fileID: 8574412962073106934, guid: b54d2076d64cc084c81eb5829c6c81f6, type: 2}
+  roadLayer: {fileID: 8574412962073106934, guid: 82a167d3820573d4995700bfcf9b3d08, type: 2}
+  wallRocks:
+  - {fileID: 8929002069413036059, guid: 3c93b2ebe78e2fa48b763dff787aaeef, type: 3}
+  - {fileID: 3977365282198030536, guid: 98bd1645b1b8d7a4d93c120852cde4a8, type: 3}
+  - {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+  - {fileID: 6503860231370189630, guid: dfba2029821729e49af979214c5837ba, type: 3}
+  - {fileID: 5279046732762050657, guid: 10f7890dcc972314eab7ccfcf445c176, type: 3}
+  - {fileID: 157542235833461988, guid: 3efef0c3914bf95429aeb0141ca3a994, type: 3}
+  wallRockSize: {x: 4.5, y: 7}
+  wallRockSpacing: 0.65
+  innerRocks:
+  - {fileID: 1151587133200583922, guid: 27cf8fcce199b284291e36c407c78ca1, type: 3}
+  - {fileID: 7018119237136094062, guid: c50c2430bda2db5498adb34b279a4c01, type: 3}
+  - {fileID: 8772648035309327700, guid: c8b1da0fbab714f47847c30e2149442d, type: 3}
+  - {fileID: 3537088891441082940, guid: e231d7402b790274eb6c0bfbca2323fa, type: 3}
+  - {fileID: 8292296469400219455, guid: 1c06eb4e970a3ed43872bf78aae3379f, type: 3}
+  - {fileID: 3799213099928599575, guid: a81763150bed0ad459b6743638ad5be4, type: 3}
+  - {fileID: 744361515233928351, guid: ef026dd1709640842b399870075f1474, type: 3}
+  - {fileID: 3937052456545036716, guid: 0e3de1693bf3e3a4c81779bb12633908, type: 3}
+  - {fileID: 4030430141933448729, guid: c27ead8d057c46847adb147c2e1ff641, type: 3}
+  - {fileID: 6450864058120680867, guid: 8d791b47a0bfcbe4f9a45c9867fbca4d, type: 3}
+  - {fileID: 3572727950408872325, guid: 4ba060a5d7981e541ba81f2dd0e96bbb, type: 3}
+  - {fileID: 7734347712533311796, guid: 515124c2b678a624aab273df36fc040a, type: 3}
+  innerRockCount: 4
+  innerRockSize: {x: 0.8, y: 2}
+  trees:
+  - {fileID: 6067280026813596915, guid: 1cd09309530feb143967ad3180111df6, type: 3}
+  - {fileID: 3938710808092914512, guid: 5a737e5ee9ca0484b8bef54031e54d93, type: 3}
+  - {fileID: 6973840214918618459, guid: 6986399ce66da2b4ebe0232907c3ec0f, type: 3}
+  - {fileID: 5418327343668963269, guid: af3cf114ff623a14b856ee8d9e4c82bf, type: 3}
+  - {fileID: 6185145031201378763, guid: 7ec90c130978cb0448abaebe49ec68e2, type: 3}
+  - {fileID: 7255583756726888991, guid: ae163bb9722672d4ea95c83c4d6969e0, type: 3}
+  - {fileID: 3833320481044184942, guid: e2134766e39d81b4580d74af29939b5f, type: 3}
+  - {fileID: 338035425019151435, guid: 52cb6367818626e44b03ad05c20d02c9, type: 3}
+  - {fileID: 5554654892693218074, guid: a65af9fc723f1c446b7d0cb304b6913c, type: 3}
+  - {fileID: 4409011527548446025, guid: 8a1c999f426d2ee4e997ff8423f582d5, type: 3}
+  - {fileID: 7002549689221101763, guid: 7577a25d9a85fea46a8abd68ee59d759, type: 3}
+  - {fileID: 5964708334713958339, guid: 66465085e359a2641bd98e14260760f9, type: 3}
+  - {fileID: 2793364243118454616, guid: cf5310e6915870948aadb598976434a3, type: 3}
+  - {fileID: 440435098590616438, guid: 9c96537e86f509441895f23eebd49598, type: 3}
+  - {fileID: 7398156219902849625, guid: 3af91f2e83bdad0438b53b72c0bda3be, type: 3}
+  - {fileID: 7764212116853643533, guid: d2d5bfbbdbac9214397fef89eb7ee853, type: 3}
+  treeHeight: {x: 8, y: 13}
+  treeMinDistance: 4.5
+  treeMaxCount: 140
+  arenaCover:
+  - {fileID: 8826354705480561022, guid: 2fd98d6864e84db40a330531d4976123, type: 3}
+  - {fileID: 8826354705480561022, guid: 31695ec91881c594ea4a93e4c7717d56, type: 3}
+  - {fileID: 8826354705480561022, guid: 11a8891e8a0172a42859fb2c9cb4aae8, type: 3}
+  - {fileID: 8826354705480561022, guid: 268f5c8d84e285f49ae0e85bdce5cbd0, type: 3}
+  - {fileID: 8826354705480561022, guid: 3628f02c0f1792349af9cf27ebd68154, type: 3}
+  - {fileID: 8218204736594959539, guid: 8f5c6f6a700c6e045a97b08515ebf92a, type: 3}
+  arenaCoverCount: 10
+  outerCover:
+  - {fileID: 3443626255250016760, guid: df8e5e284fd16154f8312093c6310f81, type: 3}
+  - {fileID: 2149771049449920610, guid: 595f5eca079c9334e9c248680a3348cb, type: 3}
+  - {fileID: 6490491346398155316, guid: b1a5f6a42b3361645beb9457d27f8024, type: 3}
+  - {fileID: 1844814810695567223, guid: 82736f63a00e4d34a98f82ee438181f6, type: 3}
+  - {fileID: 5522324907791894135, guid: 5672c3f15c8e9bb4c9401ca32e4143c4, type: 3}
+  - {fileID: 1677196605531816420, guid: 37472b06bc6cd0149a9d60eb1c474fad, type: 3}
+  - {fileID: 7295565647549083207, guid: afb4147c0a55e0e458c75b164cd01418, type: 3}
+  - {fileID: 6510808458649195636, guid: b7ce2ec5e9528c74d8319e333d4c71c1, type: 3}
+  - {fileID: 8826354705480561022, guid: 2fd98d6864e84db40a330531d4976123, type: 3}
+  - {fileID: 8826354705480561022, guid: 31695ec91881c594ea4a93e4c7717d56, type: 3}
+  - {fileID: 8826354705480561022, guid: 11a8891e8a0172a42859fb2c9cb4aae8, type: 3}
+  - {fileID: 8826354705480561022, guid: 268f5c8d84e285f49ae0e85bdce5cbd0, type: 3}
+  - {fileID: 8826354705480561022, guid: 3628f02c0f1792349af9cf27ebd68154, type: 3}
+  - {fileID: 8218204736594959539, guid: 8f5c6f6a700c6e045a97b08515ebf92a, type: 3}
+  - {fileID: 2273648519474141946, guid: b1646f1307b0cfd4fb02d2076d1a2a5a, type: 3}
+  - {fileID: 7286849079600807180, guid: 71b9031b0ddd957409e8afd6ab919208, type: 3}
+  - {fileID: 4463133194295395892, guid: e769abb834733e84eaa63a53112e20fd, type: 3}
+  outerCoverCount: 60
+  landmarks:
+  - {fileID: 449156230832652900, guid: 7c407a103ea0bc545a00a4d46d0171e6, type: 3}
+  - {fileID: 392985585651537674, guid: 17d3163800da13744be233052210ba25, type: 3}
+  landmarkSize: 9
+  landmarkDistance: 6
+  pathStones:
+  - {fileID: 2184874480338919190, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
+  - {fileID: 1005171171890641205, guid: 37e175973f8fe5f4aabfc8d0ec06c835, type: 3}
+  pathStoneSize: 1.6
+  pathStoneSpacing: 2.4
+  skybox: {fileID: 2100000, guid: 42d82a4dd81f71f4bb534641cbb934f0, type: 2}
+  fog: 1
+  fogColor: {r: 0.86, g: 0.7, b: 0.58, a: 1}
+  fogDensity: 0.009
+  sunColor: {r: 1, g: 0.74, b: 0.52, a: 1}
+  sunEuler: {x: 16, y: 235, z: 0}
+  groundParticles:
+  - {fileID: 2477249971166262855, guid: 19c0fbd67cfac6e4cbd54b7e92bda8b7, type: 3}
+  groundParticleCount: 6
+  overheadParticles:
+  - {fileID: 4962160824191857000, guid: 00069e4e021cc8549ad033a52f155f09, type: 3}
+  - {fileID: 7125049284664861533, guid: c83d1f2184379be4b9e41395bd9bb051, type: 3}
+  gateColor: {r: 0.72, g: 0.12, b: 0.1, a: 1}
+  barrierColor: {r: 0.45, g: 0.75, b: 1, a: 0.35}

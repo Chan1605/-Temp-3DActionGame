@@ -56,6 +56,7 @@ public class BossHealthBar : MonoBehaviour
     {
         Transform old = root.Find("PhaseTick");
         if (old != null) Destroy(old.gameObject);
+        if (ratio <= 0f) return; // [변경] 2페이즈 없는 중간보스
         RectTransform tick = Rect("PhaseTick", root, new Vector2(0.5f, 0f), new Vector2(3f, 22f));
         tick.anchoredPosition = new Vector2(-Width * 0.5f + Width * ratio, 13f);
         var image = tick.gameObject.AddComponent<Image>();

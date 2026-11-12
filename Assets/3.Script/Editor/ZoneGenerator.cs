@@ -171,7 +171,7 @@ public static class ZoneGenerator
         }
 
         var so = new SerializedObject(arena);
-        so.FindProperty("quickRetry").boolValue = true; // [변경] 보스전은 결계 안에서 바로 재도전
+        so.FindProperty("quickRetry").boolValue = true; // 보스전은 결계 안에서 바로 재도전
         so.ApplyModifiedProperties();
         SerializedProperty waves = so.FindProperty("waves");
         if (waves.arraySize > 0) return;
@@ -334,7 +334,7 @@ public static class ZoneGenerator
         float toEdge = t.terrainSize * 0.5f - Mathf.Max(Mathf.Abs(x), Mathf.Abs(z));
         h = Mathf.Lerp(SeamHeight, h, Mathf.Clamp01(toEdge / SeamBand));
 
-        float corridor = 1f - Mathf.Clamp01((Mathf.Abs(x) - t.gateHalfWidth) / 6f);
+        float corridor = GateStrip(t, x, z, t.gateHalfWidth, 6f); // [변경] 열린 문 방향으로만 길을 냄
         return h * (1f - corridor);
     }
 
@@ -400,7 +400,7 @@ public static class ZoneGenerator
             float r = Mathf.Sqrt(x * x + z * z);
 
             float arena = 1f - Mathf.Clamp01((r - (t.combatRadius - 1f)) / 3f);
-            float road = (1f - Mathf.Clamp01((Mathf.Abs(x) - (t.gateHalfWidth - 1f)) / 2f)) * (1f - arena);
+            float road = GateStrip(t, x, z, t.gateHalfWidth - 1f, 2f) * (1f - arena); // [변경]
             float grass = Mathf.Max(0f, 1f - arena - road);
             float sum = arena + road + grass;
 
@@ -425,7 +425,7 @@ public static class ZoneGenerator
         {
             float a = (i + 0.5f) * Mathf.PI * 2f / segments;
             Vector3 pos = new Vector3(Mathf.Cos(a) * r, 3f, Mathf.Sin(a) * r);
-            if (Mathf.Abs(pos.x) < t.gateHalfWidth) continue;
+            if (InGate(t, pos, 0f)) continue; // [변경]
 
             var seg = new GameObject($"Wall_{i:00}");
             seg.transform.SetParent(wall.transform, false);
@@ -447,23 +447,47 @@ public static class ZoneGenerator
     }
 
     // 남쪽 입구, 북쪽 출구에 붉은 문 + 결계(콜라이더). 결계 열고 닫기는 ZoneArena 담당
+    // [변경] 동 · 서 문도 만들 수 있음 (Gate_East · Gate_West). 입구 = 남쪽(없으면 처음 찾은 문), 출구 = 남쪽 입구가 있을 때의 북쪽 문
     static (GameObject entrance, GameObject exit) BuildGates(ZoneTheme t, Transform parent, Terrain terrain)
     {
         Material gateMat = GetOrCreateMaterial("Zone_Gate", false, t.gateColor);
         Material barrierMat = GetOrCreateMaterial("Zone_Barrier", true, t.barrierColor);
 
-        GameObject entrance = BuildGate("Gate_Entrance", -1f, t, parent, terrain, gateMat, barrierMat);
-        GameObject exit = BuildGate("Gate_Exit", 1f, t, parent, terrain, gateMat, barrierMat);
-        return (entrance, exit);
+        GameObject south = t.gateSouth ? BuildGate("Gate_Entrance", Vector3.back, t, parent, terrain, gateMat, barrierMat) : null;
+        GameObject north = t.gateNorth ? BuildGate("Gate_Exit", Vector3.forward, t, parent, terrain, gateMat, barrierMat) : null;
+        GameObject east = t.gateEast ? BuildGate("Gate_East", Vector3.right, t, parent, terrain, gateMat, barrierMat) : null;
+        GameObject west = t.gateWest ? BuildGate("Gate_West", Vector3.left, t, parent, terrain, gateMat, barrierMat) : null;
+        if (south != null) return (south, north);
+        return (north ?? east ?? west, null);
     }
 
-    static GameObject BuildGate(string name, float side, ZoneTheme t, Transform parent, Terrain terrain, Material gateMat, Material barrierMat)
+    // [변경] 입구 방향 (부활 위치 기준): 남쪽 문이 있으면 남, 없으면 처음 찾은 문
+    static Vector3 EntranceDir(ZoneTheme t) =>
+        t.gateSouth ? Vector3.back : t.gateNorth ? Vector3.forward : t.gateEast ? Vector3.right : t.gateWest ? Vector3.left : Vector3.back;
+
+    // [변경] 핵심: 열린 문 방향의 길 띠 안이면 1 (가장자리 fade 폭만큼 부드럽게). 남북 문만 있으면 예전 계산과 같음
+    static float GateStrip(ZoneTheme t, float x, float z, float halfWidth, float fade)
+    {
+        float v = 0f;
+        float alongZ = 1f - Mathf.Clamp01((Mathf.Abs(x) - halfWidth) / fade);
+        float alongX = 1f - Mathf.Clamp01((Mathf.Abs(z) - halfWidth) / fade);
+        if (t.gateNorth && z >= 0f) v = Mathf.Max(v, alongZ);
+        if (t.gateSouth && z <= 0f) v = Mathf.Max(v, alongZ);
+        if (t.gateEast && x >= 0f) v = Mathf.Max(v, alongX);
+        if (t.gateWest && x <= 0f) v = Mathf.Max(v, alongX);
+        return v;
+    }
+
+    static bool InGate(ZoneTheme t, Vector3 pos, float margin) => GateStrip(t, pos.x, pos.z, t.gateHalfWidth + margin, 0.0001f) > 0.5f;
+
+    static GameObject BuildGate(string name, Vector3 dir, ZoneTheme t, Transform parent, Terrain terrain, Material gateMat, Material barrierMat)
     {
         var gate = new GameObject(name);
         gate.transform.SetParent(parent, false);
-        Vector3 basePos = new Vector3(0f, 0f, side * t.wallRadius);
+        Vector3 basePos = dir * t.wallRadius;
         basePos.y = GroundY(terrain, origin + basePos);
         gate.transform.localPosition = basePos;
+        gate.transform.localRotation = Quaternion.LookRotation(dir, Vector3.up); // [변경] 동서 문은 옆으로 돌림
 
         float w = t.gateHalfWidth;
         Part(gate.transform, "Pillar_L", new Vector3(-(w + 0.4f), 2.75f, 0f), new Vector3(0.5f, 5.5f, 0.5f), gateMat, true);
@@ -481,10 +505,11 @@ public static class ZoneGenerator
     {
         var point = new GameObject("RespawnPoint");
         point.transform.SetParent(parent, false);
-        Vector3 local = new Vector3(0f, 0f, -(t.wallRadius + 3f));
+        Vector3 dir = EntranceDir(t); // [변경] 입구가 동 · 서 · 북이어도 그 문 바깥
+        Vector3 local = dir * (t.wallRadius + 3f);
         local.y = GroundY(terrain, origin + local) + 0.1f;
         point.transform.localPosition = local;
-        point.transform.localRotation = Quaternion.identity;
+        point.transform.localRotation = Quaternion.LookRotation(-dir, Vector3.up);
         return point.transform;
     }
 
@@ -532,7 +557,7 @@ public static class ZoneGenerator
             Vector3 pos = new Vector3(Mathf.Cos(angle) * r, 0f, Mathf.Sin(angle) * r);
             angle += size * t.wallRockSpacing / t.wallRadius;
 
-            if (Mathf.Abs(pos.x) < t.gateHalfWidth + 1.2f) continue;
+            if (InGate(t, pos, 1.2f)) continue; // [변경]
             Spawn(Pick(t.wallRocks), parent, terrain, pos, size, false, size * 0.15f, true);
             count++;
         }
@@ -547,7 +572,7 @@ public static class ZoneGenerator
         for (int attempt = 0; attempt < t.innerRockCount * 10 && count < t.innerRockCount; attempt++)
         {
             Vector3 pos = RandomInRing(t.combatRadius + 0.5f, t.wallRadius - 1f);
-            if (Mathf.Abs(pos.x) < t.gateHalfWidth + 1f) continue;
+            if (InGate(t, pos, 1f)) continue; // [변경]
             Spawn(Pick(t.innerRocks), parent, terrain, pos, Range(t.innerRockSize), false, 0.1f, true);
             count++;
         }
@@ -568,7 +593,7 @@ public static class ZoneGenerator
             Vector3 pos = new Vector3(RangeF(-half, half), 0f, RangeF(-half, half));
             float r = new Vector2(pos.x, pos.z).magnitude;
             if (r < t.wallRadius + 2.5f) continue;
-            if (Mathf.Abs(pos.x) < t.gateHalfWidth + 2.5f) continue;
+            if (InGate(t, pos, 2.5f)) continue; // [변경]
             if (placed.Any(p => (p - pos).sqrMagnitude < minSqr)) continue;
 
             placed.Add(pos);
@@ -595,7 +620,7 @@ public static class ZoneGenerator
             for (int attempt = 0; attempt < t.outerCoverCount * 5 && count < t.arenaCoverCount + t.outerCoverCount; attempt++)
             {
                 Vector3 pos = RandomInRing(t.wallRadius + 0.5f, t.wallRadius + 10f);
-                if (Mathf.Abs(pos.x) < t.gateHalfWidth + 0.5f) continue;
+                if (InGate(t, pos, 0.5f)) continue; // [변경]
                 Spawn(Pick(t.outerCover), parent, terrain, pos, 0f, false, 0f, false);
                 count++;
             }
@@ -626,11 +651,17 @@ public static class ZoneGenerator
 
         int count = 0;
         float end = t.terrainSize * 0.5f - 6f;
-        foreach (float side in new[] { -1f, 1f })
+        var dirs = new List<Vector3>(); // [변경] 열린 문 방향마다 돌길
+        if (t.gateSouth) dirs.Add(Vector3.back);
+        if (t.gateNorth) dirs.Add(Vector3.forward);
+        if (t.gateEast) dirs.Add(Vector3.right);
+        if (t.gateWest) dirs.Add(Vector3.left);
+        foreach (Vector3 dir in dirs)
         {
+            Vector3 side = new Vector3(dir.z, 0f, -dir.x); // 길 가로 방향으로 살짝 흔듦
             for (float d = t.wallRadius + 1.5f; d < end; d += t.pathStoneSpacing)
             {
-                Vector3 pos = new Vector3(RangeF(-0.6f, 0.6f), 0f, side * d);
+                Vector3 pos = dir * d + side * RangeF(-0.6f, 0.6f);
                 Spawn(Pick(t.pathStones), parent, terrain, pos, t.pathStoneSize, false, 0.05f, false);
                 count++;
             }

@@ -61,15 +61,6 @@ MonoBehaviour:
     branch: 0
     requires: 03000000
     preview: {fileID: 32900000, guid: 2b592042bbc52b04f87c5b743a415a3f, type: 3}
-  - id: 5
-    displayName: "\uB744\uC6B0\uAE30"
-    description: "\uCF64\uBCF4 \uC911 \uC810\uD504\uB85C \uC801\uC744 \uB744\uC6CC
-      \uACF5\uC911 \uCF64\uBCF4\uB85C \uC787\uB294\uB2E4."
-    cost: 1
-    tab: 0
-    branch: 1
-    requires: 
-    preview: {fileID: 0}
   - id: 6
     displayName: "\uCC28\uC9C0 \uAC15\uD0C0 \u2162"
     description: "\uC6B0\uD074\uB9AD \uCC28\uC9C0\uAC00 3\uB2E8\uACC4\uAE4C\uC9C0

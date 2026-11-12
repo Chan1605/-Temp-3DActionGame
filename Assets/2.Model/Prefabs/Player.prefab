@@ -721,6 +721,7 @@ GameObject:
   - component: {fileID: 5394472063361926110}
   - component: {fileID: 3411027780979314902}
   - component: {fileID: 1927244825852473255}
+  - component: {fileID: 1897956553433299075}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -829,23 +830,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db0f54ab177619d48b7288400fd22770, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat
-  launcher: {fileID: 11400000, guid: fa116a623c6ab2846b9fa45da5941240, type: 2}
-  airStarter: {fileID: 11400000, guid: 33d3bc200ba286448a20fa5cd6f2184b, type: 2}
-  followLaunchHeight: 2.6
-  airGravityScale: 0.12
-  airHangLift: 0.6
-  slamMinHeight: 0.8
-  slamPop: 2
-  slamStartTime: 0.18
-  slamDiveSpeed: 26
-  slamHomingRange: 4
-  slamDamage: 28
-  slamPostureDamage: 25
-  slamRadius: 3
-  slamDiveRadius: 1.4
-  slamRecoverTime: 0.45
-  slamMoveCancel: 0.3
-  followCamera: {fileID: 0}
   lightAttackAction: {fileID: 1120369429361536294, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   lightStarter: {fileID: 11400000, guid: e48cc411e3e8c1f4da88da5c4547be0e, type: 2}
   heavyStarter: {fileID: 11400000, guid: 29867278508338c41aee8014d75f0a5f, type: 2}
@@ -894,24 +878,12 @@ MonoBehaviour:
   aimTurnSpeed: 720
   staggerOnly: 0
   tapChain: 1
-  tapChainCost: 0.5
   hideBodyWhileDashing: 1
   landPoseFade: 0.15
   obstacleMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  passFreeze: 1
-  freezeTime: 0.08
-  lastFreezeTime: 0.14
-  freezeWorldScale: 0.02
-  freezeBudget: 0.6
-  holdFreezeScale: 1
-  enchantFreezeScale: 0.7
-  dodgeFreezeScale: 0.6
-  tapFreezeScale: 0
-  releaseShake: 0.12
-  lastFreezePunch: 0.3
-  drawStance: 1
+  tapChainCost: 0.5
   stanceCost: 2
   stanceEnterTime: 0.25
   stanceDuration: 3
@@ -923,16 +895,31 @@ MonoBehaviour:
   baseMarks: 3
   enchantMaxMarks: 0
   stanceChainDelay: 0.05
-  dodgeStance: 1
   dodgeStanceWindow: 0.9
   dodgeStanceCost: 0
   dodgeAutoMarks: 3
   dodgeAutoRange: 12
   dodgeDrawDelay: 0.12
-  enchantStance: 1
   enchantStanceSeconds: 3.5
+  freezeTime: 0.08
+  lastFreezeTime: 0.14
+  freezeWorldScale: 0.02
+  freezeBudget: 0.6
+  holdFreezeScale: 1
+  enchantFreezeScale: 0.7
+  dodgeFreezeScale: 0.6
+  tapFreezeScale: 0
+  releaseShake: 0.12
+  lastFreezePunch: 0.3
+  passFreeze: 1
+  drawStance: 1
+  dodgeStance: 1
+  enchantStance: 1
   enchant: {fileID: 0}
   dodge: {fileID: 0}
+  ultimateFreezeScale: 1.2
+  ultimateBossScale: 4
+  ultimateDrawDelay: 0.15
 --- !u!114 &4005965994054678145
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1810,6 +1797,61 @@ MonoBehaviour:
   strikeExtra: 2
   strikeExtraDelay: 0.07
   strikeExtraVolume: 0.5
+--- !u!114 &1897956553433299075
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391606783692858250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b430d210c6cf8a94d9215e08b2937e0e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerUltimate
+  parryGain: 0.5
+  kanpaGain: 0.5
+  justDodgeGain: 0.4
+  executeGain: 1
+  key: 36
+  skill: {fileID: 0}
+  combat: {fileID: 0}
+  locomotion: {fileID: 0}
+  health: {fileID: 0}
+  parry: {fileID: 0}
+  kanpa: {fileID: 0}
+  dodge: {fileID: 0}
+  execution: {fileID: 0}
+  charge: {fileID: 0}
+  stats: {fileID: 0}
+  followCamera: {fileID: 0}
+  animator: {fileID: 0}
+  boltPrefab: {fileID: 1600819035976254, guid: 9bcfdd98d29605342a31a197383939a1, type: 3}
+  thunderClips:
+  - {fileID: 8300000, guid: 9f60bb410e5703649820117e5e6b8281, type: 3}
+  - {fileID: 8300000, guid: ee9c16986817942469379a7a49c4f0c2, type: 3}
+  - {fileID: 8300000, guid: 180ed55845687594f9884e0e1c07676b, type: 3}
+  slashClip: {fileID: 8300000, guid: 5b17c3846b09b1746ac7299b16735509, type: 3}
+  chargeClip: {fileID: 8300000, guid: d54f3d545c7ab5c478c1ce24cf9ed879, type: 3}
+  clashClip: {fileID: 8300000, guid: be8b6585e4f872242a2e7542c5b63204, type: 3}
+  descentRange: 16
+  descentStrikes: 5
+  descentStrikeGap: 0.2
+  heavensLength: 14
+  heavensWidth: 3
+  heavensGather: 1.3
+  heavensHold: 0.55
+  heavensDamage: 260
+  heavensPosture: 120
+  heavensBossScale: 0.5
+  stormRadius: 11
+  stormDuration: 3.2
+  stormInterval: 0.11
+  stormStrikeRadius: 2.4
+  stormDamage: 22
+  stormPosture: 18
+  stormAimChance: 0.7
+  stormFinalDamage: 45
 --- !u!1 &1515010326207606855
 GameObject:
   m_ObjectHideFlags: 0

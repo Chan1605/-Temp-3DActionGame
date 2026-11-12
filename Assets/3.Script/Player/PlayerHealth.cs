@@ -59,6 +59,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
         && (execution == null || !execution.IsActive) && Time.time - stunStartedAt >= dodgeOutAfter;
     public bool CanBeTargeted => !dead;
     public bool IsDead => dead;
+    public void SetInvulnerable(float seconds) => invulnerableTimer = Mathf.Max(0f, seconds); // [변경] 궁극기 연출 동안 (0이면 해제)
     public event System.Action<DamageInfo> Damaged; // 피격 이펙트용
     // 구독자(ZoneArena)가 있으면 사망 → 구역 입구에서 부활, 없으면 예전처럼 테스트용 체력 회복
     public event System.Action Died;
@@ -325,7 +326,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
         if (animator.HasState(0, hash)) animator.CrossFadeInFixedTime(hash, 0.08f, 0, 0f);
     }
 
-    // [변경] 수련(체력 단련): 최대 체력을 늘리고 늘어난 만큼 바로 채움
+    // 수련(체력 단련): 최대 체력을 늘리고 늘어난 만큼 바로 채움
     public void AddMaxHealth(float amount)
     {
         maxHealth += amount;

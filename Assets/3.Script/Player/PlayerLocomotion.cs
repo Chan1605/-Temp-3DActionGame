@@ -38,7 +38,7 @@ public class PlayerLocomotion : MonoBehaviour
 
     [SerializeField] float gravity = -20f;
 
-    // 점프: 이동·피하기 + 공중 콤보 시작점. 착지 시 이 속도 이상으로 달리고 있으면 착지 모션 없이 바로 로코모션
+    // 점프: 이동·피하기. 착지 시 이 속도 이상으로 달리고 있으면 착지 모션 없이 바로 로코모션
     [Header("Jump")]
     [SerializeField] float jumpHeight = 1.2f;
     [SerializeField] float airborneDelay = 0.15f;
@@ -88,21 +88,7 @@ public class PlayerLocomotion : MonoBehaviour
     public bool HasBufferedJump => Time.time - lastJumpPress <= jumpBuffer;
     public Transform StrafeTarget { get; set; } // PlayerLockOn이 지정
 
-    // 공중 콤보(PlayerCombat)용: 중력 배율(체공) · 강제 상승 · 점프 입력 가로채기(띄우기)
-    public float GravityScale { get; set; } = 1f;
-    public float VerticalVelocity => verticalVelocity;
-    public float LastJumpPressTime => lastJumpPress;
-    public void ConsumeJump() => lastJumpPress = float.NegativeInfinity;
-    public void SetVerticalVelocity(float v) => verticalVelocity = v;
-
-    public void Launch(float height)
-    {
-        lastJumpPress = float.NegativeInfinity;
-        verticalVelocity = Mathf.Sqrt(2f * height * -gravity);
-        airTime = airborneDelay; // 바로 공중으로 침
-        airAnim = true;
-    }
-
+    // [변경] 공중 콤보 삭제 → 중력 배율 · 강제 상승 · 점프 가로채기 제거
     // 공중에서 공격이 끝났을 때 낙하 모션으로 (착지는 기존 흐름)
     public void EnterFall(float fade)
     {
@@ -130,7 +116,7 @@ public class PlayerLocomotion : MonoBehaviour
 
     void Update()
     {
-        if (GamePause.IsPaused) return; // [변경] 일시정지 중엔 입력·진행을 멈춤
+        if (GamePause.IsPaused) return; // 일시정지 중엔 입력·진행을 멈춤
         // 스킬 돌진 중처럼 컨트롤러가 꺼져 있으면 이동·중력 모두 건너뜀
         if (!controller.enabled) return;
 
@@ -189,7 +175,7 @@ public class PlayerLocomotion : MonoBehaviour
         else if (!MovementLocked && !wasGrounded && HasBufferedJump && airJumpsLeft > 0 && airTime >= doubleJumpMinAirTime) DoubleJump();
 
         if (controller.isGrounded && verticalVelocity < 0f) verticalVelocity = -2f;
-        verticalVelocity += gravity * GravityScale * dt; // 공중 공격 중 체공
+        verticalVelocity += gravity * dt; // [변경] 체공 배율 제거
 
         if (MovementLocked) moveHeading = transform.forward;
         CollisionFlags flags = controller.Move((moveHeading * currentSpeed + Vector3.up * verticalVelocity) * dt); // 바라보는 방향이 아니라 이동 방향으로

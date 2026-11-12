@@ -9,7 +9,7 @@ public enum SkillId
     ChainStrike3,  // 연격 Ⅲ (4연)
     StanceMarks,   // 발도 표식 3 → 6
     EnchantDraw,   // 각성 중 Q 발도
-    Launcher,      // 띄우기 · 공중 콤보
+    Launcher,      // [변경] 삭제됨 (공중 콤보). 뒤 번호가 바뀌지 않게 자리만 남김 — 스킬트리에선 숨김
     ChargeLevel3,  // 차지 강타 3단계 (풀차지 섬격)
     KanpaSmash,    // 간파 뒤 뇌락
     DodgeDraw,     // 저스트 회피 뒤 무료 발도
@@ -31,7 +31,7 @@ public static class SkillTree
     public static event Action Changed;
 
     public static bool IsUnlocked(SkillId id) => !Active || unlocked.Contains(id);
-    public static IEnumerable<SkillId> Unlocked => unlocked; // [변경] 씬 이동 때 RunState가 저장
+    public static IEnumerable<SkillId> Unlocked => unlocked; // 씬 이동 때 RunState가 저장
 
     // 탭 Q 연격 단계 (0 = 연격 없음, 1~3)
     public static int ChainLevel =>
@@ -45,7 +45,7 @@ public static class SkillTree
         Changed?.Invoke();
     }
 
-    // [변경] 씬 이동 뒤 이어받기 (RunState)
+    // 씬 이동 뒤 이어받기 (RunState)
     public static void Restore(int points, IEnumerable<SkillId> ids)
     {
         Active = true;

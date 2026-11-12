@@ -44,7 +44,7 @@ public class ZoneArena : MonoBehaviour
     [SerializeField] float spawnRadius = 10f; // 중심에서 등장 거리 (14m → 10m, 걸어오는 공백 줄임)
     [SerializeField] float spawnHold = 0.6f;  // 등장 직후 무방비 시간
     [SerializeField] float spawnSpread = 35f;
-    // [변경] 웨이브 기본 적 수 배율 + 추가 인원 (보스 웨이브는 제외). 시련도 적용, 인원이 많으면 등장 간격을 좁혀 200° 안에
+    // 웨이브 기본 적 수 배율 + 추가 인원 (보스 웨이브는 제외). 시련도 적용, 인원이 많으면 등장 간격을 좁혀 200° 안에
     [SerializeField] float countScale = 1.5f;
     [SerializeField] int extraPerWave = 0;
     [SerializeField] float maxSpawnArc = 200f;
@@ -99,8 +99,10 @@ public class ZoneArena : MonoBehaviour
     public static event Action<ZoneArena> AnyCleared;
     // 연출용 (ZoneFx): 적 등장 위치 / 웨이브 마지막 적이 쓰러진 위치 · 구역 마지막 웨이브인지
     public static event Action<Vector3> AnyEnemySpawned;
+    public static event Action<ZoneArena, EnemySwordsman> AnyEnemyCreated; // [변경] 생성 직후(Start 전) → 던전 중간보스 배율 · 이름
     public static event Action<ZoneArena, Vector3, bool> AnyWaveCleared;
     public static ZoneArena Fighting { get; private set; } // 지금 전투 중인 구역 (없으면 null)
+    public static void NotifyEnemySpawned(Vector3 position) => AnyEnemySpawned?.Invoke(position); // 수련장 상대 등장도 같은 낙뢰 연출
 
     public string DisplayNumber => theme != null ? theme.displayNumber : "";
     public string DisplayName => theme != null && !string.IsNullOrEmpty(theme.displayName) ? theme.displayName : name;
@@ -224,7 +226,7 @@ public class ZoneArena : MonoBehaviour
     }
 
     // 플레이어 반대편 벽 쪽에 부채꼴로 세움 → 등 뒤에서 갑자기 나오지 않게
-    // [변경] 보스 웨이브는 그대로, 나머지는 배율 + 추가
+    // 보스 웨이브는 그대로, 나머지는 배율 + 추가
     int ScaledCount(Wave wave)
     {
         var enemy = wave.enemyPrefab.GetComponent<EnemySwordsman>();
@@ -246,7 +248,7 @@ public class ZoneArena : MonoBehaviour
 
         // 기본 적 사이 가운데 자리에 정예를 끼워 넣음
         var prefabs = new List<GameObject>();
-        int baseCount = ScaledCount(wave); // [변경]
+        int baseCount = ScaledCount(wave);
         for (int i = 0; i < baseCount; i++) prefabs.Add(wave.enemyPrefab);
         if (wave.elitePrefab != null && wave.elitePrefab.GetComponent<EnemySwordsman>() != null)
             for (int i = 0; i < wave.eliteCount; i++) prefabs.Insert(prefabs.Count / 2, wave.elitePrefab);
@@ -262,7 +264,7 @@ public class ZoneArena : MonoBehaviour
         }
 
         int total = prefabs.Count;
-        float step = Mathf.Min(spawnSpread, total > 1 ? maxSpawnArc / (total - 1) : spawnSpread) * Mathf.Deg2Rad; // [변경]
+        float step = Mathf.Min(spawnSpread, total > 1 ? maxSpawnArc / (total - 1) : spawnSpread) * Mathf.Deg2Rad;
         for (int i = 0; i < total; i++)
         {
             float a = baseAngle + (i - (total - 1) * 0.5f) * step;
@@ -273,6 +275,7 @@ public class ZoneArena : MonoBehaviour
             look.y = 0f;
             GameObject go = Instantiate(prefabs[i], pos, Quaternion.LookRotation(look.normalized, Vector3.up));
             var enemy = go.GetComponent<EnemySwordsman>();
+            AnyEnemyCreated?.Invoke(this, enemy); // [변경]
             enemy.DisableRespawn();
             enemy.MarkTemporary(); // 쓰러지면 가라앉아 사라짐 (미리 둔 적은 재시작 때 되살려야 하므로 제외)
             if (endless) // 웨이브 번호(0부터)만큼 배율
@@ -289,7 +292,7 @@ public class ZoneArena : MonoBehaviour
         }
 
         WaveStarted?.Invoke(waveIndex);
-        if (logState) Debug.Log($"[Zone] {name} {waveIndex}/{waves.Count} 웨이브 · 적 {total}명 (기본 {wave.count} → {baseCount})"); // [변경]
+        if (logState) Debug.Log($"[Zone] {name} {waveIndex}/{waves.Count} 웨이브 · 적 {total}명 (기본 {wave.count} → {baseCount})");
     }
 
     float GroundY(Vector3 pos)
@@ -302,6 +305,7 @@ public class ZoneArena : MonoBehaviour
     {
         state = State.Cleared;
         SetActive(exitBarrier, false);
+        if (exitBarrier == null) SetActive(entranceBarrier, false); // [변경] 출구 없는 막다른 방(던전 갈래)은 들어온 문을 다시 엶
         if (Fighting == this) Fighting = null;
         Cleared?.Invoke();
         AnyCleared?.Invoke(this);

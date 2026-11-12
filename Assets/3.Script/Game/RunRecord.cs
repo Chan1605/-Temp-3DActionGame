@@ -3,7 +3,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 // 본편 한 판의 전투 기록 + 보스 처치 시 결과 화면 띄우기
-// 구역(ZoneArena)이 있는 씬이 열리면 자동으로 생김 (수련장 · 타이틀 제외). 씬을 다시 불러오면 기록도 새로 시작
+// 구역(ZoneArena)이 있는 씬이 열리면 자동으로 생김 (수련장 · 타이틀 제외)
+// [변경] 씬을 넘어가도 유지 (본편 → 던전 → 본편이 한 판). 구역이 없는 씬(타이틀 · 연습장 · 수련장)으로 가면 기록을 버림
 public class RunRecord : MonoBehaviour
 {
     // ===== 랭크 기준 (100점 만점) =====
@@ -47,7 +48,7 @@ public class RunRecord : MonoBehaviour
     PlayerSkill skill;
     PlayerStats stats;
 
-    // [변경] 에디터에서 처음 연 씬은 sceneLoaded가 오지 않을 수 있어 첫 씬은 AfterSceneLoad에서 직접 확인, 이후 씬 전환은 sceneLoaded
+    // 에디터에서 처음 연 씬은 sceneLoaded가 오지 않을 수 있어 첫 씬은 AfterSceneLoad에서 직접 확인, 이후 씬 전환은 sceneLoaded
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Hook()
     {
@@ -58,23 +59,40 @@ public class RunRecord : MonoBehaviour
 
     static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (mode == LoadSceneMode.Single) TryCreate();
+        if (mode != LoadSceneMode.Single || scene.name == SceneTransition.LoadingScene) return;
+        if (Instance != null) // [변경] 이어지는 판이면 새 씬의 플레이어에 다시 연결, 아니면 끝
+        {
+            if (IsRunScene()) Instance.Bind();
+            else Destroy(Instance.gameObject);
+            return;
+        }
+        TryCreate();
     }
+
+    static bool IsRunScene() => TutorialDirector.Instance == null && FindAnyObjectByType<ZoneArena>() != null;
 
     static void TryCreate()
     {
-        if (Instance != null || TutorialDirector.Instance != null) return; // 이미 있음(첫 씬에서 두 경로가 겹칠 때) · 수련장
-        if (FindAnyObjectByType<ZoneArena>() == null) return;
+        if (Instance != null || !IsRunScene()) return; // 이미 있음(첫 씬에서 두 경로가 겹칠 때) · 수련장 · 구역 없는 씬
         var go = new GameObject("RunRecord");
+        DontDestroyOnLoad(go); // [변경]
         go.AddComponent<RunRecord>();
         go.AddComponent<ResultScreen>();
-        Debug.Log("[Result] 기록 시작"); // [변경] 생성 확인용
+        Debug.Log("[Result] 기록 시작"); // 생성 확인용
     }
 
     void Awake() => Instance = this;
 
     void Start()
     {
+        EnemySwordsman.AnyKilled += OnKilled;
+        Bind();
+    }
+
+    // [변경] 지금 씬의 플레이어 컴포넌트에 연결 (씬이 바뀌면 다시 호출)
+    void Bind()
+    {
+        Unbind();
         health = FindAnyObjectByType<PlayerHealth>();
         execution = FindAnyObjectByType<PlayerExecution>();
         parry = FindAnyObjectByType<PlayerParry>();
@@ -83,7 +101,6 @@ public class RunRecord : MonoBehaviour
         skill = FindAnyObjectByType<PlayerSkill>();
         stats = FindAnyObjectByType<PlayerStats>();
 
-        EnemySwordsman.AnyKilled += OnKilled;
         if (health != null) { health.Damaged += OnDamaged; health.Died += OnDied; }
         if (execution != null) execution.Executed += OnExecuted;
         if (parry != null) parry.Parried += OnParried;
@@ -96,6 +113,11 @@ public class RunRecord : MonoBehaviour
     {
         if (Instance == this) Instance = null;
         EnemySwordsman.AnyKilled -= OnKilled;
+        Unbind();
+    }
+
+    void Unbind()
+    {
         if (health != null) { health.Damaged -= OnDamaged; health.Died -= OnDied; }
         if (execution != null) execution.Executed -= OnExecuted;
         if (parry != null) parry.Parried -= OnParried;
@@ -107,7 +129,7 @@ public class RunRecord : MonoBehaviour
     // 실제 흐른 시간 (히트스톱·슬로와 무관), 일시정지 · 메뉴 중엔 멈춤
     void Update()
     {
-        if (!Completed && !GamePause.IsPaused) PlayTime += Time.unscaledDeltaTime;
+        if (!Completed && !GamePause.IsPaused && !SceneTransition.Busy) PlayTime += Time.unscaledDeltaTime; // [변경] 씬 전환 · 로딩 시간 제외
     }
 
     void OnDamaged(DamageInfo info) { if (!Completed) HitsTaken++; }

@@ -33,7 +33,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
     [SerializeField] float aimTurnSpeed = 720f; // 자세·차지 중 고정한 대상을 따라 도는 속도(도/초, 실제 시간)
     // 끄면(기본) 대상 제약 없음: 아무 적이나 겨냥·연쇄하고 보스 외에는 전부 즉사. 켜면 흐트러진 적만 즉사·연쇄 (A/B 비교용)
     [SerializeField] bool staggerOnly = false;
-    [SerializeField] bool tapChain = false; // 탭 Q는 한 명만 켜면 예전 연쇄 (연격 비용은 SkillData.tapChainCost) // [변경]
+    [SerializeField] bool tapChain = false; // 탭 Q는 한 명만 켜면 예전 연쇄 (연격 비용은 SkillData.tapChainCost)
     [SerializeField] bool hideBodyWhileDashing = true;
     [SerializeField] float landPoseFade = 0.15f; // 착지하면 돌진 모션(처형 클립)을 끊고 전투 대기 자세로
     [SerializeField] LayerMask obstacleMask = ~0;
@@ -66,6 +66,7 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
     bool timeScaleOverridden;
 
     public bool IsActive => phase != Phase.Ready;
+    public SkillData Data => data; // [변경] 궁극기가 같은 애니메이션 상태 이름을 씀
     public bool IsInvulnerable => phase == Phase.Dashing;
     public TrailRenderer DashTrail => dashTrail; // 차지 섬격도 같은 궤적을 씀
     // HUD 쿨타임 표시용 (1 = 방금 사용, 0 = 사용 가능)
@@ -430,11 +431,12 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
             float damage = !UsesGauge ? data.Damage
                 : boss ? thunder.NormalSkillDamage * (staggered ? thunder.BossStaggerDamageScale : 1f)
                 : staggered ? data.Damage : thunder.NormalSkillDamage;
+            float ult = boss && stanceEntry == StanceEntry.Ultimate ? ultimateBossScale : 1f; // [변경] 뇌신강림은 보스에게도 크게
             var info = new DamageInfo
             {
                 Attacker = gameObject,
-                Damage = damage,
-                PostureDamage = data.PostureDamage * (boss ? thunder.BossPostureScale : 1f),
+                Damage = damage * ult,
+                PostureDamage = data.PostureDamage * (boss ? thunder.BossPostureScale : 1f) * ult,
                 Parryable = false,
                 Weight = AttackWeight.Skill,
                 InstantKill = staggered && !boss && data.InstantKill,

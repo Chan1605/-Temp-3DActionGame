@@ -8,14 +8,20 @@ using UnityEngine;
 // 탭 Q(1칸)는 한 명만 벰 (tapChain) // 11/9 테스트 결과 반영
 public partial class PlayerSkill
 {
-    enum StanceEntry { None, Hold, Dodge, Enchant }
+    enum StanceEntry { None, Hold, Dodge, Enchant, Ultimate } // [변경] Ultimate = 궁극기 뇌신강림
 
-    [Header("Draw Stance")] // [변경] 수치는 SkillData(ThunderFlash.asset)로 옮김. 여기엔 켜기/끄기와 연결만
+    [Header("Draw Stance")] // 수치는 SkillData(ThunderFlash.asset)로 옮김. 여기엔 켜기/끄기와 연결만
     [SerializeField] bool drawStance = true;
     [SerializeField] bool dodgeStance = true;
     [SerializeField] bool enchantStance = true;
     [SerializeField] PlayerEnchant enchant;
     [SerializeField] PlayerDodge dodge;
+
+    // [변경] 궁극기 뇌신강림이 이 발도를 그대로 씀 (주변 전부 자동 표식 · 비용 없음)
+    [SerializeField] float ultimateFreezeScale = 1.2f; // 점찍기 정지 배율
+    [SerializeField] float ultimateBossScale = 4f;     // 보스 피해 · 체간 배율
+    [SerializeField] float ultimateDrawDelay = 0.15f;
+    float ultimateRange;
 
     readonly List<IDamageable> stanceMarks = new List<IDamageable>();
     readonly Queue<IDamageable> stanceQueue = new Queue<IDamageable>();
@@ -35,7 +41,8 @@ public partial class PlayerSkill
     public int StanceMarkCount => stanceMarks.Count;
     public int StanceMarkScale => Mathf.Max(1, Mathf.Min(StanceMaxMarks, data.MaxMarks)); // 사운드 등 "얼마나 찼나" 계산용 (제한 없음이면 data.MaxMarks 기준)
     // 각성 발도는 따로: 기본 제한 없음 → 일반 Q 차징(3명, 표식 확장 6명)과 차별
-    public int StanceMaxMarks => stanceEntry == StanceEntry.Enchant
+    public int StanceMaxMarks => stanceEntry == StanceEntry.Ultimate ? int.MaxValue // [변경]
+        : stanceEntry == StanceEntry.Enchant
         ? (data.EnchantMaxMarks > 0 ? data.EnchantMaxMarks : int.MaxValue)
         : SkillTree.IsUnlocked(SkillId.StanceMarks) ? data.MaxMarks : Mathf.Min(data.BaseMarks, data.MaxMarks);
     public Transform StanceMark(int i) => i < stanceMarks.Count && IsValidTarget(stanceMarks[i]) ? ((Component)stanceMarks[i]).transform : null;
@@ -45,7 +52,7 @@ public partial class PlayerSkill
     public float StanceReticleRadius => data.ReticleRadius;
     public bool StanceByHold => stanceEntry == StanceEntry.Hold; // 안내 문구: 떼면 발도 / Q로 발도
     public float EnchantStanceWindow => enchantWindow; // 안내 문구용
-    public bool StanceAutoDraw => stanceEntry == StanceEntry.Dodge; // 자동 발도는 조준 UI 없음
+    public bool StanceAutoDraw => stanceEntry == StanceEntry.Dodge || stanceEntry == StanceEntry.Ultimate; // 자동 발도는 조준 UI 없음
 
     void OnJustDodged() => lastJustDodgeTime = Time.unscaledTime;
 
@@ -82,6 +89,27 @@ public partial class PlayerSkill
         if (enchant != null) enchant.Paused = false;
     }
 
+    // [변경] 궁극기 뇌신강림: 반경 안 모든 적을 표식해 곧바로 발도. 표식할 적이 없으면 false (아무것도 안 함)
+    public bool BeginUltimateDraw(float range)
+    {
+        if (phase != Phase.Ready || data == null) return false;
+        if (combat != null)
+        {
+            combat.CancelAttack();
+            combat.InputLocked = true;
+        }
+        if (locomotion != null) locomotion.MovementLocked = true;
+        holdTime = 0f;
+        chargeLevel = 0;
+        dashCount = 0;
+        pendingHits.Clear();
+        ultimateRange = range;
+        EnterStance(StanceEntry.Ultimate);
+        if (stanceMarks.Count > 0) return true;
+        EndSkill();
+        return false;
+    }
+
     bool CanHoldIntoStance => drawStance && UsesGauge && thunder.CanSpend(data.StanceCost);
 
     PlayerLockOn lockOn;
@@ -114,7 +142,12 @@ public partial class PlayerSkill
             lastJustDodgeTime = -10f; // 한 번만
             ChargeLevelChanged?.Invoke(data.MaxChargeLevel); // 회피 직후는 처음부터 풀차지 연출
             if (followCamera != null) followCamera.Shake(0.12f, 0.15f);
-            AutoMarkNearest(); // 조준 대신 가까운 적부터 자동 표식
+            AutoMarkNearest(data.DodgeAutoMarks, data.DodgeAutoRange); // 조준 대신 가까운 적부터 자동 표식
+        }
+        if (entry == StanceEntry.Ultimate) // [변경] 반경 안 전부
+        {
+            ChargeLevelChanged?.Invoke(data.MaxChargeLevel);
+            AutoMarkNearest(int.MaxValue, ultimateRange);
         }
         Debug.Log($"[Skill] 발도 자세 ({entry})");
     }
@@ -124,9 +157,9 @@ public partial class PlayerSkill
         stanceTimer += dt;
 
         // 회피 직후 자동 발도: 짧은 풀차지 정지 뒤 바로 돌진 (조준·입력 없음)
-        if (stanceEntry == StanceEntry.Dodge)
+        if (stanceEntry == StanceEntry.Dodge || stanceEntry == StanceEntry.Ultimate) // [변경] 궁극기도 조준 없이 바로
         {
-            if (stanceTimer >= data.DodgeDrawDelay) ReleaseStance();
+            if (stanceTimer >= (stanceEntry == StanceEntry.Ultimate ? ultimateDrawDelay : data.DodgeDrawDelay)) ReleaseStance();
             return;
         }
 
@@ -172,13 +205,13 @@ public partial class PlayerSkill
     }
 
     // 가까운 순으로 dodgeAutoMarks명까지 표식 (적이 없으면 ReleaseStance가 비용 없이 취소)
-    void AutoMarkNearest()
+    void AutoMarkNearest(int count, float range) // [변경] 몇 명 · 어디까지를 받음 (회피 발도 · 궁극기 공용)
     {
-        int want = Mathf.Min(data.DodgeAutoMarks, StanceMaxMarks);
+        int want = Mathf.Min(count, StanceMaxMarks);
         while (stanceMarks.Count < want)
         {
             EnemySwordsman best = null;
-            float bestDist = data.DodgeAutoRange;
+            float bestDist = range;
             foreach (EnemySwordsman enemy in EnemySwordsman.Alive)
             {
                 if (enemy == null || !enemy.CanBeTargeted || stanceMarks.Contains(enemy)) continue;
@@ -246,6 +279,7 @@ public partial class PlayerSkill
         switch (stanceEntry)
         {
             case StanceEntry.Enchant:
+            case StanceEntry.Ultimate: // [변경] 궁극기는 게이지로 이미 냄
                 break; // 발도 시간 안에서는 무료 (시간은 열 때 이미 뗌)
             case StanceEntry.Dodge:
                 if (UsesGauge && data.DodgeStanceCost > 0f) thunder.TrySpend(data.DodgeStanceCost); // 기본 무료

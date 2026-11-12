@@ -38,6 +38,8 @@ public static class TitleSceneSetup
             cam.backgroundColor = Color.black;
             cam.cullingMask = 0; // 화면은 전부 UI
         }
+        Camera main = Object.FindAnyObjectByType<Camera>(); // 소리 듣는 곳 (없으면 "no audio listeners" 경고) // [변경]
+        if (main != null && main.GetComponent<AudioListener>() == null) main.gameObject.AddComponent<AudioListener>();
         if (Object.FindAnyObjectByType<EventSystem>() == null)
             new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
 

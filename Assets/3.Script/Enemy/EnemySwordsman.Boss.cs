@@ -41,10 +41,10 @@ public partial class EnemySwordsman
     int grabMotion;    // 이번 잡기의 모션 번호 (0~2)
     int grabStateHash;
     PlayerHealth grabbedPlayer;
-    BossGrabTell grabTell; // [변경] 양손 붉은 빛 예고
+    BossGrabTell grabTell; // 양손 붉은 빛 예고
     static readonly Color GrabLabelColor = new Color(1f, 0.25f, 0.18f);
 
-    // [변경] 잡기 예고 세기 (0이면 꺼짐): 예고 동안 0→1, 달려드는 동안 1
+    // 잡기 예고 세기 (0이면 꺼짐): 예고 동안 0→1, 달려드는 동안 1
     public float GrabTell01 =>
         state == State.BossGrabWindup ? Mathf.Clamp01(stateTime / Mathf.Max(data.GrabWindup, 0.01f)) :
         state == State.BossGrab && !grabConnected && stateTime <= data.GrabLungeTime + 0.1f ? 1f : 0f;
@@ -60,12 +60,20 @@ public partial class EnemySwordsman
     ThirdPersonCamera bossCamera;
 
     public bool IsBoss => data != null && data.Kind == EnemyKind.Boss;
-    public string BossName => data != null ? data.DisplayName : name;
+    public string BossName => !string.IsNullOrEmpty(bossNameOverride) ? bossNameOverride : data != null ? data.DisplayName : name; // [변경]
+    string bossNameOverride;
+
+    // [변경] 보스가 아닌 적(던전 중간보스)을 보스 체력 막대에 띄움. 행동은 그대로
+    public void ShowAsBoss(string displayName)
+    {
+        bossNameOverride = displayName;
+        ActiveBoss = this;
+    }
     public float Health01 => data != null ? Mathf.Clamp01(health / Mathf.Max(1f, data.MaxHealth * healthScale)) : 0f;
     public float Posture01 => IsBoss && data.MaxPosture > 0f ? Mathf.Clamp01(posture / data.MaxPosture) : 0f;
     public bool IsPostureBroken => postureBroken;
     public bool IsPhase2 => phase2;
-    public float Phase2Ratio => data != null ? data.Phase2Ratio : 0.5f;
+    public float Phase2Ratio => IsBoss && data != null ? data.Phase2Ratio : 0f; // [변경] 2페이즈 없는 적은 0 (눈금 없음)
 
     float BossSpeed => IsBoss && phase2 ? data.Phase2Speed : 1f;
     float CooldownScale => IsBoss && phase2 ? data.Phase2CooldownScale : 1f;
@@ -93,10 +101,10 @@ public partial class EnemySwordsman
     void OnDisable()
     {
         TokensOnDisable();
+        if (ActiveBoss == this) ActiveBoss = null; // [변경] 중간보스도 정리
         if (!IsBoss) return;
         ReleaseGrabbedPlayer();
         DestroyTelegraph();
-        if (ActiveBoss == this) ActiveBoss = null;
     }
 
     // 매 프레임: 체간 자연 회복, 붕괴 경직이 끝나면 체간 초기화
@@ -172,7 +180,7 @@ public partial class EnemySwordsman
         moveSpeed = 0f;
         grabReadyTime = localTime + data.GrabCooldown * CooldownScale;
         SetState(State.BossGrabWindup);
-        if (grabTell == null) grabTell = BossGrabTell.Create(this, animator); // [변경] 손 빛 + 머리 위 글자
+        if (grabTell == null) grabTell = BossGrabTell.Create(this, animator); // 손 빛 + 머리 위 글자
         DamageEvents.RaiseLabel(transform.position + Vector3.up * 2.4f * transform.lossyScale.y, "잡기!", GrabLabelColor);
         Log("잡기 예고");
         return true;
@@ -692,7 +700,7 @@ public partial class EnemySwordsman
         {
             case State.BossGrabWindup:
                 float k = Mathf.Clamp01(stateTime / Mathf.Max(data.GrabWindup, 0.01f));
-                color = Color.Lerp(BaseTint, grabTellColor, (0.4f + 0.6f * k) * (0.7f + 0.3f * pulse)); // [변경] 예고 첫 순간부터 붉게 (k²는 앞 절반이 거의 안 보였음)
+                color = Color.Lerp(BaseTint, grabTellColor, (0.4f + 0.6f * k) * (0.7f + 0.3f * pulse)); // 예고 첫 순간부터 붉게 (k²는 앞 절반이 거의 안 보였음)
                 return true;
             case State.BossGrab:
                 if (grabConnected) return false;

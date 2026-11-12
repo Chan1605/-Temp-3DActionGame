@@ -9,6 +9,8 @@ public class NavTarget : MonoBehaviour
     [SerializeField] Color color = new Color(1f, 0.3f, 0.25f);
 
     HUDNavigationElement element;
+
+    public Color Color { get => color; set => color = value; } // [변경] 실행 중에 만드는 목표 표식(던전)용 — 켜기 전에 정함
     EnemySwordsman enemy;
 
     void Awake()

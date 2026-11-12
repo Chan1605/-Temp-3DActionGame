@@ -10,7 +10,7 @@ using UnityEngine;
 // 수치는 SkillData(ThunderFlash.asset)의 Pass Freeze 항목
 public partial class PlayerSkill
 {
-    [Header("Pass Freeze")] // [변경] 수치는 SkillData로 옮김
+    [Header("Pass Freeze")] // 수치는 SkillData로 옮김
     [SerializeField] bool passFreeze = true;
 
     // 대상 옆을 지나는 순간 (위치, 마지막 대상인지) — 효과음·연출용
@@ -94,6 +94,7 @@ public partial class PlayerSkill
             case StanceEntry.Hold: return data.HoldFreezeScale;
             case StanceEntry.Enchant: return data.EnchantFreezeScale;
             case StanceEntry.Dodge: return data.DodgeFreezeScale;
+            case StanceEntry.Ultimate: return ultimateFreezeScale; // [변경]
             default: return data.TapFreezeScale;
         }
     }
