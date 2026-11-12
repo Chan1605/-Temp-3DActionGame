@@ -5,7 +5,8 @@ using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
 
 // 궁극기 화면 연출 (PlayerUltimate가 만들어 씀). 모든 값은 실제 시간으로 움직이고 EndAll로 한꺼번에 원래대로
-//  레터박스(위아래 검은 띠) · 기술 이름(한자 + 읽기) · 번쩍임 · 흑백/어둡게(볼륨) · 하늘 어둡게(안개) · 화면을 가르는 베기 선
+//  레터박스(위아래 검은 띠) · 기술 이름(한자 + 읽기) · 번쩍임 · 흑백/어둡게(볼륨) · 하늘 어둡게(안개)
+//  [변경] 화면 베기(Cut): 지금 화면을 그대로 찍어 두 조각으로 나눠 들고, 실처럼 가는 선이 그어진 뒤 두 조각이 선을 따라 어긋남
 public class UltimateFx : MonoBehaviour
 {
     const float BarHeight = 120f;
@@ -14,7 +15,14 @@ public class UltimateFx : MonoBehaviour
     ColorAdjustments color;
     Vignette vignette;
     RectTransform barTop, barBottom;
-    Image flash, slash;
+    Image flash;
+    // 화면 베기
+    GameObject cutRoot;
+    RectTransform cutTop, cutBottom, cutLine, cutGlow;
+    RawImage cutTopImage, cutBottomImage;
+    CanvasGroup cutGroup;
+    Texture2D cutShot;
+    RectTransform canvasRect;
     Text title, reading;
     CanvasGroup titleGroup;
     Font font;
@@ -42,6 +50,7 @@ public class UltimateFx : MonoBehaviour
     void OnDestroy()
     {
         RestoreSky();
+        if (cutShot != null) Destroy(cutShot);
         if (volume != null) Destroy(volume.gameObject);
     }
 
@@ -78,8 +87,10 @@ public class UltimateFx : MonoBehaviour
         title.transform.localScale = Vector3.one * 1.25f;
     }
 
-    // 화면을 가로지르는 흰 선이 순식간에 그어졌다가 굵어지며 사라짐
-    public void Slash(float angle) => StartCoroutine(SlashRoutine(angle));
+    // 화면 베기. onSplit: 조각이 어긋나기 시작하는 순간 (피해 · 낙뢰를 여기서)
+    // [변경] splitWhen: 이 조건이 참이 되는 순간 어긋남 (납도해서 칼이 들어가는 순간 등). hold는 최소 정지, maxHold가 지나면 무조건
+    public void Cut(float angle, float hold, System.Action onSplit, System.Func<bool> splitWhen = null, float maxHold = 1.5f) =>
+        StartCoroutine(CutRoutine(angle, hold, onSplit, splitWhen, maxHold));
 
     public void EndAll()
     {
@@ -131,29 +142,76 @@ public class UltimateFx : MonoBehaviour
         skySaved = false;
     }
 
-    IEnumerator SlashRoutine(float angle)
+    // 핵심: 프레임 끝에 화면을 찍어 위 · 아래 조각(선 기준으로 자른 마스크)에 입힘
+    //  ① 실선이 0.05초에 화면 끝까지 그어짐 → ② 잠깐 정지 → ③ 두 조각이 선을 따라 반대로 미끄러지며 살짝 벌어짐 → ④ 찍어 둔 화면이 걷히며 실제 화면
+    IEnumerator CutRoutine(float angle, float hold, System.Action onSplit, System.Func<bool> splitWhen, float maxHold)
     {
-        RectTransform r = slash.rectTransform;
-        r.localRotation = Quaternion.Euler(0f, 0f, angle);
-        // 0.08초에 화면 끝까지 그어짐
-        for (float t = 0f; t < 0.08f; t += Time.unscaledDeltaTime)
+        yield return new WaitForEndOfFrame();
+        if (cutShot != null) Destroy(cutShot);
+        cutShot = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
+        cutShot.ReadPixels(new Rect(0f, 0f, Screen.width, Screen.height), 0, 0);
+        cutShot.Apply(false);
+
+        Vector2 size = canvasRect.rect.size;
+        Quaternion rot = Quaternion.Euler(0f, 0f, angle);
+        float rad = angle * Mathf.Deg2Rad;
+        Vector2 along = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
+        Vector2 normal = new Vector2(-along.y, along.x);
+        foreach (RectTransform half in new[] { cutTop, cutBottom })
         {
-            float k = t / 0.08f;
-            r.sizeDelta = new Vector2(3000f * k, 6f);
-            slash.color = Color.white;
+            half.localRotation = rot;
+            half.anchoredPosition = Vector2.zero;
+        }
+        foreach (RawImage img in new[] { cutTopImage, cutBottomImage })
+        {
+            img.texture = cutShot;
+            img.rectTransform.sizeDelta = size;
+            img.rectTransform.localRotation = Quaternion.Inverse(rot); // 조각은 기울어도 그림은 똑바로
+        }
+        cutLine.localRotation = cutGlow.localRotation = rot;
+        cutLine.sizeDelta = new Vector2(0f, 3f);
+        cutGlow.sizeDelta = new Vector2(0f, 14f);
+        SetLineAlpha(1f);
+        cutGroup.alpha = 1f;
+        cutRoot.SetActive(true);
+
+        float length = size.magnitude * 1.2f;
+        for (float t = 0f; t < 0.05f; t += Time.unscaledDeltaTime)
+        {
+            float k = t / 0.05f;
+            cutLine.sizeDelta = new Vector2(length * k, 3f);
+            cutGlow.sizeDelta = new Vector2(length * k, 14f);
             yield return null;
         }
-        r.sizeDelta = new Vector2(3000f, 6f);
-        yield return new WaitForSecondsRealtime(0.35f);
-        // 갈라지듯 굵어지며 사라짐
-        for (float t = 0f; t < 0.35f; t += Time.unscaledDeltaTime)
+        cutLine.sizeDelta = new Vector2(length, 3f);
+        cutGlow.sizeDelta = new Vector2(length, 14f);
+        for (float t = 0f; t < maxHold; t += Time.unscaledDeltaTime) // [변경]
         {
-            float k = t / 0.35f;
-            r.sizeDelta = new Vector2(3000f, Mathf.Lerp(6f, 80f, k));
-            slash.color = new Color(1f, 1f, 1f, 1f - k);
+            if (t >= hold && (splitWhen == null || splitWhen())) break;
             yield return null;
         }
-        slash.color = new Color(1f, 1f, 1f, 0f);
+
+        if (onSplit != null) onSplit();
+        const float slide = 0.5f;
+        for (float t = 0f; t < slide; t += Time.unscaledDeltaTime)
+        {
+            float k = 1f - Mathf.Pow(1f - t / slide, 3f); // 처음에 확 어긋나고 천천히 멈춤
+            Vector2 offset = along * (54f * k) + normal * (5f * k);
+            cutTop.anchoredPosition = offset;
+            cutBottom.anchoredPosition = -offset;
+            SetLineAlpha(1f - k);
+            cutGroup.alpha = 1f - Mathf.Clamp01((t - slide * 0.55f) / (slide * 0.45f));
+            yield return null;
+        }
+        cutRoot.SetActive(false);
+        Destroy(cutShot);
+        cutShot = null;
+    }
+
+    void SetLineAlpha(float a)
+    {
+        cutLine.GetComponent<Image>().color = new Color(1f, 1f, 1f, a);
+        cutGlow.GetComponent<Image>().color = new Color(0.75f, 0.85f, 1f, 0.35f * a);
     }
 
     // ===== 만들기 =====
@@ -183,16 +241,11 @@ public class UltimateFx : MonoBehaviour
 
         Canvas canvas = UIKit.CreateCanvas(transform, "UltimateCanvas", 40); // HUD 위, 메뉴 아래
         Transform root = canvas.transform;
+        canvasRect = (RectTransform)root;
 
         flash = UIKit.Image(root, null, new Color(1f, 1f, 1f, 0f));
         flash.raycastTarget = false;
         UIKit.Stretch(flash.rectTransform);
-
-        slash = UIKit.Image(root, null, new Color(1f, 1f, 1f, 0f));
-        slash.raycastTarget = false;
-        RectTransform s = slash.rectTransform;
-        s.anchorMin = s.anchorMax = new Vector2(0.5f, 0.52f);
-        s.sizeDelta = new Vector2(0f, 6f);
 
         barTop = Bar(root, 1f);
         barBottom = Bar(root, 0f);
@@ -213,6 +266,82 @@ public class UltimateFx : MonoBehaviour
         rd.anchorMin = rd.anchorMax = new Vector2(0.5f, 0.2f);
         rd.anchoredPosition = new Vector2(0f, -80f);
         rd.sizeDelta = new Vector2(800f, 40f);
+
+        BuildCut(root);
+    }
+
+    // 화면 베기 조각: 검은 바탕 위에, 선(화면 가운데를 지나는 기울어진 직선)의 위쪽 · 아래쪽만 보이게 자르는 마스크 두 개
+    void BuildCut(Transform root)
+    {
+        cutRoot = new GameObject("Cut", typeof(RectTransform));
+        cutRoot.transform.SetParent(root, false);
+        UIKit.Stretch((RectTransform)cutRoot.transform);
+        cutGroup = cutRoot.AddComponent<CanvasGroup>();
+        cutGroup.blocksRaycasts = false;
+
+        Image back = UIKit.Image(cutRoot.transform, null, Color.black); // 벌어진 틈으로 보이는 바탕
+        back.raycastTarget = false;
+        UIKit.Stretch(back.rectTransform);
+
+        cutTop = Half("Top", 0f, out cutTopImage);
+        cutBottom = Half("Bottom", 1f, out cutBottomImage);
+        cutGlow = Line("Glow", TaperSprite());
+        cutLine = Line("Line", TaperSprite());
+        cutRoot.SetActive(false);
+    }
+
+    RectTransform Half(string name, float pivotY, out RawImage image)
+    {
+        Image mask = UIKit.Image(cutRoot.transform, null, Color.white);
+        mask.name = name;
+        mask.raycastTarget = false;
+        mask.gameObject.AddComponent<Mask>().showMaskGraphic = false;
+        RectTransform r = mask.rectTransform;
+        r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
+        r.pivot = new Vector2(0.5f, pivotY); // 선에 닿는 변이 회전축
+        r.sizeDelta = new Vector2(6000f, 3000f);
+
+        image = new GameObject("Shot", typeof(RectTransform)).AddComponent<RawImage>();
+        image.transform.SetParent(r, false);
+        image.raycastTarget = false;
+        RectTransform ir = image.rectTransform;
+        ir.anchorMin = ir.anchorMax = new Vector2(0.5f, pivotY); // 마스크의 회전축 = 화면 가운데
+        ir.pivot = new Vector2(0.5f, 0.5f);
+        ir.anchoredPosition = Vector2.zero;
+        return r;
+    }
+
+    RectTransform Line(string name, Sprite sprite)
+    {
+        Image img = UIKit.Image(cutRoot.transform, sprite, Color.white);
+        img.name = name;
+        img.type = Image.Type.Simple;
+        img.raycastTarget = false;
+        RectTransform r = img.rectTransform;
+        r.anchorMin = r.anchorMax = r.pivot = new Vector2(0.5f, 0.5f);
+        return r;
+    }
+
+    // 양 끝이 가늘게 사라지고 위아래도 부드러운 선 무늬 (칼로 그은 듯 예리하게)
+    static Sprite taper;
+    static Sprite TaperSprite()
+    {
+        if (taper != null) return taper;
+        const int w = 256, h = 16;
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+        for (int y = 0; y < h; y++)
+        {
+            float v = 1f - Mathf.Abs((y + 0.5f) / h * 2f - 1f);
+            for (int x = 0; x < w; x++)
+            {
+                float u = 1f - Mathf.Abs((x + 0.5f) / w * 2f - 1f);
+                float a = Mathf.Clamp01(u * 6f) * v * v; // 끝 1/6 구간에서 뾰족하게
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+        }
+        tex.Apply();
+        taper = Sprite.Create(tex, new Rect(0f, 0f, w, h), new Vector2(0.5f, 0.5f), 100f);
+        return taper;
     }
 
     static RectTransform Bar(Transform root, float y)

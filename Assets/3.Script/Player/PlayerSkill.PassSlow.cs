@@ -93,8 +93,7 @@ public partial class PlayerSkill
         {
             case StanceEntry.Hold: return data.HoldFreezeScale;
             case StanceEntry.Enchant: return data.EnchantFreezeScale;
-            case StanceEntry.Dodge: return data.DodgeFreezeScale;
-            case StanceEntry.Ultimate: return ultimateFreezeScale; // [변경]
+            case StanceEntry.Dodge: return data.DodgeFreezeScale; // [변경] 궁극기 배율 줄 제거
             default: return data.TapFreezeScale;
         }
     }

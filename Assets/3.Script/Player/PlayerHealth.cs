@@ -52,14 +52,15 @@ public class PlayerHealth : MonoBehaviour, IDamageable
 
     public float Health => health;
     public float MaxHealth => maxHealth;
-    public bool IsStunned => stunTimer > 0f || grabbed || (execution != null && execution.IsActive); // 회피·패링·차지가 이 값으로 막힘 // 잡힘 포함
+    public bool IsStunned => stunTimer > 0f || grabbed || (execution != null && execution.IsActive) || ActionLocked; // 회피·패링·차지·각성이 이 값으로 막힘 // 잡힘 포함
+    public bool ActionLocked { get; set; } // [변경] 궁극기 연출 중: 회피 · 패링 · 차지 · 각성 · Q · 처형을 모두 막음
     public bool IsGrabbed => grabbed;
     // 연타를 끝까지 다 맞지 않게: 경직 후반에는 회피로 끊을 수 있음
     public bool CanDodgeOutOfStun => !dead && !grabbed && !knockedDown && stunTimer > 0f && !float.IsInfinity(stunTimer)
         && (execution == null || !execution.IsActive) && Time.time - stunStartedAt >= dodgeOutAfter;
     public bool CanBeTargeted => !dead;
     public bool IsDead => dead;
-    public void SetInvulnerable(float seconds) => invulnerableTimer = Mathf.Max(0f, seconds); // [변경] 궁극기 연출 동안 (0이면 해제)
+    public void SetInvulnerable(float seconds) => invulnerableTimer = Mathf.Max(0f, seconds); // 궁극기 연출 동안 (0이면 해제)
     public event System.Action<DamageInfo> Damaged; // 피격 이펙트용
     // 구독자(ZoneArena)가 있으면 사망 → 구역 입구에서 부활, 없으면 예전처럼 테스트용 체력 회복
     public event System.Action Died;

@@ -19,6 +19,7 @@ public enum TutorialGoal
     Execute,
     ShrineRest,     // 화톳불에서 스킬트리 열기
     UnlockSkill,
+    Ultimate,       // [변경] 궁극기 한 번 쓰기 (연출이 끝나면 완료). 값이 밀리지 않게 맨 뒤에 둠
 }
 
 // 한 구역 수련장 진행기 (Tools/Setup/Tutorial Scene이 배치)
@@ -37,7 +38,7 @@ public class TutorialDirector : MonoBehaviour
         public string title;
         [TextArea(1, 3)] public string description;
         public string keys;
-        public bool fillGauge;   // 단계 동안 뇌기를 계속 채워 줌
+        public bool fillGauge;   // 단계 동안 뇌기를 계속 채워 줌 (궁극기 단계에선 궁극기 게이지도)
         public bool skippable;   // skipAfter초가 지나면 건너뛰기 안내
     }
 
@@ -70,6 +71,7 @@ public class TutorialDirector : MonoBehaviour
     PlayerLockOn lockOn;
     PlayerExecution execution;
     PlayerThunder thunder;
+    PlayerUltimate ultimate; // [변경]
     TutorialGuide guide;
 
     int index = -1;
@@ -97,6 +99,7 @@ public class TutorialDirector : MonoBehaviour
         lockOn = FindAnyObjectByType<PlayerLockOn>();
         execution = FindAnyObjectByType<PlayerExecution>();
         thunder = FindAnyObjectByType<PlayerThunder>();
+        ultimate = FindAnyObjectByType<PlayerUltimate>();
         PlayerHealth health = FindAnyObjectByType<PlayerHealth>();
         if (health != null) player = health.transform;
 
@@ -108,7 +111,9 @@ public class TutorialDirector : MonoBehaviour
         if (enchant != null) enchant.Struck += OnEnchantStruck;
         if (lockOn != null) lockOn.TargetChanged += OnLockOn;
         if (execution != null) execution.Executed += OnExecuted;
+        if (ultimate != null) ultimate.Finished += OnUltimateFinished;
         SkillTree.Changed += OnSkillTreeChanged;
+        AddMissingLessons();
 
         if (exitBarrier != null) exitBarrier.SetActive(true);
 
@@ -127,7 +132,15 @@ public class TutorialDirector : MonoBehaviour
         if (enchant != null) enchant.Struck -= OnEnchantStruck;
         if (lockOn != null) lockOn.TargetChanged -= OnLockOn;
         if (execution != null) execution.Executed -= OnExecuted;
+        if (ultimate != null) ultimate.Finished -= OnUltimateFinished;
         SkillTree.Changed -= OnSkillTreeChanged;
+    }
+
+    // [변경] 이미 씬에 저장된 단계 목록엔 새 기본 단계가 없음 → 빠진 목표만 기본값에서 찾아 맨 뒤에 붙임 (인스펙터에서 고친 단계는 그대로)
+    void AddMissingLessons()
+    {
+        foreach (Lesson lesson in DefaultLessons())
+            if (!lessons.Exists(l => l.goal == lesson.goal)) lessons.Add(lesson);
     }
 
     void Update()
@@ -151,6 +164,8 @@ public class TutorialDirector : MonoBehaviour
 
         if (step.fillGauge && thunder != null && skill != null && !skill.IsActive && thunder.Gauge < thunder.MaxGauge)
             thunder.Add(thunder.MaxGauge - thunder.Gauge);
+        if (step.fillGauge && step.goal == TutorialGoal.Ultimate && ultimate != null && !ultimate.Active && ultimate.Gauge < PlayerUltimate.MaxBars)
+            ultimate.SetGauge(PlayerUltimate.MaxBars); // [변경] 궁극기 단계는 3칸 채워 둠
 
         stepTimer += dt;
         if (step.skippable && stepTimer >= skipAfter)
@@ -166,7 +181,7 @@ public class TutorialDirector : MonoBehaviour
     {
         doneTimer = -1f;
         int previousChapter = Current != null ? Current.chapter : -1;
-        TutorialGoal previousGoal = Current != null ? Current.goal : TutorialGoal.ReachCenter; // [변경]
+        TutorialGoal previousGoal = Current != null ? Current.goal : TutorialGoal.ReachCenter;
         index++;
         progress = 0;
         stepTimer = 0f;
@@ -179,7 +194,7 @@ public class TutorialDirector : MonoBehaviour
             Finish();
             return;
         }
-        // [변경] 해금 수는 화톳불 단계부터 셈 → 스킬트리를 열자마자 해금해도 다음 해금 단계에서 인정
+        // 해금 수는 화톳불 단계부터 셈 → 스킬트리를 열자마자 해금해도 다음 해금 단계에서 인정
         if (step.goal == TutorialGoal.ShrineRest || (step.goal == TutorialGoal.UnlockSkill && previousGoal != TutorialGoal.ShrineRest))
             unlockedAtStart = CountUnlocked();
         SetLineup(step.lineup);
@@ -189,7 +204,7 @@ public class TutorialDirector : MonoBehaviour
         int total = lessons.FindAll(s => s.chapter == step.chapter).Count;
         guide.ShowStep(ChapterLabel(step.chapter), index - first + 1, total, step.title, step.description, step.keys, step.count);
 
-        if (step.goal == TutorialGoal.UnlockSkill) // [변경] 이미 해금했으면 바로 완료, 포인트가 없으면 막히지 않게 완료
+        if (step.goal == TutorialGoal.UnlockSkill) // 이미 해금했으면 바로 완료, 포인트가 없으면 막히지 않게 완료
         {
             OnSkillTreeChanged();
             if (doneTimer < 0f && SkillTree.Active && SkillTree.Points <= 0) MarkDone();
@@ -303,6 +318,7 @@ public class TutorialDirector : MonoBehaviour
     void OnEnchantStruck(Vector3 point) => Add(TutorialGoal.EnchantStrike);
     void OnExecuted(EnemySwordsman enemy) => Add(TutorialGoal.Execute);
     void OnSkillTreeChanged() => SetProgress(TutorialGoal.UnlockSkill, CountUnlocked() - unlockedAtStart);
+    void OnUltimateFinished() => Add(TutorialGoal.Ultimate); // [변경]
 
     void OnLockOn(Transform target)
     {
@@ -337,6 +353,9 @@ public class TutorialDirector : MonoBehaviour
 
         L(4, -1, TutorialGoal.ShrineRest, 1, "화톳불", "수련장 가장자리의 화톳불 앞에서 E. 체력이 회복되고 스킬트리가 열립니다.", "E"),
         L(4, -1, TutorialGoal.UnlockSkill, 1, "스킬 해금", "스킬 포인트로 기술을 하나 해금하세요. 노드를 고르면 미리보기 영상이 나옵니다.", "클릭 → 해금"),
+        L(4, 2, TutorialGoal.Ultimate, 1, "궁극기",
+            "패링 · 간파 · 저스트 회피 · 처형으로 오른쪽 아래 궁극기 게이지가 찹니다. 지금은 가득 채워 뒀어요. V를 짧게 누르면 낙뢰진, 누르고 있으면 천뢰일섬 → 뇌신강림.",
+            "V 짧게 / 길게 누르고 떼기", fillGauge: true), // [변경]
     };
 
     static Lesson L(int chapter, int lineup, TutorialGoal goal, int count, string title, string description, string keys, bool fillGauge = false, bool skippable = false) =>

@@ -66,7 +66,8 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
     bool timeScaleOverridden;
 
     public bool IsActive => phase != Phase.Ready;
-    public SkillData Data => data; // [변경] 궁극기가 같은 애니메이션 상태 이름을 씀
+    public SkillData Data => data; // 궁극기가 같은 애니메이션 상태 이름을 씀
+    PlayerHealth health;
     public bool IsInvulnerable => phase == Phase.Dashing;
     public TrailRenderer DashTrail => dashTrail; // 차지 섬격도 같은 궤적을 씀
     // HUD 쿨타임 표시용 (1 = 방금 사용, 0 = 사용 가능)
@@ -159,6 +160,9 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
 
     void TryBegin()
     {
+        if (health == null) health = GetComponent<PlayerHealth>();
+        if (health != null && health.ActionLocked) return; // [변경] 궁극기 연출 중엔 Q 막음
+
         // 각성 중 · 저스트 회피 직후면 바로 발도 자세 (비용은 InstantStanceEntry에서 확인)
         StanceEntry instant = InstantStanceEntry();
         bool needsQCost = instant == StanceEntry.None;
@@ -431,12 +435,11 @@ public partial class PlayerSkill : MonoBehaviour // 발도 자세는 PlayerSkill
             float damage = !UsesGauge ? data.Damage
                 : boss ? thunder.NormalSkillDamage * (staggered ? thunder.BossStaggerDamageScale : 1f)
                 : staggered ? data.Damage : thunder.NormalSkillDamage;
-            float ult = boss && stanceEntry == StanceEntry.Ultimate ? ultimateBossScale : 1f; // [변경] 뇌신강림은 보스에게도 크게
             var info = new DamageInfo
             {
                 Attacker = gameObject,
-                Damage = damage * ult,
-                PostureDamage = data.PostureDamage * (boss ? thunder.BossPostureScale : 1f) * ult,
+                Damage = damage,
+                PostureDamage = data.PostureDamage * (boss ? thunder.BossPostureScale : 1f),
                 Parryable = false,
                 Weight = AttackWeight.Skill,
                 InstantKill = staggered && !boss && data.InstantKill,

@@ -33,7 +33,7 @@ public class LoadingScreen : MonoBehaviour
         { "각성 중 Q는 각성 시간을 떼어 발도 시간을 엽니다. 그동안 표식 수 제한이 없습니다.", "EnchantDraw" },
         { "화톳불에서 쉬면 체력이 회복되고 스킬트리를 열 수 있습니다.", "HudHeart" },
         { "보스는 벽력일섬에 즉사하지 않습니다. 체간을 무너뜨린 뒤에 노리세요.", "ThunderFlash" },
-        { "패링 · 간파 · 저스트 회피 · 처형으로 궁극기 게이지가 찹니다. V: 1칸 낙뢰진 · 2칸 천뢰일섬 · 3칸 뇌신강림", "ThunderFlash" }, // [변경]
+        { "패링 · 간파 · 저스트 회피 · 처형으로 궁극기 게이지가 찹니다. V를 짧게 누르면 낙뢰진, 누르고 있으면 천뢰일섬 → 뇌신강림.", "ThunderFlash" }, // [변경]
     };
 
     Text placeText, placeSub, tipText, percentText;

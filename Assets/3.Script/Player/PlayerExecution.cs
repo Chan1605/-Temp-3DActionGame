@@ -106,7 +106,7 @@ public class PlayerExecution : MonoBehaviour
 
     void Update()
     {
-        if (GamePause.IsPaused) return; // [변경] 일시정지 중엔 입력·진행을 멈춤
+        if (GamePause.IsPaused) return; // 일시정지 중엔 입력·진행을 멈춤
         UpdateTime();
 
         if (!IsActive)
@@ -121,7 +121,7 @@ public class PlayerExecution : MonoBehaviour
     // 죽지 않았고 땅에 있고 스킬 중이 아니면 처형 가능 (공격·회피·패링·차지·피격 중이어도 끊고 들어감)
     bool CanExecuteNow()
     {
-        if (health != null && (health.IsDead || health.IsGrabbed)) return false; // 보스에게 잡힌 동안은 처형 불가
+        if (health != null && (health.IsDead || health.IsGrabbed || health.ActionLocked)) return false; // 보스에게 잡힌 동안 · 궁극기 연출 중은 처형 불가 // [변경]
         if (skill != null && skill.IsActive) return false;
         return locomotion == null || locomotion.IsGrounded;
     }

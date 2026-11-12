@@ -3,6 +3,7 @@ using UnityEngine.UI;
 
 // 궁극기 게이지 HUD (오른쪽 아래, Q 슬롯 왼쪽): 마름모 3칸이 아래부터 차오르고, 꽉 찬 칸은 은은하게 빛남 + V 키 표시
 // PlayerUltimate가 실행 중에 만듦. 칸이 새로 차면 번쩍, 게이지가 없는데 V를 누르면 흔들림
+// [변경] V를 누르고 있는 동안: 고른 단계까지의 칸이 하얗게 빛나고 왼쪽에 그 기술 이름이 뜸
 public class UltimateHud : MonoBehaviour
 {
     static readonly Color Empty = new Color(0.05f, 0.06f, 0.09f, 0.75f);
@@ -13,7 +14,7 @@ public class UltimateHud : MonoBehaviour
     RectTransform root;
     readonly Image[] fills = new Image[PlayerUltimate.MaxBars];
     readonly Image[] glows = new Image[PlayerUltimate.MaxBars];
-    Text key;
+    Text key, selectName;
     float shake, punch;
     Vector2 basePos;
 
@@ -56,6 +57,14 @@ public class UltimateHud : MonoBehaviour
         k.anchorMin = k.anchorMax = new Vector2(0.5f, 0f);
         k.anchoredPosition = new Vector2(0f, 12f);
         k.sizeDelta = new Vector2(40f, 26f);
+
+        selectName = UIKit.Text(root, "", menu != null ? menu.TitleFont : null, 26, Color.white, TextAnchor.MiddleRight); // [변경]
+        RectTransform n = selectName.rectTransform;
+        n.anchorMin = n.anchorMax = new Vector2(0f, 0.5f);
+        n.pivot = new Vector2(1f, 0.5f);
+        n.anchoredPosition = new Vector2(-14f, 8f);
+        n.sizeDelta = new Vector2(320f, 36f);
+        selectName.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(2f, -2f);
     }
 
     Image Cell(Sprite sprite, float y, float size, Color color)
@@ -88,11 +97,14 @@ public class UltimateHud : MonoBehaviour
         {
             float amount = Mathf.Clamp01(gauge - i);
             bool full = amount >= 1f;
+            bool picked = i < ultimate.Selecting; // [변경] V 홀드로 고른 단계까지
             fills[i].fillAmount = amount;
-            fills[i].color = full ? Full : Fill;
-            float g = full ? 0.25f + 0.35f * pulse + 0.6f * punch : 0f;
-            glows[i].color = new Color(Full.r, Full.g, Full.b, ultimate.Active ? 0f : g);
+            fills[i].color = picked ? Color.white : full ? Full : Fill;
+            float g = picked ? 0.9f : full ? 0.25f + 0.35f * pulse + 0.6f * punch : 0f;
+            Color gc = picked ? Color.white : Full;
+            glows[i].color = new Color(gc.r, gc.g, gc.b, ultimate.Active ? 0f : g);
         }
+        selectName.text = ultimate.SelectingName;
         key.color = new Color(1f, 1f, 1f, ultimate.Bars > 0 ? 0.95f : 0.45f);
 
         punch = Mathf.MoveTowards(punch, 0f, dt * 2.5f);
