@@ -4,8 +4,8 @@ using UnityEngine.UI;
 using UnityEngine.Video;
 
 // 타이틀 화면: 뒤에는 기술 미리보기 영상을 돌려 틀고, 왼쪽에 로고 + 메뉴
-//  - NEW GAME: 수련을 끝낸 적이 없으면 수련장, 있으면 "수련장부터 / 바로 산문" 선택 // [변경]
-//  - TRAINING: 자유 연습장 (스킬 전부 해금 · 뇌기 무한). 씬이 빌드에 있으면 항상 보임 // [변경]
+//  - NEW GAME: 수련을 끝낸 적이 없으면 수련장, 있으면 "수련장부터 / 바로 산문" 선택
+//  - TRAINING: 자유 연습장 (스킬 전부 해금 · 뇌기 무한). 씬이 빌드에 있으면 항상 보임
 //  - SETTINGS: 같은 씬의 SettingsMenu(inGame 꺼짐)를 열고, 닫히면 메뉴로 돌아옴
 // UI는 실행할 때 코드로 만듦. 씬·연결은 Tools/Setup/Title Scene
 public class TitleScreen : MonoBehaviour
@@ -18,8 +18,12 @@ public class TitleScreen : MonoBehaviour
     [SerializeField] VideoClip[] backgroundClips;
     [SerializeField] AudioClip bgm;
     [SerializeField] string tutorialScene = "Tutorial";
-    [SerializeField] string mainScene = "SampleScene";
-    [SerializeField] string trainingScene = "Training"; // [변경] 자유 연습장
+    // [변경] 영문 이름을 대문으로, 한글 이름은 부제로
+    const string Logo = "SEOMROE";
+    const string Tagline = "FLASH OF THUNDER";
+    const string Subtitle = "섬뢰";
+    [SerializeField] string mainScene = "InGame"; // 본편 씬 이름 변경
+    [SerializeField] string trainingScene = "Training"; // 자유 연습장
     [SerializeField] Color accent = new Color(0.95f, 0.8f, 0.45f);
     [SerializeField] Color bolt = new Color(0.62f, 0.82f, 1f);
     [SerializeField, Range(0f, 1f)] float videoDim = 0.45f;
@@ -29,7 +33,7 @@ public class TitleScreen : MonoBehaviour
 
     CanvasGroup group;
     GameObject menu;
-    GameObject startChoice; // [변경] 수련을 끝낸 뒤 NEW GAME 선택
+    GameObject startChoice; // 수련을 끝낸 뒤 NEW GAME 선택
     Text logo, logoGlow;
     Image flash;
     VideoPlayer video;
@@ -94,16 +98,18 @@ public class TitleScreen : MonoBehaviour
         Transform c = content.transform;
 
         // 로고: 뒤에 같은 글자를 하나 더 깔아 번개 칠 때 번쩍이는 빛으로 사용
-        logoGlow = UIKit.Text(c, "뇌검", titleFont, 168, new Color(bolt.r, bolt.g, bolt.b, 0f), TextAnchor.MiddleLeft);
-        UIKit.Place(logoGlow.rectTransform, 160f, 330f, 700f, 200f);
+        logoGlow = UIKit.Text(c, Logo, titleFont, 140, new Color(bolt.r, bolt.g, bolt.b, 0f), TextAnchor.MiddleLeft); // [변경] 영문 길이에 맞춰 크기·폭 조정
+        UIKit.Place(logoGlow.rectTransform, 160f, 300f, 1000f, 170f);
         logoGlow.gameObject.AddComponent<Outline>().effectDistance = new Vector2(6f, -6f);
         logoGlow.GetComponent<Outline>().effectColor = new Color(bolt.r, bolt.g, bolt.b, 0.5f);
-        logo = UIKit.Text(c, "뇌검", titleFont, 168, Color.white, TextAnchor.MiddleLeft);
-        UIKit.Place(logo.rectTransform, 160f, 330f, 700f, 200f);
+        logo = UIKit.Text(c, Logo, titleFont, 140, Color.white, TextAnchor.MiddleLeft); // [변경]
+        UIKit.Place(logo.rectTransform, 160f, 300f, 1000f, 170f);
         logo.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(3f, -3f);
 
-        Text sub = UIKit.Text(c, "雷  劍", bodyFont, 30, accent, TextAnchor.MiddleLeft);
-        UIKit.Place(sub.rectTransform, 168f, 450f, 400f, 40f);
+        Text tagline = UIKit.Text(c, Tagline, titleFont, 34, new Color(1f, 1f, 1f, 0.85f), TextAnchor.MiddleLeft); // [변경] 대문 둘째 줄
+        UIKit.Place(tagline.rectTransform, 168f, 395f, 800f, 44f);
+        Text sub = UIKit.Text(c, Subtitle, bodyFont, 30, accent, TextAnchor.MiddleLeft); // [변경] 한글 이름 부제
+        UIKit.Place(sub.rectTransform, 168f, 452f, 400f, 40f);
         Image line = UIKit.Image(c, null, new Color(accent.r, accent.g, accent.b, 0.6f));
         line.raycastTarget = false;
         UIKit.Place(line.rectTransform, 168f, 490f, 340f, 2f);
@@ -113,11 +119,11 @@ public class TitleScreen : MonoBehaviour
         UIKit.Stretch((RectTransform)menu.transform);
         float y = 580f;
         AddButton(menu.transform, "NEW GAME", ref y, NewGame);
-        if (Application.CanStreamedLevelBeLoaded(trainingScene)) AddButton(menu.transform, "TRAINING", ref y, () => Go(trainingScene)); // [변경]
+        if (Application.CanStreamedLevelBeLoaded(trainingScene)) AddButton(menu.transform, "TRAINING", ref y, () => Go(trainingScene));
         AddButton(menu.transform, "SETTINGS", ref y, OpenSettings);
         AddButton(menu.transform, "QUIT", ref y, Quit);
 
-        // [변경] 시작 위치 선택 (메뉴와 같은 자리에 바꿔 보여 줌)
+        // 시작 위치 선택 (메뉴와 같은 자리에 바꿔 보여 줌)
         startChoice = new GameObject("StartChoice", typeof(RectTransform));
         startChoice.transform.SetParent(c, false);
         UIKit.Stretch((RectTransform)startChoice.transform);
@@ -154,7 +160,7 @@ public class TitleScreen : MonoBehaviour
             Go(tutorialScene);
             return;
         }
-        menu.SetActive(false); // [변경] 수련을 끝낸 적이 있으면 시작 위치를 고름
+        menu.SetActive(false); // 수련을 끝낸 적이 있으면 시작 위치를 고름
         startChoice.SetActive(true);
     }
 

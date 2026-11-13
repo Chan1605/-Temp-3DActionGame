@@ -51,7 +51,7 @@ public static class HUDSetup
 
         BuildPlayerStatus(root, so);
         BuildSkill(root, so);
-        BuildChargeGauge(root, so); // [변경]
+        BuildChargeGauge(root, so);
         BuildControls(root);
         BuildZoneBanner(root, so);
         BuildWavePanel(root, so);
@@ -124,7 +124,7 @@ public static class HUDSetup
         so.FindProperty("skillLabel").objectReferenceValue = label;
     }
 
-    // [변경] ===== 화면 중앙 아래: 차지 게이지 (차지 중에만 보임, 3단계 눈금) =====
+    // ===== 화면 중앙 아래: 차지 게이지 (차지 중에만 보임, 3단계 눈금) =====
     static void BuildChargeGauge(Transform root, SerializedObject so)
     {
         RectTransform panel = Rect("ChargeGauge", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -170f), new Vector2(260f, 40f));
@@ -151,7 +151,7 @@ public static class HUDSetup
     // ===== 우하단 슬롯 왼쪽: 조작 안내 (시연용, 필요 없으면 오브젝트를 끄면 됨) =====
     static void BuildControls(Transform root)
     {
-        const string text = "좌클릭  약공격\n우클릭  강공격 · 간파\n우클릭 홀드  차지 강타\nShift  회피\nSpace  점프"; // [변경]
+        const string text = "좌클릭  약공격\n우클릭  강공격 · 역뢰\n우클릭 홀드  차지 강타\nShift  회피\nSpace  점프"; // [변경] 용어 교체
         Text t = Label("Controls", root, text, 16, new Color(0.85f, 0.88f, 0.92f, 0.7f), TextAnchor.LowerRight, regular,
             new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-Margin - 132f, Margin), new Vector2(280f, 120f));
         t.lineSpacing = 1.15f;

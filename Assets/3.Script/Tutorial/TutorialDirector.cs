@@ -19,7 +19,7 @@ public enum TutorialGoal
     Execute,
     ShrineRest,     // 화톳불에서 스킬트리 열기
     UnlockSkill,
-    Ultimate,       // [변경] 궁극기 한 번 쓰기 (연출이 끝나면 완료). 값이 밀리지 않게 맨 뒤에 둠
+    Ultimate,       // 궁극기 한 번 쓰기 (연출이 끝나면 완료). 값이 밀리지 않게 맨 뒤에 둠
 }
 
 // 한 구역 수련장 진행기 (Tools/Setup/Tutorial Scene이 배치)
@@ -46,7 +46,7 @@ public class TutorialDirector : MonoBehaviour
     [SerializeField] float centerRadius = 4f;     // 이 안으로 들어오면 가운데 도착
     [SerializeField] GameObject exitBarrier;
     [SerializeField] List<GameObject> lineups = new List<GameObject>();
-    [SerializeField] string[] chapters = { "기본기", "방어", "벽력일섬", "각성", "성장" };
+    [SerializeField] string[] chapters = { "기본기", "방어", "섬뢰일도", "각성", "성장" }; // [변경] 용어 교체
     [SerializeField] List<Lesson> lessons = DefaultLessons();
     [SerializeField] Font titleFont;
     [SerializeField] Font bodyFont;
@@ -71,7 +71,7 @@ public class TutorialDirector : MonoBehaviour
     PlayerLockOn lockOn;
     PlayerExecution execution;
     PlayerThunder thunder;
-    PlayerUltimate ultimate; // [변경]
+    PlayerUltimate ultimate;
     TutorialGuide guide;
 
     int index = -1;
@@ -136,11 +136,33 @@ public class TutorialDirector : MonoBehaviour
         SkillTree.Changed -= OnSkillTreeChanged;
     }
 
-    // [변경] 이미 씬에 저장된 단계 목록엔 새 기본 단계가 없음 → 빠진 목표만 기본값에서 찾아 맨 뒤에 붙임 (인스펙터에서 고친 단계는 그대로)
+    // 이미 씬에 저장된 단계 목록엔 새 기본 단계가 없음 → 빠진 목표만 기본값에서 찾아 맨 뒤에 붙임 (인스펙터에서 고친 단계는 그대로)
     void AddMissingLessons()
     {
         foreach (Lesson lesson in DefaultLessons())
             if (!lessons.Exists(l => l.goal == lesson.goal)) lessons.Add(lesson);
+        RenameTerms();
+    }
+
+    // [변경] 씬에 저장된 단계 문구에 남은 옛 용어를 새 용어로 바꿈 (벽력일섬 → 섬뢰일도, 간파 → 역뢰)
+    static readonly string[,] Terms = { { "벽력일섬", "섬뢰일도" }, { "간파", "역뢰" } };
+
+    static string Rename(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        for (int i = 0; i < Terms.GetLength(0); i++) text = text.Replace(Terms[i, 0], Terms[i, 1]);
+        return text;
+    }
+
+    void RenameTerms()
+    {
+        for (int i = 0; i < chapters.Length; i++) chapters[i] = Rename(chapters[i]);
+        foreach (Lesson l in lessons)
+        {
+            l.title = Rename(l.title);
+            l.description = Rename(l.description);
+            l.keys = Rename(l.keys);
+        }
     }
 
     void Update()
@@ -165,7 +187,7 @@ public class TutorialDirector : MonoBehaviour
         if (step.fillGauge && thunder != null && skill != null && !skill.IsActive && thunder.Gauge < thunder.MaxGauge)
             thunder.Add(thunder.MaxGauge - thunder.Gauge);
         if (step.fillGauge && step.goal == TutorialGoal.Ultimate && ultimate != null && !ultimate.Active && ultimate.Gauge < PlayerUltimate.MaxBars)
-            ultimate.SetGauge(PlayerUltimate.MaxBars); // [변경] 궁극기 단계는 3칸 채워 둠
+            ultimate.SetGauge(PlayerUltimate.MaxBars); // 궁극기 단계는 3칸 채워 둠
 
         stepTimer += dt;
         if (step.skippable && stepTimer >= skipAfter)
@@ -318,7 +340,7 @@ public class TutorialDirector : MonoBehaviour
     void OnEnchantStruck(Vector3 point) => Add(TutorialGoal.EnchantStrike);
     void OnExecuted(EnemySwordsman enemy) => Add(TutorialGoal.Execute);
     void OnSkillTreeChanged() => SetProgress(TutorialGoal.UnlockSkill, CountUnlocked() - unlockedAtStart);
-    void OnUltimateFinished() => Add(TutorialGoal.Ultimate); // [변경]
+    void OnUltimateFinished() => Add(TutorialGoal.Ultimate);
 
     void OnLockOn(Transform target)
     {
@@ -343,10 +365,10 @@ public class TutorialDirector : MonoBehaviour
 
         L(1, 1, TutorialGoal.JustDodge, 1, "저스트 회피", "수련 상대가 나왔습니다. 공격이 닿기 직전에 회피하면 시간이 느려지고 뇌기 1칸을 얻습니다.", "Shift (타이밍)", skippable: true),
         L(1, 1, TutorialGoal.Parry, 1, "패링", "가만히 선 채로 적의 칼이 닿기 직전에 우클릭. 뇌기 1칸을 씁니다.", "우클릭 (대기 중)", fillGauge: true, skippable: true),
-        L(1, 1, TutorialGoal.Kanpa, 1, "간파", "콤보 중 적이 공격하면 우클릭 강공격으로 맞받아치세요.", "좌클릭 콤보 → 우클릭", skippable: true),
+        L(1, 1, TutorialGoal.Kanpa, 1, "역뢰", "콤보 중 적이 공격하면 우클릭 강공격으로 맞받아치세요.", "좌클릭 콤보 → 우클릭", skippable: true),
         L(1, 1, TutorialGoal.Execute, 1, "처형", "패링으로 적을 무너뜨린 뒤 가까이에서 F.", "우클릭 패링 → F", fillGauge: true, skippable: true),
 
-        L(2, 2, TutorialGoal.TapStrike, 1, "벽력일섬", "Q를 짧게 누르면 가까운 적에게 번개처럼 돌진해 벱니다. 뇌기 1칸.", "Q 탭", fillGauge: true),
+        L(2, 2, TutorialGoal.TapStrike, 1, "섬뢰일도", "Q를 짧게 누르면 가까운 적에게 번개처럼 돌진해 벱니다. 뇌기 1칸.", "Q 탭", fillGauge: true),
         L(2, 2, TutorialGoal.StanceDraw, 3, "발도 자세", "Q를 길게 누른 채 화면 가운데 조준점을 적에게 올려 표식 3개. 떼면 차례로 벱니다.", "Q 홀드 → 조준 → 떼기", fillGauge: true),
 
         L(3, 2, TutorialGoal.EnchantStrike, 3, "뇌검 각성", "뇌기 2칸 이상에서 R. 각성 중엔 평타마다 낙뢰가 떨어집니다.", "R → 좌클릭", fillGauge: true),
@@ -354,8 +376,8 @@ public class TutorialDirector : MonoBehaviour
         L(4, -1, TutorialGoal.ShrineRest, 1, "화톳불", "수련장 가장자리의 화톳불 앞에서 E. 체력이 회복되고 스킬트리가 열립니다.", "E"),
         L(4, -1, TutorialGoal.UnlockSkill, 1, "스킬 해금", "스킬 포인트로 기술을 하나 해금하세요. 노드를 고르면 미리보기 영상이 나옵니다.", "클릭 → 해금"),
         L(4, 2, TutorialGoal.Ultimate, 1, "궁극기",
-            "패링 · 간파 · 저스트 회피 · 처형으로 오른쪽 아래 궁극기 게이지가 찹니다. 지금은 가득 채워 뒀어요. V를 짧게 누르면 낙뢰진, 누르고 있으면 천뢰일섬 → 뇌신강림.",
-            "V 짧게 / 길게 누르고 떼기", fillGauge: true), // [변경]
+            "패링 · 역뢰 · 저스트 회피 · 처형으로 오른쪽 아래 궁극기 게이지가 찹니다. 지금은 가득 채워 뒀어요. V를 짧게 누르면 낙뢰진, 누르고 있으면 천뢰일섬 → 뇌신강림.",
+            "V 짧게 / 길게 누르고 떼기", fillGauge: true),
     };
 
     static Lesson L(int chapter, int lineup, TutorialGoal goal, int count, string title, string description, string keys, bool fillGauge = false, bool skippable = false) =>

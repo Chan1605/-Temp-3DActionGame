@@ -27,7 +27,7 @@ public class SkillTreeData : ScriptableObject
     public int pointsPerLevel = 1;
     public List<Node> nodes = Defaults();
 
-    public static readonly SkillId[] Removed = { SkillId.Launcher }; // [변경] 공중 콤보 삭제
+    public static readonly SkillId[] Removed = { SkillId.Launcher }; // 공중 콤보 삭제
 
     public static List<Node> Defaults() => new List<Node>
     {
@@ -37,7 +37,7 @@ public class SkillTreeData : ScriptableObject
         N(SkillId.StanceMarks, "표식 확장", "발도 자세에서 찍을 수 있는 표식이 3명에서 6명으로 늘어난다.", 1, 0),
         N(SkillId.EnchantDraw, "각성 발도", "각성(R) 중 Q: 각성 시간을 떼어 그동안 비용 없이 발도 자세를 연달아 쓴다.", 2, 0, SkillId.StanceMarks),
         N(SkillId.ChargeLevel3, "차지 강타 Ⅲ", "우클릭 차지가 3단계까지 차오르고, 놓으면 멀리 돌진해 베는 섬격이 나간다.", 1, 1),
-        N(SkillId.KanpaSmash, "뇌락", "간파 성공 직후 우클릭: 뛰어올라 내려찍어 주변을 경직시키고 낙뢰를 떨어뜨린다.", 1, 2),
+        N(SkillId.KanpaSmash, "뇌락", "역뢰 성공 직후 우클릭: 뛰어올라 내려찍어 주변을 경직시키고 낙뢰를 떨어뜨린다.", 1, 2), // [변경] 용어 교체 (간파 → 역뢰)
         N(SkillId.DodgeDraw, "회피 발도", "저스트 회피 직후 Q: 뇌기 없이 가까운 적을 자동으로 표식해 곧바로 발도한다.", 2, 2, SkillId.KanpaSmash),
         // 수련 탭 (패시브)
         P(SkillId.Vitality1, "체력 단련 Ⅰ", "최대 체력이 25 늘어난다.", 1, 0),
@@ -57,7 +57,7 @@ public class SkillTreeData : ScriptableObject
     public static List<Node> WithMissingDefaults(List<Node> nodes)
     {
         var result = new List<Node>(nodes);
-        result.RemoveAll(n => Array.IndexOf(Removed, n.id) >= 0); // [변경] 삭제된 기술은 예전 에셋에 남아 있어도 숨김
+        result.RemoveAll(n => Array.IndexOf(Removed, n.id) >= 0); // 삭제된 기술은 예전 에셋에 남아 있어도 숨김
         foreach (Node d in Defaults())
             if (!result.Exists(n => n.id == d.id)) result.Add(d);
         return result;

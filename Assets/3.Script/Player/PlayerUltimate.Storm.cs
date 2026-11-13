@@ -13,7 +13,7 @@ public partial class PlayerUltimate
     [SerializeField] float stormPosture = 18f;
     [SerializeField, Range(0f, 1f)] float stormAimChance = 0.7f; // 이 확률로 적 위치에 떨어뜨림
     [SerializeField] float stormFinalDamage = 45f;
-    [SerializeField, Range(0.3f, 1f)] float stormPoseHoldAt = 0.85f; // [변경] 칼 박는 모션을 이 지점에서 멈춰 끝까지 유지 (반복 · 대기 자세로 빠지지 않게)
+    [SerializeField, Range(0.3f, 1f)] float stormPoseHoldAt = 0.85f; // 칼 박는 모션을 이 지점에서 멈춰 끝까지 유지 (반복 · 대기 자세로 빠지지 않게)
 
     IEnumerator Storm()
     {
@@ -22,7 +22,7 @@ public partial class PlayerUltimate
         fx.ShowTitle(Names[1], Readings[1], 1.6f);
         string pose = animator != null && animator.HasState(0, Animator.StringToHash("Slam_End")) ? "Slam_End" : ChargeState; // 칼을 땅에 박는 자세
         Play(pose);
-        StartCoroutine(HoldPose(pose, stormPoseHoldAt)); // [변경] 한 번만 재생하고 멈춤 (끝나면 Run이 속도를 되돌림)
+        StartCoroutine(HoldPose(pose, stormPoseHoldAt)); // 한 번만 재생하고 멈춤 (끝나면 Run이 속도를 되돌림)
         Sound(clashClip, 0.8f, 0.8f);
         if (followCamera != null) followCamera.BeginCinematic(Chest, Yaw + 35f, 28f, 11f); // 위에서 넓게 내려다봄
 
@@ -66,20 +66,34 @@ public partial class PlayerUltimate
         yield return new WaitForSecondsRealtime(0.7f);
     }
 
-    // [변경] 상태가 그 지점까지 재생되면 애니메이터를 멈춤 → 반복 재생 · 나가는 전환 없이 자세 유지
+    // [변경] 핵심: 칼 박는 모션을 끝까지 유지
+    //  예전엔 지점에 닿기 전에 대기 자세로 넘어가는 전환(Exit)이 먼저 걸려 멈춤이 안 걸렸음
+    //  → 전환이 시작되거나 지점에 닿으면 그 자리에서 이 상태로 되돌려 멈추고, 연출 동안 다른 상태로 바뀌면 다시 이 자세로 붙잡음
     IEnumerator HoldPose(string state, float at)
     {
         if (animator == null || string.IsNullOrEmpty(state)) yield break;
         int hash = Animator.StringToHash(state);
         yield return null; // CrossFade가 반영될 때까지
+        float t = 0f;
+        bool held = false;
         while (Active)
         {
-            AnimatorStateInfo info = animator.IsInTransition(0) ? animator.GetNextAnimatorStateInfo(0) : animator.GetCurrentAnimatorStateInfo(0);
-            if (info.shortNameHash != hash) yield break;
-            if (info.normalizedTime >= at)
+            AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(0);
+            if (!held)
             {
-                animator.speed = 0f;
-                yield break;
+                bool leaving = current.shortNameHash == hash && animator.IsInTransition(0)
+                    && animator.GetNextAnimatorStateInfo(0).shortNameHash != hash;
+                if (current.shortNameHash == hash) t = current.normalizedTime;
+                if (leaving || t >= at || current.shortNameHash != hash)
+                {
+                    held = true;
+                    animator.Play(hash, 0, Mathf.Min(Mathf.Max(t, 0.3f), at));
+                    animator.speed = 0f;
+                }
+            }
+            else if (current.shortNameHash != hash) // 다른 곳에서 자세를 바꿨으면 다시 붙잡음
+            {
+                animator.Play(hash, 0, Mathf.Min(Mathf.Max(t, 0.3f), at));
             }
             yield return null;
         }

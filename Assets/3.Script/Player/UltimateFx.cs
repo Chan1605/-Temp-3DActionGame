@@ -88,7 +88,7 @@ public class UltimateFx : MonoBehaviour
     }
 
     // 화면 베기. onSplit: 조각이 어긋나기 시작하는 순간 (피해 · 낙뢰를 여기서)
-    // [변경] splitWhen: 이 조건이 참이 되는 순간 어긋남 (납도해서 칼이 들어가는 순간 등). hold는 최소 정지, maxHold가 지나면 무조건
+    // splitWhen: 이 조건이 참이 되는 순간 어긋남 (납도해서 칼이 들어가는 순간 등). hold는 최소 정지, maxHold가 지나면 무조건
     public void Cut(float angle, float hold, System.Action onSplit, System.Func<bool> splitWhen = null, float maxHold = 1.5f) =>
         StartCoroutine(CutRoutine(angle, hold, onSplit, splitWhen, maxHold));
 
@@ -113,14 +113,14 @@ public class UltimateFx : MonoBehaviour
         dark = Mathf.MoveTowards(dark, darkTarget, dt * 1.5f);
         volume.weight = Mathf.Max(desat, dark * 0.6f);
         color.saturation.value = -100f * desat;
-        color.postExposure.value = -0.8f * dark;
+        color.postExposure.value = -0.35f * dark; // [변경] -0.8 → -0.35 (어두운 영역 색 단계가 깨져 지글거리던 문제)
         vignette.intensity.value = 0.25f + 0.25f * Mathf.Max(desat, dark);
 
         if (skySaved)
         {
             RenderSettings.fogColor = Color.Lerp(fogColor, darkFog, dark);
             RenderSettings.fogDensity = Mathf.Lerp(fogDensity, darkFogDensity, dark);
-            RenderSettings.ambientIntensity = Mathf.Lerp(ambient, ambient * 0.35f, dark);
+            RenderSettings.ambientIntensity = Mathf.Lerp(ambient, ambient * 0.55f, dark); // [변경] 덜 어둡게
             if (dark <= 0f && darkTarget <= 0f) RestoreSky();
         }
 
@@ -185,7 +185,7 @@ public class UltimateFx : MonoBehaviour
         }
         cutLine.sizeDelta = new Vector2(length, 3f);
         cutGlow.sizeDelta = new Vector2(length, 14f);
-        for (float t = 0f; t < maxHold; t += Time.unscaledDeltaTime) // [변경]
+        for (float t = 0f; t < maxHold; t += Time.unscaledDeltaTime)
         {
             if (t >= hold && (splitWhen == null || splitWhen())) break;
             yield return null;

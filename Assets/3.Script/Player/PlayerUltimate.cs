@@ -60,7 +60,7 @@ public partial class PlayerUltimate : MonoBehaviour
     float holdTime;
     float duck = 1f, duckTarget = 1f; // 전체 소리 누르기 (베기 직전 정적)
     AudioSource audioSource;
-    LightningBoltPrefabScriptBase skyBolt, arcBolt;
+    LightningBoltPrefabScriptBase arcBolt; // [변경] 낙뢰는 ThunderBolt3D로, 이 번개 프리팹은 잔 번개만
     UltimateHud hud;
 
     void Awake()
@@ -84,7 +84,6 @@ public partial class PlayerUltimate : MonoBehaviour
         audioSource.playOnAwake = false;
         audioSource.spatialBlend = 0f;
         fx = new GameObject("UltimateFx").AddComponent<UltimateFx>();
-        skyBolt = LightningFactory.Create(boltPrefab, "UltimateSkyBolt", SkyStyle());
         arcBolt = LightningFactory.Create(boltPrefab, "UltimateArcBolt", ArcStyle());
     }
 
@@ -199,7 +198,7 @@ public partial class PlayerUltimate : MonoBehaviour
         if (execution != null && execution.IsActive) return false;
         if (charge != null && charge.IsDashing) return false;
         if (kanpa != null && kanpa.IsInvulnerable) return false;
-        if (dodge != null && dodge.IsDodging) return false; // [변경] 회피 · 패링 도중엔 시작하지 않음
+        if (dodge != null && dodge.IsDodging) return false; // 회피 · 패링 도중엔 시작하지 않음
         if (parry != null && parry.IsActive) return false;
         return true;
     }
@@ -244,7 +243,7 @@ public partial class PlayerUltimate : MonoBehaviour
             if (health != null)
             {
                 health.SetInvulnerable(30f);
-                health.ActionLocked = true; // [변경] 이동만 막고 회피(Shift) 등은 열려 있던 문제
+                health.ActionLocked = true; // 이동만 막고 회피(Shift) 등은 열려 있던 문제
             }
         }
         else
@@ -254,7 +253,7 @@ public partial class PlayerUltimate : MonoBehaviour
             if (health != null)
             {
                 health.SetInvulnerable(0.6f); // 끝난 직후 잠깐 더
-                health.ActionLocked = false; // [변경]
+                health.ActionLocked = false;
             }
             if (returnToIdle && animator != null) animator.CrossFadeInFixedTime(LocomotionHash, 0.2f, 0, 0f);
         }
@@ -291,11 +290,10 @@ public partial class PlayerUltimate : MonoBehaviour
     //        떨어진 자리엔 바닥을 퍼지는 고리 + 불빛(UltimateImpact) + 바닥을 기는 잔 번개
     void SkyStrike(Vector3 ground, float height = 18f, int strands = 2, float impact = 2.2f)
     {
-        if (skyBolt == null) return;
-        for (int i = 0; i < strands; i++)
+        for (int i = 0; i < strands; i++) // [변경] 입체 낙뢰(ThunderBolt3D), 첫 줄기만 굵게
         {
             Vector2 o = Random.insideUnitCircle.normalized * Random.Range(1.5f, 5f);
-            skyBolt.Trigger(ground + new Vector3(o.x, height * Random.Range(0.85f, 1.15f), o.y), ground);
+            ThunderBolt3D.Strike(ground + new Vector3(o.x, height * Random.Range(0.85f, 1.15f), o.y), ground, i == 0 ? 1.1f : 0.6f, i == 0 ? 2 : 1);
         }
         if (arcBolt != null)
             for (int i = 0; i < 4; i++)
@@ -358,24 +356,6 @@ public partial class PlayerUltimate : MonoBehaviour
     Vector3 Chest => transform.position + Vector3.up * 1.2f;
 
     // ===== 번개 모양 =====
-    static LightningBoltStyle SkyStyle() => new LightningBoltStyle
-    {
-        width = new Vector2(0.05f, 0.09f), // 가늘고 날카롭게, 대신 갈래를 늘림
-        duration = new Vector2(0.14f, 0.24f),
-        count = new Vector2Int(1, 1),
-        generations = 8,
-        chaos = 0.2f,
-        forkedness = 0.7f,
-        intensity = 3.2f,
-        glowIntensity = 1.4f,
-        glowWidth = 4f,
-        glowColor = new Color(0.55f, 0.65f, 1f),
-        lightRange = 28f,
-        lightIntensity = 3f,
-        lightPercent = 0.2f,
-        lightColor = new Color(0.65f, 0.75f, 1f)
-    };
-
     static LightningBoltStyle ArcStyle() => new LightningBoltStyle
     {
         width = new Vector2(0.02f, 0.045f),

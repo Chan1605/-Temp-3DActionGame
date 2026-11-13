@@ -80,9 +80,9 @@ public class ResultScreen : MonoBehaviour
         timeValue = AddRow(x, w, ref y, "클리어 시간", "00:00", record.NewBestTime ? "신기록" : "");
         AddRow(x, w, ref y, "처치", record.Kills.ToString(), "");
         AddRow(x, w, ref y, "처형", record.Executions.ToString(), "");
-        AddRow(x, w, ref y, "패링 · 간파", $"{record.Parries} · {record.Counters}", "");
+        AddRow(x, w, ref y, "패링 · 역뢰", $"{record.Parries} · {record.Counters}", "");
         AddRow(x, w, ref y, "저스트 회피", record.JustDodges.ToString(), "");
-        AddRow(x, w, ref y, "벽력일섬", record.SkillCuts.ToString(), "");
+        AddRow(x, w, ref y, "섬뢰일도", record.SkillCuts.ToString(), ""); // [변경] 용어 교체
         AddRow(x, w, ref y, "피격", record.HitsTaken.ToString(), "");
         AddRow(x, w, ref y, "재도전", record.Deaths.ToString(), "");
         AddRow(x, w, ref y, "레벨", record.Level.ToString(), "");

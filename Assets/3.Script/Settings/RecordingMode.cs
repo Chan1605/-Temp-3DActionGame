@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 
 // 스킬 미리보기 녹화용 (수련장 씬에 배치됨)
 // F10: 화면 UI 전부 숨김 + 스킬 전부 해금 + 뇌기 항상 가득 + 체력 유지. 다시 누르면 UI만 돌아옴 (해금은 유지)
-// ESC 설정·스킬트리 창, 발도 자세 조준점·표식(keepCanvasNames)은 숨기지 않음
+// ESC 설정·스킬트리 창, 발도 자세 조준점·표식, 궁극기 연출 캔버스는 숨기지 않음
 public class RecordingMode : MonoBehaviour
 {
     [SerializeField] Key toggleKey = Key.F10;
@@ -12,7 +12,10 @@ public class RecordingMode : MonoBehaviour
     [SerializeField] bool infiniteThunder = true;
     [SerializeField] bool keepHealth = true;
     [SerializeField] float rescanInterval = 0.5f;
-    [SerializeField] string[] keepCanvasNames = { "DrawStanceCanvas" }; // [변경] 발도 자세 조준점·표식은 영상에 필요
+    [SerializeField] string[] keepCanvasNames = { "DrawStanceCanvas" };
+
+    // [변경] 궁극기 연출(레터박스·기술명·화면 베기)은 씬에 저장된 keepCanvasNames 값과 상관없이 항상 유지
+    static readonly string[] AlwaysKeep = { "DrawStanceCanvas", "UltimateCanvas" };
 
     public static bool Active { get; private set; }
 
@@ -78,7 +81,8 @@ public class RecordingMode : MonoBehaviour
         {
             if (!c.isRootCanvas || !c.enabled) continue;
             if (c.GetComponentInParent<SettingsMenu>(true) != null || c.GetComponentInParent<SkillTreeMenu>(true) != null) continue;
-            if (System.Array.IndexOf(keepCanvasNames, c.gameObject.name) >= 0) continue; // [변경]
+            if (System.Array.IndexOf(keepCanvasNames, c.gameObject.name) >= 0) continue;
+            if (System.Array.IndexOf(AlwaysKeep, c.gameObject.name) >= 0) continue; // [변경]
             c.enabled = false;
             hidden.Add(c);
         }

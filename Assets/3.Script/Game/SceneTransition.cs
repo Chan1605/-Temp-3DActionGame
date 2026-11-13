@@ -10,6 +10,8 @@ using UnityEngine.UI;
 public class SceneTransition : MonoBehaviour
 {
     public const string LoadingScene = "Loading";
+    public const string MainScene = "InGame"; // [변경] 본편 씬 (예전 SampleScene)
+    const string LegacyMainScene = "SampleScene";
     const float FadeOut = 0.7f, FadeIn = 0.8f;
     const float LoadingFade = 0.35f;
     const float MinLoadingTime = 1.6f; // 너무 빨리 지나가 깜빡이지 않게 + 팁을 읽을 시간
@@ -19,9 +21,10 @@ public class SceneTransition : MonoBehaviour
 
     public static bool Busy => current != null;
 
-    public static void Load(string sceneName, bool carryState = true, string spawnAt = null) // [변경] spawnAt: 도착 씬에서 플레이어를 옮길 오브젝트 경로
+    public static void Load(string sceneName, bool carryState = true, string spawnAt = null) // spawnAt: 도착 씬에서 플레이어를 옮길 오브젝트 경로
     {
         if (current != null) return;
+        if (sceneName == LegacyMainScene) sceneName = MainScene; // [변경] 씬·프리팹에 저장된 옛 이름도 새 본편 씬으로
         RunState.SpawnAt = spawnAt;
         var go = new GameObject("SceneTransition");
         DontDestroyOnLoad(go);

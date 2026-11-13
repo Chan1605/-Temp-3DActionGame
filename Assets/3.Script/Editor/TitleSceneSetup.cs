@@ -10,14 +10,14 @@ using UnityEngine.Video;
 // Tools/Setup/Title Scene
 //  1) Assets/1.Scene/Title.unity가 없으면 새로 만듦 (카메라 · EventSystem · TitleScreen · SettingsMenu)
 //  2) 이미 있으면 연결만 갱신 (배경 영상 목록 · 글꼴 · 설정 메뉴). 인스펙터에서 바꾼 연출 값은 유지
-//  3) 빌드 설정 맨 앞에 Title, 그 뒤에 Tutorial · SampleScene
+//  3) 빌드 설정 맨 앞에 Title, 그 뒤에 Tutorial · InGame
 public static class TitleSceneSetup
 {
     const string ScenePath = "Assets/1.Scene/Title.unity";
     const string VideoFolder = "Assets/12.Video/SkillPreview";
     const string TitleFontPath = "Assets/9.Font/public/static/Pretendard-SemiBold.otf";
     const string BodyFontPath = "Assets/9.Font/public/static/Pretendard-Regular.otf";
-    static readonly string[] GameScenes = { "Assets/1.Scene/Tutorial.unity", "Assets/1.Scene/SampleScene.unity" };
+    static readonly string[] GameScenes = { "Assets/1.Scene/Tutorial.unity", "Assets/1.Scene/InGame.unity" }; // [변경] 본편 씬 이름 변경
 
     [MenuItem("Tools/Setup/Title Scene")]
     static void Run()
@@ -38,7 +38,7 @@ public static class TitleSceneSetup
             cam.backgroundColor = Color.black;
             cam.cullingMask = 0; // 화면은 전부 UI
         }
-        Camera main = Object.FindAnyObjectByType<Camera>(); // 소리 듣는 곳 (없으면 "no audio listeners" 경고) // [변경]
+        Camera main = Object.FindAnyObjectByType<Camera>(); // 소리 듣는 곳 (없으면 "no audio listeners" 경고)
         if (main != null && main.GetComponent<AudioListener>() == null) main.gameObject.AddComponent<AudioListener>();
         if (Object.FindAnyObjectByType<EventSystem>() == null)
             new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));

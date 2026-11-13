@@ -6,16 +6,16 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 // 수련장(튜토리얼) 씬 만들기 — 한 구역형 (다시 실행해도 됨)
-//  1) 처음 한 번: SampleScene을 복사해 Tutorial.unity로 (플레이어·카메라·HUD·메뉴 구성을 그대로 씀)
+//  1) 처음 한 번: InGame 씬을 복사해 Tutorial.unity로 (플레이어·카메라·HUD·메뉴 구성을 그대로 씀)
 //  2) 본편 구역·화톳불·배치된 적·예전 수련터 4곳을 지우고, 수련장 하나 생성 (전투 구역 기능은 뗌)
 //     겉모습은 본편 산문(낮 · 소나무 · 풀밭)과 다르게: 노을 · 사시나무/자작나무 · 모래 마당 · 정자 · 반딧불
 //  3) 상대 무리 3개(허수아비 2 · 수련 상대 · 허수아비 4)를 미리 두고, TutorialDirector가 단계마다 필요한 무리만 꺼냄
 //  4) 북쪽 출구 결계는 닫아 두고 모든 단계를 끝내면 엶 → 길 끝 출구에서 본편(산문)으로
 //  5) 녹화 모드(F10), 빌드 설정에 씬 추가
 //  6) 본편 HUD에만 있는 표시(처형 F · 락온 · 데미지 숫자 · 레벨업 등)를 복사해 옴 — Tools/Setup/Sync Tutorial HUD로 따로도 실행 가능
-public static class TutorialSceneSetup // [변경] 자유 연습장 셋업(TrainingSceneSetup)이 지형·배치 도우미를 같이 씀 (internal)
+public static class TutorialSceneSetup // 자유 연습장 셋업(TrainingSceneSetup)이 지형·배치 도우미를 같이 씀 (internal)
 {
-    internal const string SourceScenePath = "Assets/1.Scene/SampleScene.unity";
+    internal const string SourceScenePath = "Assets/1.Scene/InGame.unity"; // [변경] 본편 씬 이름 변경
     const string ScenePath = "Assets/1.Scene/Tutorial.unity";
     const string SourceThemePath = "Assets/11.Data/Zone/Zone1_Sanmun.asset";
     const string ArenaThemePath = "Assets/11.Data/Zone/Tutorial_Yard.asset"; // 새 겉모습 테마 (예전 Tutorial_Arena.asset은 안 씀)
@@ -108,7 +108,7 @@ public static class TutorialSceneSetup // [변경] 자유 연습장 셋업(Train
         AddToBuildSettings();
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
-        Debug.Log($"[Tutorial] 출구 배치 (→ SampleScene) · {ScenePath} 저장됨");
+        Debug.Log($"[Tutorial] 출구 배치 (→ InGame) · {ScenePath} 저장됨");
     }
 
     // 지형은 그대로 두고 HUD만 맞출 때

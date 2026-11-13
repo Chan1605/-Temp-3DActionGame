@@ -7,17 +7,17 @@ using UnityEngine.SceneManagement;
 
 // 던전 "뇌운 협곡" 만들기 (다시 실행해도 됨)
 //  Tools/Setup/Dungeon Scene
-//   1) 처음 한 번: SampleScene을 복사해 Dungeon.unity로 (플레이어 · 카메라 · HUD · 메뉴 그대로)
+//   1) 처음 한 번: InGame 씬을 복사해 Dungeon.unity로 (플레이어 · 카메라 · HUD · 메뉴 그대로)
 //   2) 본편 구역을 지우고 밤 협곡 구역 4개 생성: 가운데 허브(남 · 북 · 동 · 서 문) + 서 · 동 · 북 갈래 방(허브 쪽 문 하나)
 //   3) 갈래 방 웨이브: 서 = 혼전(방패병 · 돌격병 섞임) · 동 = 정예 결투 · 북 = 버티기(4웨이브). 이미 있으면 유지
 //   4) 허브: 동 · 서 · 북 결계를 하나로 묶어 전투 중에만 닫음, 남쪽 결계는 수문장을 이기면 열림 → 길 끝 출구에서 본편 보스 구역 입구로
 //   5) 허브 남서쪽 화톳불 · DungeonDirector · 빌드 설정
 //  Tools/Setup/Dungeon Entrance (Main)
-//   본편(SampleScene) 폐사찰 북쪽 길에 던전 입구(한 판에 한 번)를 둠
+//   본편(InGame) 폐사찰 북쪽 길에 던전 입구(한 판에 한 번)를 둠
 public static class DungeonSceneSetup
 {
     const string ScenePath = "Assets/1.Scene/Dungeon.unity";
-    const string MainScenePath = "Assets/1.Scene/SampleScene.unity";
+    const string MainScenePath = "Assets/1.Scene/InGame.unity"; // [변경] 본편 씬 이름 변경
     const string ThemeFolder = "Assets/11.Data/Zone";
     const string BaseThemePath = "Assets/11.Data/Zone/Zone2_Forest.asset";
     const string TempleThemePath = "Assets/11.Data/Zone/Zone3_Temple.asset";
@@ -30,7 +30,7 @@ public static class DungeonSceneSetup
     const string BossSpawnPath = "Zone_4_Boss/Generated/RespawnPoint"; // 본편 보스 구역 입구 밖
     const string EntranceName = "DungeonEntrance";
     const string DirectorName = "Dungeon";
-    const string ObjectiveSettingsPath = "Assets/11.Data/Navigation/Nav_Objective.asset"; // [변경] HUD Navigation 셋업이 만든 목표 표식 설정
+    const string ObjectiveSettingsPath = "Assets/11.Data/Navigation/Nav_Objective.asset"; // HUD Navigation 셋업이 만든 목표 표식 설정
 
     const float Size = 110f; // 네 구역 모두 같은 크기여야 가장자리 이음새가 맞음
 
@@ -65,7 +65,7 @@ public static class DungeonSceneSetup
         }
         if (AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath) == null && !AssetDatabase.CopyAsset(MainScenePath, ScenePath))
         {
-            Debug.LogError("[Dungeon] SampleScene을 복사하지 못했습니다.");
+            Debug.LogError("[Dungeon] InGame 씬을 복사하지 못했습니다.");
             return;
         }
         Scene scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
@@ -300,7 +300,7 @@ public static class DungeonSceneSetup
         so.FindProperty("exitMarker").objectReferenceValue = exit;
         so.FindProperty("miniBossPrefab").objectReferenceValue = elite;
         so.FindProperty("font").objectReferenceValue = Load<Font>(TutorialSceneSetup.TitleFontPath);
-        so.FindProperty("markerSettings").objectReferenceValue = Load<ScriptableObject>(ObjectiveSettingsPath); // [변경]
+        so.FindProperty("markerSettings").objectReferenceValue = Load<ScriptableObject>(ObjectiveSettingsPath);
         so.ApplyModifiedPropertiesWithoutUndo();
         if (Load<ScriptableObject>(ObjectiveSettingsPath) == null)
             Debug.LogWarning($"[Dungeon] {ObjectiveSettingsPath}가 없어 나침반 목표 표식은 빠집니다 (오른쪽 위 목표 · 거리는 표시됨). Tools/Setup/HUD Navigation을 먼저 실행하세요.");

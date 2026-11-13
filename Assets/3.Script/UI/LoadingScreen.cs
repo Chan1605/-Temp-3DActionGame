@@ -16,7 +16,7 @@ public class LoadingScreen : MonoBehaviour
     static readonly string[,] Places =
     {
         { "Tutorial", "수련장", "노을 진 수련 마당" },
-        { "SampleScene", "산문", "흑뢰의 제단으로 가는 첫 관문" },
+        { "InGame", "산문", "흑뢰의 제단으로 가는 첫 관문" }, // [변경] 씬 이름 변경 (SampleScene → InGame)
         { "Training", "연습장", "모든 기술을 마음껏 시험하는 마당" },
         { "Dungeon", "뇌운 협곡", "봉인 셋을 풀고 수문장을 쓰러뜨려라" },
     };
@@ -27,13 +27,13 @@ public class LoadingScreen : MonoBehaviour
         { "적의 칼이 닿기 직전에 회피하면 시간이 느려지고 뇌기 1칸을 얻습니다.", "DodgeDraw" },
         { "저스트 회피 직후 Q를 누르면 뇌기 없이 바로 발도합니다.", "DodgeDraw" },
         { "Q를 길게 누르면 발도 자세. 조준점을 올려 둔 적을 표식 순서대로 벱니다.", "StanceMarks" },
-        { "콤보 중 적이 공격하면 우클릭으로 간파해 맞받아칠 수 있습니다.", "KanpaSmash" },
+        { "콤보 중 적이 공격하면 우클릭 역뢰로 맞받아칠 수 있습니다.", "KanpaSmash" }, // [변경] 용어 교체
         { "패링으로 무너진 적에게 다가가 F를 누르면 처형합니다. 처형은 뇌기를 크게 채웁니다.", "HudBolt" },
         { "뇌기 2칸 이상에서 R. 각성 중엔 평타마다 낙뢰가 떨어지고 패링이 무료입니다.", "Enchant" },
         { "각성 중 Q는 각성 시간을 떼어 발도 시간을 엽니다. 그동안 표식 수 제한이 없습니다.", "EnchantDraw" },
         { "화톳불에서 쉬면 체력이 회복되고 스킬트리를 열 수 있습니다.", "HudHeart" },
-        { "보스는 벽력일섬에 즉사하지 않습니다. 체간을 무너뜨린 뒤에 노리세요.", "ThunderFlash" },
-        { "패링 · 간파 · 저스트 회피 · 처형으로 궁극기 게이지가 찹니다. V를 짧게 누르면 낙뢰진, 누르고 있으면 천뢰일섬 → 뇌신강림.", "ThunderFlash" }, // [변경]
+        { "보스는 섬뢰일도에 즉사하지 않습니다. 체간을 무너뜨린 뒤에 노리세요.", "ThunderFlash" }, // [변경] 용어 교체
+        { "패링 · 역뢰 · 저스트 회피 · 처형으로 궁극기 게이지가 찹니다. V를 짧게 누르면 낙뢰진, 누르고 있으면 천뢰일섬 → 뇌신강림.", "ThunderFlash" }, // [변경] 용어 교체
     };
 
     Text placeText, placeSub, tipText, percentText;
@@ -48,7 +48,7 @@ public class LoadingScreen : MonoBehaviour
         string place = sceneName, sub = "";
         for (int i = 0; i < Places.GetLength(0); i++)
             if (Places[i, 0] == sceneName) { place = Places[i, 1]; sub = Places[i, 2]; }
-        if (sceneName == "SampleScene" && RunState.HasFlag(DungeonDirector.ClearedFlag)) // 던전에서 돌아갈 때
+        if (sceneName == "InGame" && RunState.HasFlag(DungeonDirector.ClearedFlag)) // [변경] 씬 이름 변경 · 던전에서 돌아갈 때
         {
             place = "흑뢰의 제단";
             sub = "협곡을 지나 마지막 제단으로";

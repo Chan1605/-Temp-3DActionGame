@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // 3칸 · 뇌신강림(雷神降臨)
-// [변경] 벽력일섬 발도를 빌려 쓰던 흐름을 자체 연출로 바꿈 (R→Q 발도와 같은 느낌이라)
+// 벽력일섬 발도를 빌려 쓰던 흐름을 자체 연출로 바꿈 (R→Q 발도와 같은 느낌이라)
 //  ① 하늘이 검게 물들고, 치켜든 칼에 낙뢰가 연달아 내리꽂힘
 //  ② 세상이 완전히 멈춘 채, 돌진 없이 깜빡이듯 주변 모든 적을 벰 — 잔상과 번개 줄이 지나간 길로 남고, 벤 자리마다 빛나는 칼자국
 //  ③ 처음 자리로 돌아와 천천히 납도 (정적) → 칼이 들어가는 순간 칼자국이 한꺼번에 터지며 적마다 낙뢰 기둥
@@ -31,7 +31,7 @@ public partial class PlayerUltimate
 
         // ① 강림
         fx.Letterbox(true);
-        fx.DarkenSky(1f, new Color(0.05f, 0.04f, 0.1f), 0.045f);
+        fx.DarkenSky(1f, new Color(0.09f, 0.08f, 0.16f), 0.03f); // [변경] 덜 어둡고 덜 짙게 (화질 깨짐)
         CombatTime.SetHold(0f);
         Play(ChargeState);
         Sound(chargeClip, 1f, 0.8f);
@@ -42,9 +42,8 @@ public partial class PlayerUltimate
         Vector3 tip = Chest + Vector3.up * 1.1f;
         for (int i = 0; i < descentStrikes; i++)
         {
-            if (skyBolt != null)
-                for (int n = 0; n < 2; n++)
-                    skyBolt.Trigger(tip + new Vector3(Random.Range(-5f, 5f), 30f, Random.Range(-5f, 5f)), tip);
+            for (int n = 0; n < 2; n++) // [변경] 더 비스듬히 · 가늘게 (곧은 기둥처럼 보이지 않게)
+                ThunderBolt3D.Strike(tip + new Vector3(Random.Range(-9f, 9f), 24f, Random.Range(-9f, 9f)), tip, n == 0 ? 0.85f : 0.55f, 2);
             for (int k = 0; k < 4; k++)
             {
                 Vector2 a = Random.insideUnitCircle.normalized * Random.Range(1f, 3f);
@@ -140,7 +139,7 @@ public partial class PlayerUltimate
         foreach (EnemySwordsman e in targets)
         {
             if (e == null || !e.CanBeTargeted) continue;
-            SkyStrike(e.transform.position, 26f, 4, 3.2f); // 여러 줄기가 모여 기둥처럼
+            SkyStrike(e.transform.position, 22f, 2, 3.2f); // [변경] 4 → 2줄기 (겹친 굵은 막대처럼 보이던 문제)
             Hit(e, descentDamage, descentPosture, descentBossScale, true);
         }
         Thunder(1f);

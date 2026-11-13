@@ -73,13 +73,13 @@ MonoBehaviour:
     preview: {fileID: 32900000, guid: 30c08d4931c12f940b10c89fa3715c33, type: 3}
   - id: 7
     displayName: "\uBCBC\uB77D"
-    description: "\uAC04\uD30C \uC131\uACF5 \uC9C1\uD6C4 \uC6B0\uD074\uB9AD: \uC8FC\uBCC0\uC744
+    description: "\uC5ED\uB8B0 \uC131\uACF5 \uC9C1\uD6C4 \uC6B0\uD074\uB9AD: \uC8FC\uBCC0\uC744
       \uACBD\uC9C1\uC2DC\uD0A4\uACE0 \uBCBC\uB77D\uC744 \uB5A8\uC5B4\uB728\uB9B0\uB2E4."
     cost: 1
     tab: 0
     branch: 2
     requires: 
-    preview: {fileID: 0}
+    preview: {fileID: 32900000, guid: 39c53be805b0fc345b3dbc9dcd529d3d, type: 3}
   - id: 8
     displayName: "\uD68C\uD53C \uC77C\uC12C"
     description: "\uC644\uBCBD \uD68C\uD53C \uC9C1\uD6C4 Q: \uB1CC\uAE30 \uC5C6\uC774

@@ -47,7 +47,7 @@ public class PlayerVfx : MonoBehaviour
     [SerializeField] int levelUpArcs = 5;
     [SerializeField] LightningBoltStyle chargeStyle = DefaultChargeStyle(); // 타입 이름만 변경 (저장된 값은 유지)
 
-    // [변경] 발도 자세: 주변 공중·땅에서 칼로 번개가 끌려 모임. 자세 시간이 지날수록·표식이 늘수록 빽빽해짐
+    // 발도 자세: 주변 공중·땅에서 칼로 번개가 끌려 모임. 자세 시간이 지날수록·표식이 늘수록 빽빽해짐
     [Header("Draw Stance")]
     [SerializeField] bool stanceGather = true;
     [SerializeField] float gatherRadius = 4f;
@@ -92,9 +92,8 @@ public class PlayerVfx : MonoBehaviour
         bladeBolt = CreateBolt("BladeLightning", bladeStyle);
         dashBolt = CreateBolt("DashLightning", dashStyle);
         strikeBolt = CreateBolt("StrikeLightning", strikeStyle);
-        strikeBoltSoft = CreateBolt("StrikeLightningSoft", SoftCopy(strikeStyle));
         chargeBolt = CreateBolt("ChargeLightning", chargeStyle);
-        gatherBolt = CreateBolt("GatherLightning", gatherStyle); // [변경]
+        gatherBolt = CreateBolt("GatherLightning", gatherStyle);
     }
 
     void OnEnable()
@@ -178,7 +177,7 @@ public class PlayerVfx : MonoBehaviour
         }
 
         if (charging) UpdateCharge(Time.unscaledDeltaTime); // 차지 중 timeScale이 느려져도 일정한 빈도
-        UpdateGather(Time.unscaledDeltaTime); // [변경]
+        UpdateGather(Time.unscaledDeltaTime);
         if (enchanted) UpdateEnchant(Time.deltaTime);
     }
 
@@ -217,7 +216,7 @@ public class PlayerVfx : MonoBehaviour
         if (strikeBolt == null) return;
         Vector2 o = Random.insideUnitCircle;
         Vector3 ground = position + Vector3.up * 0.1f;
-        strikeBolt.Trigger(position + new Vector3(o.x, enchantStrikeHeight, o.y), ground);
+        ThunderBolt3D.Strike(position + new Vector3(o.x, enchantStrikeHeight, o.y), ground, 0.6f, 1); // [변경] 입체 낙뢰 (납작해 보이던 문제)
         if (chargeBolt == null) return;
         for (int i = 0; i < 2; i++)
         {
@@ -270,7 +269,6 @@ public class PlayerVfx : MonoBehaviour
     // 한 번에 여럿을 베면 앞의 몇 개만 빛·번짐을 세게, 나머지는 빛 없는 약한 번개 (화면이 하얗게 타는 것 방지)
     [SerializeField] int brightStrikes = 3;
     [SerializeField, Range(0f, 1f)] float softStrikeGlow = 0.35f;
-    LightningBoltPrefabScriptBase strikeBoltSoft;
 
     LightningBoltStyle SoftCopy(LightningBoltStyle s)
     {
@@ -303,15 +301,13 @@ public class PlayerVfx : MonoBehaviour
     {
         if (delay > 0f) yield return new WaitForSecondsRealtime(delay);
         // 약한 낙뢰: 빛 없는 번개 한 번만 (재점멸 · 바닥 잔번개 생략)
-        if (soft)
+        if (soft) // [변경] 입체 낙뢰 · 약한 건 가늘게 (예전 넓은 빛 번개가 카메라 앞을 하얗게 덮던 문제)
         {
-            if (strikeBoltSoft != null) strikeBoltSoft.Trigger(sky, ground);
+            ThunderBolt3D.Strike(sky, ground, 0.6f, 1);
             yield break;
         }
-        if (strikeBolt != null) strikeBolt.Trigger(sky, ground);
-
+        ThunderBolt3D.Strike(sky, ground, 1f, 2); // 스스로 몇 번 깜빡임 → 재점멸 대기 없음
         yield return new WaitForSecondsRealtime(strikeFlickerDelay);
-        if (strikeBolt != null) strikeBolt.Trigger(sky, ground);
 
         if (chargeBolt == null) yield break;
         for (int i = 0; i < impactArcs; i++)
@@ -376,7 +372,7 @@ public class PlayerVfx : MonoBehaviour
         }
     }
 
-    // [변경] 핵심: 발도 자세(조준) 동안 바깥 링의 공중·땅 지점 → 칼로 자라 들어오는 번개 (growth로 안쪽으로 뻗는 게 보임)
+    // 핵심: 발도 자세(조준) 동안 바깥 링의 공중·땅 지점 → 칼로 자라 들어오는 번개 (growth로 안쪽으로 뻗는 게 보임)
     void UpdateGather(float dt)
     {
         bool active = stanceGather && skill != null && skill.InDrawStance && !skill.StanceAutoDraw;
@@ -450,7 +446,7 @@ public class PlayerVfx : MonoBehaviour
         lightRange = 3f, lightIntensity = 1f, lightPercent = 0.02f
     };
 
-    // [변경] 모이는 번개: 시작점에서 칼 쪽으로 자라며(growth) 들어옴. 개수가 많아 조명은 끔
+    // 모이는 번개: 시작점에서 칼 쪽으로 자라며(growth) 들어옴. 개수가 많아 조명은 끔
     static LightningBoltStyle DefaultGatherStyle() => new LightningBoltStyle
     {
         width = new Vector2(0.025f, 0.045f), duration = new Vector2(0.12f, 0.2f), generations = 5,
@@ -469,7 +465,7 @@ public class PlayerVfx : MonoBehaviour
         dashStyle = DefaultDashStyle();
         strikeStyle = DefaultStrikeStyle();
         chargeStyle = DefaultChargeStyle();
-        gatherStyle = DefaultGatherStyle(); // [변경]
+        gatherStyle = DefaultGatherStyle();
 #if UNITY_EDITOR
         UnityEditor.EditorUtility.SetDirty(this);
 #endif
