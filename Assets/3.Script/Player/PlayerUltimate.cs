@@ -48,7 +48,7 @@ public partial class PlayerUltimate : MonoBehaviour
     public float Gauge { get; private set; }
     public int Bars => Mathf.Min(MaxBars, Mathf.FloorToInt(Gauge + 0.0001f));
     public bool Active { get; private set; }
-    public static bool AnyActive => current != null && current.Active; // [변경] 연출 중엔 설정 창을 열지 않도록 (SettingsMenu)
+    public static bool AnyActive => current != null && current.Active; // 연출 중엔 설정 창을 열지 않도록 (SettingsMenu)
     static PlayerUltimate current;
     public int Selecting { get; private set; } // V를 누르고 있는 동안 고른 단계 (0 = 누르지 않음)
     public string SelectingName => Selecting > 0 ? Readings[Selecting] : "";
@@ -97,7 +97,7 @@ public partial class PlayerUltimate : MonoBehaviour
 
     void OnEnable()
     {
-        current = this; // [변경]
+        current = this;
         if (parry != null) parry.Parried += OnParried;
         if (kanpa != null) kanpa.Countered += OnCountered;
         if (dodge != null) dodge.JustDodged += OnJustDodged;
@@ -111,7 +111,7 @@ public partial class PlayerUltimate : MonoBehaviour
         if (dodge != null) dodge.JustDodged -= OnJustDodged;
         if (execution != null) execution.Executed -= OnExecuted;
         MenuOverlay.Hide(this);
-        if (current == this) current = null; // [변경]
+        if (current == this) current = null;
     }
 
     void OnParried(GameObject e) => AddGauge(parryGain);
@@ -224,7 +224,7 @@ public partial class PlayerUltimate : MonoBehaviour
     IEnumerator Run(IEnumerator routine, bool returnToIdle)
     {
         Lock(true, false);
-        MenuOverlay.Show(this, fx.Overlay); // 연출 동안 HUD 등은 숨기고 궁극기 연출 UI만 남김 (F10 녹화 모드처럼)
+        MenuOverlay.Show(this, fx.Overlay, BossHealthBar.Current); // [변경] 보스 체력은 남겨 궁극기 피해량을 보여 줌
         yield return routine;
         MenuOverlay.Hide(this);
         Lock(false, returnToIdle);

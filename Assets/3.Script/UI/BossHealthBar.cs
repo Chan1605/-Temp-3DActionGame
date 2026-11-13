@@ -20,11 +20,23 @@ public class BossHealthBar : MonoBehaviour
     float trail = 1f, trailHoldUntil, lastHp = 1f;
     bool phaseShown, hiding, showing;
 
+    // [변경] HUD와 따로 그리는 자기 캔버스. 궁극기 중 HUD를 숨겨도 보스 체력은 남겨 피해량을 보여 줌 (레터박스 위)
+    public static Canvas Current { get; private set; }
+    Canvas canvas;
+
+    void OnDestroy()
+    {
+        if (canvas != null) Destroy(canvas.gameObject);
+        if (Current == canvas) Current = null;
+    }
+
     public void Build(Font font)
     {
         if (font == null) font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-        root = Rect("Root", transform, new Vector2(0.5f, 0f), new Vector2(Width, 70f));
+        canvas = UIKit.CreateCanvas(null, "BossBarCanvas", 45); // [변경] 궁극기 연출(40) 위, 결과 화면(150) · 메뉴 아래
+        Current = canvas;
+        root = Rect("Root", canvas.transform, new Vector2(0.5f, 0f), new Vector2(Width, 70f)); // [변경]
         root.anchoredPosition = new Vector2(0f, 92f);
         group = root.gameObject.AddComponent<CanvasGroup>();
         group.alpha = 0f;
@@ -56,7 +68,7 @@ public class BossHealthBar : MonoBehaviour
     {
         Transform old = root.Find("PhaseTick");
         if (old != null) Destroy(old.gameObject);
-        if (ratio <= 0f) return; // [변경] 2페이즈 없는 중간보스
+        if (ratio <= 0f) return; // 2페이즈 없는 중간보스
         RectTransform tick = Rect("PhaseTick", root, new Vector2(0.5f, 0f), new Vector2(3f, 22f));
         tick.anchoredPosition = new Vector2(-Width * 0.5f + Width * ratio, 13f);
         var image = tick.gameObject.AddComponent<Image>();
