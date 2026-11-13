@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 // 궁극기 (V). 궁극기 게이지 3칸 — 패링 · 간파 · 저스트 회피 · 처형으로만 참
-//  [변경] V를 짧게 누르면 1칸 뇌운낙뢰진, 누르고 있으면 2칸 천뢰일섬 → 3칸 뇌신강림으로 올라가고 떼는 순간 발동 (가진 칸까지만)
+//  V를 짧게 누르면 1칸 뇌운낙뢰진, 누르고 있으면 2칸 천뢰일섬 → 3칸 뇌신강림으로 올라가고 떼는 순간 발동 (가진 칸까지만)
 //         쓴 기술의 칸 수만큼만 소모 → 3칸이어도 낙뢰진을 세 번 쓸 수 있음
 //  연출 동안 무적 · 입력 잠금. 기술별 흐름은 partial 파일(.Storm · .Heavens · .Descent), 화면 연출은 UltimateFx
 // 셋업: Tools/Setup/Player Ultimate (Player 프리팹에 붙이고 소리 · 번개 프리팹 연결)
@@ -48,6 +48,8 @@ public partial class PlayerUltimate : MonoBehaviour
     public float Gauge { get; private set; }
     public int Bars => Mathf.Min(MaxBars, Mathf.FloorToInt(Gauge + 0.0001f));
     public bool Active { get; private set; }
+    public static bool AnyActive => current != null && current.Active; // [변경] 연출 중엔 설정 창을 열지 않도록 (SettingsMenu)
+    static PlayerUltimate current;
     public int Selecting { get; private set; } // V를 누르고 있는 동안 고른 단계 (0 = 누르지 않음)
     public string SelectingName => Selecting > 0 ? Readings[Selecting] : "";
     public event System.Action<int> Started;  // 단계 (1~3)
@@ -60,7 +62,7 @@ public partial class PlayerUltimate : MonoBehaviour
     float holdTime;
     float duck = 1f, duckTarget = 1f; // 전체 소리 누르기 (베기 직전 정적)
     AudioSource audioSource;
-    LightningBoltPrefabScriptBase arcBolt; // [변경] 낙뢰는 ThunderBolt3D로, 이 번개 프리팹은 잔 번개만
+    LightningBoltPrefabScriptBase arcBolt; // 낙뢰는 ThunderBolt3D로, 이 번개 프리팹은 잔 번개만
     UltimateHud hud;
 
     void Awake()
@@ -95,6 +97,7 @@ public partial class PlayerUltimate : MonoBehaviour
 
     void OnEnable()
     {
+        current = this; // [변경]
         if (parry != null) parry.Parried += OnParried;
         if (kanpa != null) kanpa.Countered += OnCountered;
         if (dodge != null) dodge.JustDodged += OnJustDodged;
@@ -107,6 +110,8 @@ public partial class PlayerUltimate : MonoBehaviour
         if (kanpa != null) kanpa.Countered -= OnCountered;
         if (dodge != null) dodge.JustDodged -= OnJustDodged;
         if (execution != null) execution.Executed -= OnExecuted;
+        MenuOverlay.Hide(this);
+        if (current == this) current = null; // [변경]
     }
 
     void OnParried(GameObject e) => AddGauge(parryGain);
@@ -219,7 +224,9 @@ public partial class PlayerUltimate : MonoBehaviour
     IEnumerator Run(IEnumerator routine, bool returnToIdle)
     {
         Lock(true, false);
+        MenuOverlay.Show(this, fx.Overlay); // 연출 동안 HUD 등은 숨기고 궁극기 연출 UI만 남김 (F10 녹화 모드처럼)
         yield return routine;
+        MenuOverlay.Hide(this);
         Lock(false, returnToIdle);
         fx.EndAll();
         if (followCamera != null) followCamera.EndCinematic();
@@ -290,7 +297,7 @@ public partial class PlayerUltimate : MonoBehaviour
     //        떨어진 자리엔 바닥을 퍼지는 고리 + 불빛(UltimateImpact) + 바닥을 기는 잔 번개
     void SkyStrike(Vector3 ground, float height = 18f, int strands = 2, float impact = 2.2f)
     {
-        for (int i = 0; i < strands; i++) // [변경] 입체 낙뢰(ThunderBolt3D), 첫 줄기만 굵게
+        for (int i = 0; i < strands; i++) // 입체 낙뢰(ThunderBolt3D), 첫 줄기만 굵게
         {
             Vector2 o = Random.insideUnitCircle.normalized * Random.Range(1.5f, 5f);
             ThunderBolt3D.Strike(ground + new Vector3(o.x, height * Random.Range(0.85f, 1.15f), o.y), ground, i == 0 ? 1.1f : 0.6f, i == 0 ? 2 : 1);

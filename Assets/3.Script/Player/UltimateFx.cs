@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 // 궁극기 화면 연출 (PlayerUltimate가 만들어 씀). 모든 값은 실제 시간으로 움직이고 EndAll로 한꺼번에 원래대로
 //  레터박스(위아래 검은 띠) · 기술 이름(한자 + 읽기) · 번쩍임 · 흑백/어둡게(볼륨) · 하늘 어둡게(안개)
-//  [변경] 화면 베기(Cut): 지금 화면을 그대로 찍어 두 조각으로 나눠 들고, 실처럼 가는 선이 그어진 뒤 두 조각이 선을 따라 어긋남
+//  화면 베기(Cut): 지금 화면을 그대로 찍어 두 조각으로 나눠 들고, 실처럼 가는 선이 그어진 뒤 두 조각이 선을 따라 어긋남
 public class UltimateFx : MonoBehaviour
 {
     const float BarHeight = 120f;
@@ -55,6 +55,8 @@ public class UltimateFx : MonoBehaviour
     }
 
     // ===== 명령 =====
+    public Canvas Overlay { get; private set; } // [변경]
+
     public void Letterbox(bool on) => barTarget = on ? 1f : 0f;
     public void Desaturate(float amount) => desatTarget = Mathf.Clamp01(amount);
 
@@ -113,14 +115,14 @@ public class UltimateFx : MonoBehaviour
         dark = Mathf.MoveTowards(dark, darkTarget, dt * 1.5f);
         volume.weight = Mathf.Max(desat, dark * 0.6f);
         color.saturation.value = -100f * desat;
-        color.postExposure.value = -0.35f * dark; // [변경] -0.8 → -0.35 (어두운 영역 색 단계가 깨져 지글거리던 문제)
+        color.postExposure.value = -0.35f * dark; // -0.8 → -0.35 (어두운 영역 색 단계가 깨져 지글거리던 문제)
         vignette.intensity.value = 0.25f + 0.25f * Mathf.Max(desat, dark);
 
         if (skySaved)
         {
             RenderSettings.fogColor = Color.Lerp(fogColor, darkFog, dark);
             RenderSettings.fogDensity = Mathf.Lerp(fogDensity, darkFogDensity, dark);
-            RenderSettings.ambientIntensity = Mathf.Lerp(ambient, ambient * 0.55f, dark); // [변경] 덜 어둡게
+            RenderSettings.ambientIntensity = Mathf.Lerp(ambient, ambient * 0.55f, dark); // 덜 어둡게
             if (dark <= 0f && darkTarget <= 0f) RestoreSky();
         }
 
@@ -240,6 +242,7 @@ public class UltimateFx : MonoBehaviour
         font = menu != null ? menu.TitleFont : null;
 
         Canvas canvas = UIKit.CreateCanvas(transform, "UltimateCanvas", 40); // HUD 위, 메뉴 아래
+        Overlay = canvas; // [변경] 궁극기 중 이 캔버스만 남기고 나머지 UI를 숨길 때 사용
         Transform root = canvas.transform;
         canvasRect = (RectTransform)root;
 

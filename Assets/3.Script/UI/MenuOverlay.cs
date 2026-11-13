@@ -2,8 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-// 게임 안에서 메뉴(설정 · 스킬트리)가 열려 있는 동안 다른 UI 캔버스를 잠시 꺼서 겹치지 않게 함
-// 메뉴마다 Show(owner, 자기 캔버스) / Hide(owner). 열린 메뉴가 하나도 없을 때 꺼 둔 캔버스를 되살림
+// 게임 안에서 메뉴(설정 · 스킬트리)나 궁극기 연출이 이어지는 동안 다른 UI 캔버스를 잠시 꺼서 겹치지 않게 함
+// [변경] 쓰는 쪽마다 Show(owner, 남길 캔버스) / Hide(owner). 남은 owner가 하나도 없을 때 꺼 둔 캔버스를 되살림
 public static class MenuOverlay
 {
     static readonly Dictionary<Object, Canvas> owners = new Dictionary<Object, Canvas>();

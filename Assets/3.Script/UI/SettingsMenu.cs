@@ -66,7 +66,7 @@ public class SettingsMenu : MonoBehaviour
     void OnDisable()
     {
         if (inGame && GamePause.IsPaused) GamePause.Set(false);
-        MenuOverlay.Hide(this); // [변경]
+        MenuOverlay.Hide(this);
     }
 
     void Update()
@@ -76,7 +76,7 @@ public class SettingsMenu : MonoBehaviour
         if (!IsOpen)
         {
             // 스킬트리가 열려 있으면 ESC는 스킬트리가 처리
-            if (inGame && !ResultScreen.IsShowing && (SkillTreeMenu.Instance == null || !SkillTreeMenu.Instance.IsOpen)) Open(); // 결과 화면 중엔 열지 않음
+            if (inGame && !ResultScreen.IsShowing && !PlayerUltimate.AnyActive && (SkillTreeMenu.Instance == null || !SkillTreeMenu.Instance.IsOpen)) Open(); // [변경] 궁극기 연출 중엔 열지 않음 (연출은 멈추지 않고 진행돼서)
         }
         else Back();
     }
@@ -104,7 +104,7 @@ public class SettingsMenu : MonoBehaviour
         if (skipTutorialText != null) // 진행 중인 튜토리얼이 있을 때만
             skipTutorialText.gameObject.SetActive(TutorialDirector.Instance != null && !TutorialDirector.Instance.Finished);
         if (inGame) GamePause.Set(true);
-        if (inGame) MenuOverlay.Show(this, root.GetComponent<Canvas>()); // [변경] 열린 동안 HUD 등 다른 UI를 숨김
+        if (inGame) MenuOverlay.Show(this, root.GetComponent<Canvas>()); // 열린 동안 HUD 등 다른 UI를 숨김
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
@@ -118,7 +118,7 @@ public class SettingsMenu : MonoBehaviour
     public void Close()
     {
         root.SetActive(false);
-        MenuOverlay.Hide(this); // [변경]
+        MenuOverlay.Hide(this);
         resumeRequested = true;
         Closed?.Invoke();
     }
