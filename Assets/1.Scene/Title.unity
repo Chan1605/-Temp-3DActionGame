@@ -398,22 +398,16 @@ MonoBehaviour:
   titleFont: {fileID: 12800000, guid: 3117e2d6251c9154fb4945680a341259, type: 3}
   bodyFont: {fileID: 12800000, guid: ca81aa27ea10c624487ee1849d77e491, type: 3}
   settings: {fileID: 2136826680}
-  backgroundClips:
-  - {fileID: 32900000, guid: 9a5b7ed481db93c469e9b8128cc999b0, type: 3}
-  - {fileID: 32900000, guid: 39ff16b7e8c261c48bd6c1958fed5aa7, type: 3}
-  - {fileID: 32900000, guid: 9fe772934b74c804b94c40e56787bab4, type: 3}
-  - {fileID: 32900000, guid: 30c08d4931c12f940b10c89fa3715c33, type: 3}
-  - {fileID: 32900000, guid: a5ce3896a511e36468dd79aace8bc159, type: 3}
-  - {fileID: 32900000, guid: 2b592042bbc52b04f87c5b743a415a3f, type: 3}
-  - {fileID: 32900000, guid: b8164d200ec3c74419abeae9509be040, type: 3}
+  logoFont: {fileID: 12800000, guid: fd37ada1269842169033f419dc3e8d1f, type: 3}
+  subtitleFont: {fileID: 12800000, guid: a5285cc2ccc24cc0b731bc00c10a47c6, type: 3}
+  characterSource: {fileID: 1391606783692858250, guid: 028fc801622cbcf43ac5ff5a768f8486, type: 3}
   bgm: {fileID: 0}
   tutorialScene: Tutorial
-  mainScene: SampleScene
+  mainScene: InGame
   trainingScene: Training
   accent: {r: 0.95, g: 0.8, b: 0.45, a: 1}
   bolt: {r: 0.62, g: 0.82, b: 1, a: 1}
-  videoDim: 0.45
-  flashInterval: {x: 4, y: 8}
+  flashInterval: {x: 5, y: 10}
 --- !u!4 &1702371538
 Transform:
   m_ObjectHideFlags: 0
@@ -514,10 +508,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SettingsMenu
   titleFont: {fileID: 12800000, guid: 3117e2d6251c9154fb4945680a341259, type: 3}
   bodyFont: {fileID: 12800000, guid: ca81aa27ea10c624487ee1849d77e491, type: 3}
+  displayFont: {fileID: 12800000, guid: fd37ada1269842169033f419dc3e8d1f, type: 3}
   inGame: 0
-  accent: {r: 0.91, g: 0.78, b: 0.55, a: 1}
+  accent: {r: 0.95, g: 0.8, b: 0.45, a: 1}
   dimText: {r: 1, g: 1, b: 1, a: 0.6}
-  backdropAlpha: 0.72
+  backdropAlpha: 0.45
 --- !u!4 &2136826681
 Transform:
   m_ObjectHideFlags: 0

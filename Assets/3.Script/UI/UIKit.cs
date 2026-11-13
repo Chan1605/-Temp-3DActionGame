@@ -122,4 +122,32 @@ public static class UIKit
         tex.Apply();
         return Sprite.Create(tex, new Rect(0, 0, width, 1), new Vector2(0f, 0.5f), 100f);
     }
+
+    // [변경] 타이틀 · 설정 메뉴 공용 붓질 한 획 (TitleScreen에서 옮김): 왼쪽에서 진하게 시작해 오른쪽으로 갈수록 가늘어지며 갈라짐
+    public static Sprite BrushStroke(int w, int h)
+    {
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+        var pixels = new Color32[w * h];
+        for (int y = 0; y < h; y++)
+        {
+            float v = (y + 0.5f) / h * 2f - 1f;
+            float bristle = Mathf.PerlinNoise(y * 0.35f, 3.1f);              // 붓털마다 끝나는 자리가 다름
+            float end = Mathf.Lerp(0.55f, 1f, bristle);
+            float streak = Mathf.Lerp(0.55f, 1f, Mathf.PerlinNoise(y * 0.9f, 7.7f));
+            for (int x = 0; x < w; x++)
+            {
+                float u = (x + 0.5f) / w;
+                float center = 0.08f * Mathf.Sin(u * 5f);
+                float thick = Mathf.Lerp(0.95f, 0.45f, u);
+                float body = Mathf.Clamp01((thick - Mathf.Abs(v - center)) * 6f);
+                float head = Mathf.SmoothStep(0f, 0.06f, u);
+                float tail = 1f - Mathf.SmoothStep(end - 0.25f, end, u);
+                float a = body * head * tail * streak;
+                pixels[y * w + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255f));
+            }
+        }
+        tex.SetPixels32(pixels);
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0f, 0.5f), 100f);
+    }
 }

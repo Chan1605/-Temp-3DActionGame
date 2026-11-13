@@ -96818,8 +96818,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SettingsMenu
   titleFont: {fileID: 12800000, guid: 3117e2d6251c9154fb4945680a341259, type: 3}
   bodyFont: {fileID: 12800000, guid: ca81aa27ea10c624487ee1849d77e491, type: 3}
+  displayFont: {fileID: 12800000, guid: fd37ada1269842169033f419dc3e8d1f, type: 3}
   inGame: 1
-  accent: {r: 0.91, g: 0.78, b: 0.55, a: 1}
+  accent: {r: 0.95, g: 0.8, b: 0.45, a: 1}
   dimText: {r: 1, g: 1, b: 1, a: 0.6}
   backdropAlpha: 0.72
 --- !u!4 &1145090750

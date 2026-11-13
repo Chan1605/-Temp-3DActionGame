@@ -2,11 +2,12 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// 열린 씬에 ESC 설정 패널(SettingsMenu)을 놓고 Pretendard 글꼴을 연결 (다시 실행해도 됨)
+// 열린 씬에 ESC 설정 패널(SettingsMenu)을 놓고 글꼴을 연결 (다시 실행해도 됨)
 public static class SettingsMenuSetup
 {
     const string TitleFontPath = "Assets/9.Font/public/static/Pretendard-SemiBold.otf";
     const string BodyFontPath = "Assets/9.Font/public/static/Pretendard-Regular.otf";
+    const string DisplayFontPath = "Assets/9.Font/Display/Cinzel-Bold.ttf"; // [변경] 타이틀과 같은 세리프
 
     [MenuItem("Tools/Setup/Settings Menu (ESC)")]
     static void Run()
@@ -28,6 +29,7 @@ public static class SettingsMenuSetup
         var so = new SerializedObject(menu);
         so.FindProperty("titleFont").objectReferenceValue = AssetDatabase.LoadAssetAtPath<Font>(TitleFontPath);
         so.FindProperty("bodyFont").objectReferenceValue = AssetDatabase.LoadAssetAtPath<Font>(BodyFontPath);
+        so.FindProperty("displayFont").objectReferenceValue = AssetDatabase.LoadAssetAtPath<Font>(DisplayFontPath);
         so.ApplyModifiedProperties();
 
         EditorSceneManager.MarkSceneDirty(menu.gameObject.scene);
