@@ -62,7 +62,7 @@ public class SkillTreeMenu : MonoBehaviour
     {
         Instance = this;
         nodes = data != null && data.nodes.Count > 0 ? SkillTreeData.WithMissingDefaults(data.nodes) : SkillTreeData.Defaults(); // 새 노드가 에셋에 없어도 보이게
-        restored = RunState.TryRestoreSkills(); // [변경] 이전 씬(수련장)에서 찍은 스킬·포인트를 이어받음
+        restored = RunState.TryRestoreSkills(); // 이전 씬(수련장)에서 찍은 스킬·포인트를 이어받음
         if (!restored) SkillTree.Activate(data != null ? data.startPoints : 1);
         if (unlockAllAtStart) SkillTree.UnlockAll();
 
@@ -80,7 +80,7 @@ public class SkillTreeMenu : MonoBehaviour
     {
         health = FindAnyObjectByType<PlayerHealth>();
         thunder = FindAnyObjectByType<PlayerThunder>();
-        if (unlockAllAtStart || restored) // [변경] 이어받은 수련 패시브도 새 씬의 플레이어에 다시 적용
+        if (unlockAllAtStart || restored) // 이어받은 수련 패시브도 새 씬의 플레이어에 다시 적용
             foreach (SkillTreeData.Node n in nodes)
                 if (SkillTree.IsUnlocked(n.id)) ApplyPassive(n.id);
     }
@@ -97,6 +97,7 @@ public class SkillTreeMenu : MonoBehaviour
         if (stats != null) stats.LeveledUp -= OnLeveledUp;
         SkillTree.Changed -= Refresh;
         if (IsOpen && GamePause.IsPaused) GamePause.Set(false);
+        MenuOverlay.Hide(this); // [변경]
     }
 
     void OnDestroy()
@@ -126,6 +127,7 @@ public class SkillTreeMenu : MonoBehaviour
         {
             closeRequested = false;
             menuCanvas.gameObject.SetActive(false);
+            MenuOverlay.Hide(this); // [변경]
             if (video != null) video.Stop();
             GamePause.Set(false);
             Cursor.lockState = CursorLockMode.Locked;
@@ -146,6 +148,7 @@ public class SkillTreeMenu : MonoBehaviour
     {
         if (IsOpen) return;
         menuCanvas.gameObject.SetActive(true);
+        MenuOverlay.Show(this, menuCanvas); // [변경] 열린 동안 HUD 등 다른 UI를 숨김
         GamePause.Set(true);
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;

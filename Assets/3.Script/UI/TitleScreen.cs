@@ -18,9 +18,7 @@ public class TitleScreen : MonoBehaviour
     [SerializeField] VideoClip[] backgroundClips;
     [SerializeField] AudioClip bgm;
     [SerializeField] string tutorialScene = "Tutorial";
-    // [변경] 영문 이름을 대문으로, 한글 이름은 부제로
-    const string Logo = "SEOMROE";
-    const string Tagline = "FLASH OF THUNDER";
+    const string Logo = "SEOMROE: Flash of Thunder"; // 대문 한 줄 + 한글 부제
     const string Subtitle = "섬뢰";
     [SerializeField] string mainScene = "InGame"; // 본편 씬 이름 변경
     [SerializeField] string trainingScene = "Training"; // 자유 연습장
@@ -98,18 +96,18 @@ public class TitleScreen : MonoBehaviour
         Transform c = content.transform;
 
         // 로고: 뒤에 같은 글자를 하나 더 깔아 번개 칠 때 번쩍이는 빛으로 사용
-        logoGlow = UIKit.Text(c, Logo, titleFont, 140, new Color(bolt.r, bolt.g, bolt.b, 0f), TextAnchor.MiddleLeft); // [변경] 영문 길이에 맞춰 크기·폭 조정
-        UIKit.Place(logoGlow.rectTransform, 160f, 300f, 1000f, 170f);
+        logoGlow = UIKit.Text(c, Logo, titleFont, 96, new Color(bolt.r, bolt.g, bolt.b, 0f), TextAnchor.MiddleLeft);
+        UIKit.Place(logoGlow.rectTransform, 160f, 340f, 1080f, 130f); // 한 줄에 맞춤
+        FitOneLine(logoGlow);
         logoGlow.gameObject.AddComponent<Outline>().effectDistance = new Vector2(6f, -6f);
         logoGlow.GetComponent<Outline>().effectColor = new Color(bolt.r, bolt.g, bolt.b, 0.5f);
-        logo = UIKit.Text(c, Logo, titleFont, 140, Color.white, TextAnchor.MiddleLeft); // [변경]
-        UIKit.Place(logo.rectTransform, 160f, 300f, 1000f, 170f);
+        logo = UIKit.Text(c, Logo, titleFont, 96, Color.white, TextAnchor.MiddleLeft);
+        UIKit.Place(logo.rectTransform, 160f, 340f, 1080f, 130f);
+        FitOneLine(logo);
         logo.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(3f, -3f);
 
-        Text tagline = UIKit.Text(c, Tagline, titleFont, 34, new Color(1f, 1f, 1f, 0.85f), TextAnchor.MiddleLeft); // [변경] 대문 둘째 줄
-        UIKit.Place(tagline.rectTransform, 168f, 395f, 800f, 44f);
-        Text sub = UIKit.Text(c, Subtitle, bodyFont, 30, accent, TextAnchor.MiddleLeft); // [변경] 한글 이름 부제
-        UIKit.Place(sub.rectTransform, 168f, 452f, 400f, 40f);
+        Text sub = UIKit.Text(c, Subtitle, bodyFont, 30, accent, TextAnchor.MiddleLeft);
+        UIKit.Place(sub.rectTransform, 168f, 445f, 400f, 40f); // 영문 둘째 줄 제거
         Image line = UIKit.Image(c, null, new Color(accent.r, accent.g, accent.b, 0.6f));
         line.raycastTarget = false;
         UIKit.Place(line.rectTransform, 168f, 490f, 340f, 2f);
@@ -130,8 +128,8 @@ public class TitleScreen : MonoBehaviour
         Text ask = UIKit.Text(startChoice.transform, "어디서 시작할까요?", bodyFont, 24, accent, TextAnchor.MiddleLeft);
         UIKit.Place(ask.rectTransform, 172f, 540f, 500f, 32f);
         y = 600f;
-        AddButton(startChoice.transform, "수련장부터", ref y, () => Go(tutorialScene));
-        AddButton(startChoice.transform, "바로 산문으로", ref y, () => Go(mainScene));
+        AddButton(startChoice.transform, "Tutorial", ref y, () => Go(tutorialScene));
+        AddButton(startChoice.transform, "InGame", ref y, () => Go(mainScene));
         y += 20f;
         AddButton(startChoice.transform, "BACK", ref y, ShowMenu);
         startChoice.SetActive(false);
@@ -169,6 +167,7 @@ public class TitleScreen : MonoBehaviour
         if (leaving) return;
         startChoice.SetActive(false);
         menu.SetActive(true);
+        group.gameObject.SetActive(true); // [변경] 설정에서 돌아오면 로고·메뉴 다시 표시
     }
 
     void Go(string scene)
@@ -185,6 +184,7 @@ public class TitleScreen : MonoBehaviour
     {
         if (settings == null) return;
         menu.SetActive(false);
+        group.gameObject.SetActive(false); // [변경] 설정 화면과 겹치지 않게 로고·메뉴(Content)를 숨김
         settings.Open();
     }
 
@@ -302,5 +302,14 @@ public class TitleScreen : MonoBehaviour
             music.volume = Mathf.Lerp(start, 0f, t / 0.7f);
             yield return null;
         }
+    }
+
+    // 줄바꿈을 끄고, 글자 폭이 칸보다 넓으면 들어갈 때까지 크기를 줄임 (Best Fit은 줄바꿈부터 해 버려서 안 씀)
+    static void FitOneLine(Text t)
+    {
+        t.horizontalOverflow = HorizontalWrapMode.Overflow;
+        t.verticalOverflow = VerticalWrapMode.Overflow;
+        float width = t.rectTransform.rect.width;
+        while (t.fontSize > 40 && t.preferredWidth > width) t.fontSize -= 2;
     }
 }

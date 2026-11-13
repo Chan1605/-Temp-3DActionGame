@@ -22,7 +22,7 @@ public class SettingsMenu : MonoBehaviour
     [SerializeField, Range(0f, 1f)] float backdropAlpha = 0.72f;
 
     public bool IsOpen => root != null && root.activeSelf;
-    public Font TitleFont => titleFont; // [변경] 결과 화면이 같은 글꼴을 씀
+    public Font TitleFont => titleFont; // 결과 화면이 같은 글꼴을 씀
     public Font BodyFont => bodyFont;
     public event Action Closed; // 타이틀 화면에서 돌아갈 때 사용
 
@@ -66,6 +66,7 @@ public class SettingsMenu : MonoBehaviour
     void OnDisable()
     {
         if (inGame && GamePause.IsPaused) GamePause.Set(false);
+        MenuOverlay.Hide(this); // [변경]
     }
 
     void Update()
@@ -75,7 +76,7 @@ public class SettingsMenu : MonoBehaviour
         if (!IsOpen)
         {
             // 스킬트리가 열려 있으면 ESC는 스킬트리가 처리
-            if (inGame && !ResultScreen.IsShowing && (SkillTreeMenu.Instance == null || !SkillTreeMenu.Instance.IsOpen)) Open(); // [변경] 결과 화면 중엔 열지 않음
+            if (inGame && !ResultScreen.IsShowing && (SkillTreeMenu.Instance == null || !SkillTreeMenu.Instance.IsOpen)) Open(); // 결과 화면 중엔 열지 않음
         }
         else Back();
     }
@@ -103,6 +104,7 @@ public class SettingsMenu : MonoBehaviour
         if (skipTutorialText != null) // 진행 중인 튜토리얼이 있을 때만
             skipTutorialText.gameObject.SetActive(TutorialDirector.Instance != null && !TutorialDirector.Instance.Finished);
         if (inGame) GamePause.Set(true);
+        if (inGame) MenuOverlay.Show(this, root.GetComponent<Canvas>()); // [변경] 열린 동안 HUD 등 다른 UI를 숨김
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
@@ -116,6 +118,7 @@ public class SettingsMenu : MonoBehaviour
     public void Close()
     {
         root.SetActive(false);
+        MenuOverlay.Hide(this); // [변경]
         resumeRequested = true;
         Closed?.Invoke();
     }
