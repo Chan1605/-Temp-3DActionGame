@@ -60,10 +60,10 @@ public partial class EnemySwordsman
     ThirdPersonCamera bossCamera;
 
     public bool IsBoss => data != null && data.Kind == EnemyKind.Boss;
-    public string BossName => !string.IsNullOrEmpty(bossNameOverride) ? bossNameOverride : data != null ? data.DisplayName : name; // [변경]
+    public string BossName => !string.IsNullOrEmpty(bossNameOverride) ? bossNameOverride : data != null ? data.DisplayName : name;
     string bossNameOverride;
 
-    // [변경] 보스가 아닌 적(던전 중간보스)을 보스 체력 막대에 띄움. 행동은 그대로
+    // 보스가 아닌 적(던전 중간보스)을 보스 체력 막대에 띄움. 행동은 그대로
     public void ShowAsBoss(string displayName)
     {
         bossNameOverride = displayName;
@@ -73,7 +73,7 @@ public partial class EnemySwordsman
     public float Posture01 => IsBoss && data.MaxPosture > 0f ? Mathf.Clamp01(posture / data.MaxPosture) : 0f;
     public bool IsPostureBroken => postureBroken;
     public bool IsPhase2 => phase2;
-    public float Phase2Ratio => IsBoss && data != null ? data.Phase2Ratio : 0f; // [변경] 2페이즈 없는 적은 0 (눈금 없음)
+    public float Phase2Ratio => IsBoss && data != null ? data.Phase2Ratio : 0f; // 2페이즈 없는 적은 0 (눈금 없음)
 
     float BossSpeed => IsBoss && phase2 ? data.Phase2Speed : 1f;
     float CooldownScale => IsBoss && phase2 ? data.Phase2CooldownScale : 1f;
@@ -101,7 +101,7 @@ public partial class EnemySwordsman
     void OnDisable()
     {
         TokensOnDisable();
-        if (ActiveBoss == this) ActiveBoss = null; // [변경] 중간보스도 정리
+        if (ActiveBoss == this) ActiveBoss = null; // 중간보스도 정리
         if (!IsBoss) return;
         ReleaseGrabbedPlayer();
         DestroyTelegraph();
@@ -193,7 +193,7 @@ public partial class EnemySwordsman
     {
         holdLeft = 0f;
         comboStop = false;
-        if (!IsBoss || IsWaveAttack(attack) || attack == data.GrabAttack)
+        if (!UsesDelay || IsWaveAttack(attack) || attack == data.GrabAttack) // [변경] 정예도 지연 베기
         {
             pendingDelay = 0f;
             return;
@@ -233,9 +233,24 @@ public partial class EnemySwordsman
         return true;
     }
 
-    float BossHoldLeft() => IsBoss ? Mathf.Max(0f, holdLeft) : 0f;
-    float BossPendingDelay() => IsBoss ? pendingDelay : 0f;
-    bool BossStopsCombo() => IsBoss && comboStop;
+    // [변경] 지연 베기를 쓰는 적: 보스 + useDelaySlash(정예)
+    bool UsesDelay => IsBoss || (data != null && data.UseDelaySlash);
+    float BossHoldLeft() => UsesDelay ? Mathf.Max(0f, holdLeft) : 0f;
+    float BossPendingDelay() => UsesDelay ? pendingDelay : 0f;
+    bool BossStopsCombo() => UsesDelay && comboStop;
+
+    // [변경] 보스가 아닌 지연 베기 적: 첫 타에도 멈칫을 걸 수 있게 예고 시작 때 미리 정함
+    void PlanFeint()
+    {
+        if (IsBoss || !UsesDelay || data.FirstAttack == null) return;
+        pendingDelay = 0f;
+        delayFor = null;
+        if (Random.value >= data.DelayChance) return;
+        pendingDelay = Random.Range(data.DelayTime.x, data.DelayTime.y);
+        delayFor = data.FirstAttack;
+    }
+
+    float FirstHitDelay() => UsesDelay && delayFor == data.FirstAttack ? pendingDelay : 0f;
 
     // ===== 잡기 =====
     void UpdateBossGrabWindup(float dt)
@@ -367,7 +382,7 @@ public partial class EnemySwordsman
         grabbedPlayer.GrabHit(new DamageInfo
         {
             Attacker = gameObject,
-            Damage = data.GrabDamage * damageScale,
+            Damage = data.GrabDamage * DamageMul, // [변경] 공격력 배율
             Weight = AttackWeight.Heavy,
             KnockDown = true,
             HitPoint = target.position + Vector3.up * 1.2f,
@@ -464,7 +479,7 @@ public partial class EnemySwordsman
             damageable?.ReceiveDamage(new DamageInfo
             {
                 Attacker = gameObject,
-                Damage = data.LeapDamage * damageScale,
+                Damage = data.LeapDamage * DamageMul,
                 Weight = AttackWeight.Heavy,
                 KnockDown = true,
                 HitPoint = target.position + Vector3.up,
@@ -509,7 +524,7 @@ public partial class EnemySwordsman
         BossSwordWave.Fire(gameObject, origin, dir, data.WaveSpeed, data.WaveRange, data.WaveWidth, new DamageInfo
         {
             Attacker = gameObject,
-            Damage = data.WaveDamage * damageScale,
+            Damage = data.WaveDamage * DamageMul,
             Weight = AttackWeight.Heavy
         }, waveVisual, waveHitVfx, telegraphMaterial);
     }
@@ -541,7 +556,7 @@ public partial class EnemySwordsman
             damageable?.ReceiveDamage(new DamageInfo
             {
                 Attacker = gameObject,
-                Damage = 5f * damageScale,
+                Damage = 5f * DamageMul,
                 Weight = AttackWeight.Heavy,
                 KnockDown = true,
                 HitPoint = target.position + Vector3.up,
@@ -576,6 +591,7 @@ public partial class EnemySwordsman
         DamageEvents.Raise(transform.position + Vector3.up * 2.6f, shown);
 
         health -= damage;
+        Bleed(info, health <= 0f); // 출혈 이펙트
         Flash(hitColor);
         if (state != State.Executed) Flinch(info.Direction, info.Weight != AttackWeight.Light); // 보스도 맞으면 움찔
         if (health <= 0f)

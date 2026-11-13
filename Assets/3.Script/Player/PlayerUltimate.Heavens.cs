@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // 2칸 · 천뢰일섬(天雷一閃): 세상이 멈추고 흑백 → 카메라가 돌며 칼에 번개가 모임 → 단 한 번, 정면을 길게 가름
-//  → 옆에서 본 정지 화면이 실선으로 베임 → [변경] 일섬처럼 납도, 칼이 들어가는 순간 두 조각으로 어긋나며(UltimateFx.Cut) 선 위의 모든 적에게 낙뢰
-//  [변경] 베기 직전엔 소리를 눌러 정적 → 베는 순간 소리가 돌아오며 칼 소리 + 낮은 천둥
+//  → 옆에서 본 정지 화면이 실선으로 베임 → 일섬처럼 납도, 칼이 들어가는 순간 두 조각으로 어긋나며(UltimateFx.Cut) 선 위의 모든 적에게 낙뢰
+//  베기 직전엔 소리를 눌러 정적 → 베는 순간 소리가 돌아오며 칼 소리 + 낮은 천둥
 public partial class PlayerUltimate
 {
     [Header("2 · 천뢰일섬")]
@@ -18,7 +18,7 @@ public partial class PlayerUltimate
     [SerializeField] float heavensSilence = 0.35f; // 베기 직전 정적 길이
     [SerializeField] float heavensDamage = 260f;
     [SerializeField] float heavensPosture = 120f;
-    [SerializeField] float heavensBossScale = 0.5f;
+    [SerializeField] float heavensBossScale = 1.2f; // [변경] 보스 단일 대상 최강 (260×1.2 = 312)
 
     IEnumerator Heavens()
     {
@@ -60,7 +60,7 @@ public partial class PlayerUltimate
 
         if (afterimage != null) afterimage.Spawn();
         Teleport(end);
-        // [변경] 베고 난 자리에서 바로 납도 (벽력일섬 마무리와 같은 모션). 칼이 들어가는 순간을 화면이 갈라지는 신호로 씀
+        // 베고 난 자리에서 바로 납도 (벽력일섬 마무리와 같은 모션). 칼이 들어가는 순간을 화면이 갈라지는 신호로 씀
         bool sheathing = stance != null && stance.SheatheNow(0.05f, true);
         if (sheathing && animator != null) animator.speed = heavensSheatheSpeed;
         else Play(ReleaseState, 0.02f);
@@ -74,7 +74,7 @@ public partial class PlayerUltimate
         // 화면 베기: 조각이 어긋나는 순간 색 · 시간이 돌아오고 선 위의 적에게 한꺼번에
         bool split = false;
         fx.Cut(heavensCutAngle, heavensHold, () => split = true,
-            () => !sheathing || stance.SheatheProgress < 0f || stance.SheatheProgress >= heavensSheatheAt); // [변경] 칼이 들어가는 순간
+            () => !sheathing || stance.SheatheProgress < 0f || stance.SheatheProgress >= heavensSheatheAt); // 칼이 들어가는 순간
         while (!split) yield return null;
         if (animator != null) animator.speed = 1f;
         if (sheathing) Sound(clashClip, 0.8f, 1.6f); // 찰칵

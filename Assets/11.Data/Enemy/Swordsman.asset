@@ -21,7 +21,7 @@ MonoBehaviour:
   turnSpeed: 540
   firstAttack: {fileID: 11400000, guid: 97a7a6c7170002545b4ab21b2bcb1b88, type: 2}
   windupTime: 0.5
-  attackCooldown: 1.5
+  attackCooldown: 1
   armorDuringSwing: 1
   armorWholeSwing: 1
   lightStunTime: 0.3
@@ -31,3 +31,4 @@ MonoBehaviour:
   heavyKnockback: 0.6
   parryStunTime: 1.2
   respawnTime: 3
+  attackPower: 1.6

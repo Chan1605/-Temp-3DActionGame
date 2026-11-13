@@ -85,3 +85,5 @@ MonoBehaviour:
   overheadParticles: []
   gateColor: {r: 0.4, g: 0.06, b: 0.08, a: 1}
   barrierColor: {r: 1, g: 0.25, b: 0.25, a: 0.35}
+  strength: 1
+  maxAttackers: 3

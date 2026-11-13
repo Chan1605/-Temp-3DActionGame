@@ -98,3 +98,5 @@ MonoBehaviour:
   - {fileID: 3922976577017554618, guid: b4f9e27016123374b9fb6ee9c71c4f3f, type: 3}
   gateColor: {r: 0.55, g: 0.4, b: 0.12, a: 1}
   barrierColor: {r: 1, g: 0.8, b: 0.4, a: 0.35}
+  strength: 1.4
+  maxAttackers: 3

@@ -47,7 +47,7 @@ public partial class PlayerUltimate : MonoBehaviour
 
     public float Gauge { get; private set; }
     public int Bars => Mathf.Min(MaxBars, Mathf.FloorToInt(Gauge + 0.0001f));
-    int MaxTier => Mathf.Min(Bars, SkillTree.UltimateTier); // [변경] 스킬트리에서 해금한 궁극기 단계 (1칸은 기본)
+    int MaxTier => Mathf.Min(Bars, SkillTree.UltimateTier); // 스킬트리에서 해금한 궁극기 단계 (1칸은 기본)
     public bool Active { get; private set; }
     public static bool AnyActive => current != null && current.Active; // 연출 중엔 설정 창을 열지 않도록 (SettingsMenu)
     static PlayerUltimate current;
@@ -179,7 +179,7 @@ public partial class PlayerUltimate : MonoBehaviour
         }
 
         holdTime += Time.unscaledDeltaTime;
-        int want = Mathf.Min(MaxTier, 1 + Mathf.FloorToInt(holdTime / Mathf.Max(0.05f, holdStep))); // [변경] 해금한 단계까지만
+        int want = Mathf.Min(MaxTier, 1 + Mathf.FloorToInt(holdTime / Mathf.Max(0.05f, holdStep))); // 해금한 단계까지만
         if (want > Selecting)
         {
             Selecting = want;
@@ -188,7 +188,7 @@ public partial class PlayerUltimate : MonoBehaviour
         }
         if (kb[key].isPressed) return;
 
-        int tier = Mathf.Min(Selecting, MaxTier); // [변경]
+        int tier = Mathf.Min(Selecting, MaxTier);
         Selecting = 0;
         if (tier >= 1) Activate(tier);
     }
@@ -347,6 +347,7 @@ public partial class PlayerUltimate : MonoBehaviour
             Weight = AttackWeight.Skill,
             BreakArmor = true,
             InstantKill = instantKill && !boss,
+            ForceKill = instantKill && !boss, // [변경] 정예 · 방패병 · 돌격병도 궁극기엔 즉사
             HitPoint = enemy.transform.position + Vector3.up,
             Direction = Flat(enemy.transform.position - transform.position).normalized
         };

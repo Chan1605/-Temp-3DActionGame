@@ -23,6 +23,9 @@ public class EnemyData : ScriptableObject
     [SerializeField] AttackData firstAttack;
     [SerializeField] float windupTime = 0.5f;
     [SerializeField] float attackCooldown = 1.5f;
+    [SerializeField] float attackPower = 1f;           // [변경] 공격 피해 배율 (AttackData 피해 × 이 값)
+    [SerializeField] bool resistInstantKill;           // [변경] 섬뢰일도 즉사 대신 최대 체력 × instantKillDamageRatio 피해 (궁극기 · 처형은 그대로 즉사)
+    [SerializeField] bool useDelaySlash;               // [변경] 보스처럼 지연 베기 (delayChance · delayTime 사용)
     [SerializeField] bool armorDuringSwing = true;
     // true면 칼을 휘두르기 시작한 순간부터 연타가 끝날 때까지 아머 → □로는 못 끊고 △ 간파로 맞받아야 함. 예고(Windup) 중에는 경직됨
     [SerializeField] bool armorWholeSwing = true;
@@ -83,7 +86,7 @@ public class EnemyData : ScriptableObject
     [SerializeField] float roarTime = 1.8f;
     [SerializeField] float roarPushRadius = 4f;
     [SerializeField] float introTime = 1.6f;
-    [SerializeField, Range(0f, 1f)] float comboStopChance = 0.3f; // [변경] 2·3타에서 연타를 끊을 확률 (반격 틈)
+    [SerializeField, Range(0f, 1f)] float comboStopChance = 0.3f; // 2·3타에서 연타를 끊을 확률 (반격 틈)
     [SerializeField, Range(0f, 1f)] float delayChance = 0.5f;     // 마지막 타 직전 칼을 든 채 멈칫할 확률 (지연 베기)
     [SerializeField] Vector2 delayTime = new Vector2(0.35f, 0.65f);
 
@@ -132,6 +135,9 @@ public class EnemyData : ScriptableObject
     public AttackData FirstAttack => firstAttack;
     public float WindupTime => windupTime;
     public float AttackCooldown => attackCooldown;
+    public float AttackPower => attackPower;     // [변경]
+    public bool ResistInstantKill => resistInstantKill;
+    public bool UseDelaySlash => useDelaySlash;
     public bool ArmorDuringSwing => armorDuringSwing;
     public bool ArmorWholeSwing => armorWholeSwing;
 

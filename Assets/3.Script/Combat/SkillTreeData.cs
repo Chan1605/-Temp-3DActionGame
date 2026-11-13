@@ -20,7 +20,7 @@ public class SkillTreeData : ScriptableObject
         public VideoClip preview;
     }
 
-    public static readonly string[] TabNames = { "기술", "수련", "궁극기" }; // [변경] 궁극기 탭
+    public static readonly string[] TabNames = { "기술", "수련", "궁극기" }; // 궁극기 탭
     public static readonly string[][] BranchNames = { new[] { "일섬", "검술", "방어" }, new[] { "체력", "뇌기" }, new[] { "궁극기 (V)" } };
 
     public int startPoints = 1;
@@ -44,10 +44,10 @@ public class SkillTreeData : ScriptableObject
         P(SkillId.Vitality2, "체력 단련 Ⅱ", "최대 체력이 25 더 늘어난다.", 2, 0, SkillId.Vitality1),
         P(SkillId.ThunderSlot1, "뇌기 확장 Ⅰ", "뇌기 칸이 하나 늘어난다. 일섬 · 발도 · 패링을 더 자주 쓸 수 있다.", 2, 1),
         P(SkillId.ThunderSlot2, "뇌기 확장 Ⅱ", "뇌기 칸이 하나 더 늘어난다.", 2, 1, SkillId.ThunderSlot1),
-        // [변경] 궁극기 탭: 게이지는 패링 · 역뢰 · 저스트 회피 · 처형으로 참. V를 누르고 있으면 해금한 단계까지 고를 수 있음
-        U(SkillId.UltimateStorm, "뇌운낙뢰진", "게이지 1칸 · 기본 기술\n칼을 땅에 꽂아 3초 동안 주변 11m에 낙뢰를 퍼붓고, 마지막에 가운데로 큰 낙뢰를 떨어뜨린다.\n낙뢰 한 번 22 피해 (보스 60%) · 적이 적을수록 한 명에게 몰린다.", 0),
-        U(SkillId.UltimateHeavens, "천뢰일섬", "게이지 2칸 · V를 누르고 있다가 2칸에서 뗀다\n멈춘 흑백 세상에서 앞쪽 14m를 단 한 번 베고, 납도하는 순간 화면이 갈라지며 낙뢰.\n일반 적 즉사 · 보스 130 피해 + 체간.", 2, SkillId.UltimateStorm),
-        U(SkillId.UltimateDescent, "뇌신강림", "게이지 3칸 · V를 누르고 있다가 3칸에서 뗀다\n칼끝 낙뢰 5연타 뒤 주변 적을 깜빡이며 베고, 느린 납도와 함께 일제히 낙뢰.\n일반 적 즉사 · 보스 288 피해 + 큰 체간.", 3, SkillId.UltimateHeavens),
+        // [변경] 보스 상대 세기: 천뢰일섬 > 뇌신강림 > 뇌운낙뢰진. 궁극기 탭: 게이지는 패링 · 역뢰 · 저스트 회피 · 처형으로 참. V를 누르고 있으면 해금한 단계까지 고를 수 있음
+        U(SkillId.UltimateStorm, "뇌운낙뢰진", "게이지 1칸 · 기본 기술\n칼을 땅에 꽂아 3초 동안 주변 11m에 낙뢰를 퍼붓고, 마지막에 가운데로 큰 낙뢰를 떨어뜨린다.\n여러 적을 쓸어 담는 기술 · 보스에겐 가장 약함 (약 70 피해)", 0),
+        U(SkillId.UltimateHeavens, "천뢰일섬", "게이지 2칸 · V를 누르고 있다가 2칸에서 뗀다\n멈춘 흑백 세상에서 앞쪽 14m를 단 한 번 베고, 납도하는 순간 화면이 갈라지며 낙뢰.\n일반 적 즉사 · 보스 단일 대상 최강 (312 피해 + 큰 체간)", 2, SkillId.UltimateStorm),
+        U(SkillId.UltimateDescent, "뇌신강림", "게이지 3칸 · V를 누르고 있다가 3칸에서 뗀다\n칼끝 낙뢰 5연타 뒤 주변 적을 깜빡이며 베고, 느린 납도와 함께 일제히 낙뢰.\n주변 적 모두 즉사 · 보스 224 피해 + 체간", 3, SkillId.UltimateHeavens),
     };
 
     static Node U(SkillId id, string name, string desc, int cost, params SkillId[] requires)

@@ -99,7 +99,7 @@ public class ZoneArena : MonoBehaviour
     public static event Action<ZoneArena> AnyCleared;
     // 연출용 (ZoneFx): 적 등장 위치 / 웨이브 마지막 적이 쓰러진 위치 · 구역 마지막 웨이브인지
     public static event Action<Vector3> AnyEnemySpawned;
-    public static event Action<ZoneArena, EnemySwordsman> AnyEnemyCreated; // [변경] 생성 직후(Start 전) → 던전 중간보스 배율 · 이름
+    public static event Action<ZoneArena, EnemySwordsman> AnyEnemyCreated; // 생성 직후(Start 전) → 던전 중간보스 배율 · 이름
     public static event Action<ZoneArena, Vector3, bool> AnyWaveCleared;
     public static ZoneArena Fighting { get; private set; } // 지금 전투 중인 구역 (없으면 null)
     public static void NotifyEnemySpawned(Vector3 position) => AnyEnemySpawned?.Invoke(position); // 수련장 상대 등장도 같은 낙뢰 연출
@@ -275,7 +275,8 @@ public class ZoneArena : MonoBehaviour
             look.y = 0f;
             GameObject go = Instantiate(prefabs[i], pos, Quaternion.LookRotation(look.normalized, Vector3.up));
             var enemy = go.GetComponent<EnemySwordsman>();
-            AnyEnemyCreated?.Invoke(this, enemy); // [변경]
+            if (theme != null) enemy.MultiplyScaling(theme.strength); // [변경] 구역 강도 (중간보스 · 시련 배율은 아래에서 덮어씀)
+            AnyEnemyCreated?.Invoke(this, enemy);
             enemy.DisableRespawn();
             enemy.MarkTemporary(); // 쓰러지면 가라앉아 사라짐 (미리 둔 적은 재시작 때 되살려야 하므로 제외)
             if (endless) // 웨이브 번호(0부터)만큼 배율
@@ -305,7 +306,7 @@ public class ZoneArena : MonoBehaviour
     {
         state = State.Cleared;
         SetActive(exitBarrier, false);
-        if (exitBarrier == null) SetActive(entranceBarrier, false); // [변경] 출구 없는 막다른 방(던전 갈래)은 들어온 문을 다시 엶
+        if (exitBarrier == null) SetActive(entranceBarrier, false); // 출구 없는 막다른 방(던전 갈래)은 들어온 문을 다시 엶
         if (Fighting == this) Fighting = null;
         Cleared?.Invoke();
         AnyCleared?.Invoke(this);
@@ -434,6 +435,7 @@ public class ZoneArena : MonoBehaviour
         if (activeAtmosphere != null && activeAtmosphere.atmosphereRoutine != null) activeAtmosphere.StopCoroutine(activeAtmosphere.atmosphereRoutine);
         activeAtmosphere = this;
         atmosphereRoutine = StartCoroutine(BlendAtmosphere(blendTime));
+        EnemySwordsman.MaxAttackers = theme != null ? Mathf.Max(1, theme.maxAttackers) : 2; // [변경] 구역별 동시 공격 수
         AnyEntered?.Invoke(this); // 구역 이름 배너
     }
 

@@ -113,6 +113,15 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat,
 
     // 시련 모드: 웨이브가 오를수록 체력·공격력·경험치 배율. 생성 직후(Start 전) 호출
     float healthScale = 1f, damageScale = 1f, xpScale = 1f;
+    // [변경] 구역 강도: 지금 배율에 곱함 (생성 직후. 던전 중간보스 · 시련은 뒤에서 ApplyScaling으로 덮어씀)
+    public void MultiplyScaling(float strength)
+    {
+        healthScale *= Mathf.Max(0.1f, strength);
+        damageScale *= Mathf.Max(0.1f, strength);
+    }
+
+    float DamageMul => damageScale * (data != null ? data.AttackPower : 1f); // [변경] 종류별 공격력 × 구역 · 시련 배율
+
     public void ApplyScaling(float health, float damage, float xp)
     {
         healthScale = Mathf.Max(0.1f, health);
@@ -260,6 +269,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat,
             {
                 if (IsGuardian) LowerGuardForAttack(); // 예고 동안은 가드를 내림 (이때 □로 끊을 수 있음)
                 if (TryStartGrab()) return; // 보스: 일정 확률로 잡기
+                PlanFeint(); // [변경] 정예: 첫 타 지연 베기 여부를 예고 시작 때 정함 (회피 · 역뢰 판정이 같은 값을 읽음)
                 SetState(State.Windup); // 적 시계 기준
             }
             return;
@@ -346,14 +356,32 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat,
         if (respawnEnabled && stateTime >= data.RespawnTime) Respawn();
     }
 
+    // [변경] 즉사 저항: 섬뢰일도 즉사를 최대 체력 비율 피해로 바꿈 (궁극기 ForceKill · 처형은 그대로)
+    DamageInfo ResistKill(DamageInfo info)
+    {
+        if (!info.InstantKill || info.ForceKill || info.Weight == AttackWeight.Execution || data == null || !data.ResistInstantKill) return info;
+        info.InstantKill = false;
+        info.Damage = Mathf.Max(info.Damage, data.MaxHealth * healthScale * data.InstantKillDamageRatio);
+        return info;
+    }
+
+    // 맞은 자리(없으면 가슴 높이)에서 베인 방향으로 출혈
+    void Bleed(DamageInfo info, bool lethal)
+    {
+        Vector3 point = info.HitPoint.sqrMagnitude > 0.0001f ? info.HitPoint : transform.position + Vector3.up * 1.2f;
+        BloodFx.Spawn(point, info.Direction, info.Weight, lethal);
+    }
+
     public HitResult ReceiveDamage(DamageInfo info)
     {
         if (state == State.Dead) return HitResult.Ignored;
         if (TryBlock(info)) return HitResult.Blocked; // 방패병 정면 가드 (붕괴 조건이면 가드를 깨고 피해는 그대로)
         if (IsBoss) return BossReceiveDamage(info); // 보스는 경직 없이 체간만 쌓임
+        info = ResistKill(info); // [변경] 정예 · 방패병 · 돌격병은 섬뢰일도에 즉사하지 않음
 
         DamageEvents.Raise(transform.position + Vector3.up * 2f, info); // 데미지 숫자
         health -= info.Damage;
+        Bleed(info, info.InstantKill || health <= 0f); // 출혈 이펙트
 
         if (info.InstantKill || health <= 0f)
         {
@@ -366,7 +394,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat,
         if (HandleAirHit(info)) return HitResult.Hit; // 떠 있으면 떠받침·내리꽂힘, 쓰러져 있으면 피해만
 
         // 휘두르는 중에는 경직 없이 맞기만 함 (토글로 비교)
-        if (((data.ArmorDuringSwing && IsArmored()) || SparArmored) && !info.BreakArmor) // [변경] 수련 상대는 예고부터 아머 (간파·패링 연습용)
+        if (((data.ArmorDuringSwing && IsArmored()) || SparArmored) && !info.BreakArmor) // 수련 상대는 예고부터 아머 (간파·패링 연습용)
         {
             Flash(armorColor);
             Flinch(info.Direction, info.Weight != AttackWeight.Light); // 경직 없이 상체만 움찔
@@ -467,7 +495,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat,
         weapon.BeginSwing(new DamageInfo
         {
             Attacker = gameObject,
-            Damage = currentAttack.Damage * damageScale,
+            Damage = currentAttack.Damage * DamageMul, // [변경]
             PostureDamage = currentAttack.PostureDamage,
             Parryable = currentAttack.Parryable,
             Weight = currentAttack.Weight, // 플레이어 피격·사망 모션 구분용
@@ -650,7 +678,7 @@ public partial class EnemySwordsman : MonoBehaviour, IDamageable, IAttackThreat,
         if (untilBoss >= 0f) return untilBoss;
 
         if (state == State.Windup && data.FirstAttack != null)
-            return (data.WindupTime - stateTime) + data.FirstAttack.HitStart * data.FirstAttack.Duration;
+            return (data.WindupTime - stateTime) + data.FirstAttack.HitStart * data.FirstAttack.Duration + FirstHitDelay(); // [변경]
 
         if (state == State.Attack && currentAttack != null)
         {

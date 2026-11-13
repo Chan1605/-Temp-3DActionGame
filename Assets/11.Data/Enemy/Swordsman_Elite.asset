@@ -20,7 +20,7 @@ MonoBehaviour:
   runDistance: 5
   turnSpeed: 540
   firstAttack: {fileID: 11400000, guid: 689ebf4172526944aafa030afad40acd, type: 2}
-  windupTime: 0.3
+  windupTime: 0.25
   attackCooldown: 1
   armorDuringSwing: 1
   armorWholeSwing: 1
@@ -32,3 +32,8 @@ MonoBehaviour:
   parryStunTime: 1
   respawnTime: 3
   xpReward: 25
+  attackPower: 1.4
+  resistInstantKill: 1
+  instantKillDamageRatio: 0.5
+  useDelaySlash: 1
+  delayChance: 0.4

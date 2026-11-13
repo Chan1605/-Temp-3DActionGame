@@ -1832,8 +1832,8 @@ MonoBehaviour:
   slashClip: {fileID: 8300000, guid: 5b17c3846b09b1746ac7299b16735509, type: 3}
   chargeClip: {fileID: 8300000, guid: d54f3d545c7ab5c478c1ce24cf9ed879, type: 3}
   clashClip: {fileID: 8300000, guid: be8b6585e4f872242a2e7542c5b63204, type: 3}
-  descentRange: 16
-  descentStrikes: 5
+  descentRange: 25
+  descentStrikes: 10
   descentStrikeGap: 0.2
   descentBlinkGap: {x: 0.13, y: 0.05}
   descentBehind: 1.6
@@ -1841,7 +1841,7 @@ MonoBehaviour:
   descentSheatheAt: 0.5
   descentDamage: 320
   descentPosture: 160
-  descentBossScale: 0.9
+  descentBossScale: 0.7
   heavensLength: 14
   heavensWidth: 3
   heavensGather: 1.3
@@ -1852,7 +1852,7 @@ MonoBehaviour:
   heavensSilence: 0.35
   heavensDamage: 260
   heavensPosture: 120
-  heavensBossScale: 0.5
+  heavensBossScale: 1.2
   stormRadius: 11
   stormDuration: 3.2
   stormInterval: 0.11
@@ -1861,6 +1861,8 @@ MonoBehaviour:
   stormPosture: 18
   stormAimChance: 0.7
   stormFinalDamage: 45
+  stormBossScale: 0.3
+  stormHitCooldown: 0.4
   stormPoseHoldAt: 0.85
 --- !u!1 &1515010326207606855
 GameObject:

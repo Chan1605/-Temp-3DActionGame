@@ -92,3 +92,4 @@ MonoBehaviour:
   waveWidth: 2.2
   waveDamage: 16
   waveCooldown: 6
+  attackPower: 1.4

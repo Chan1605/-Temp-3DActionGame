@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections;
 using UnityEngine;
 
@@ -13,10 +14,14 @@ public partial class PlayerUltimate
     [SerializeField] float stormPosture = 18f;
     [SerializeField, Range(0f, 1f)] float stormAimChance = 0.7f; // 이 확률로 적 위치에 떨어뜨림
     [SerializeField] float stormFinalDamage = 45f;
+    [SerializeField] float stormBossScale = 0.3f;   // [변경] 보스전에선 궁극기 중 가장 약하게 (약 70)
+    [SerializeField] float stormHitCooldown = 0.4f; // [변경] 같은 적은 이 간격마다 한 번만 맞음 (보스 혼자일 때 낙뢰가 몰리던 문제)
+    readonly Dictionary<EnemySwordsman, float> stormLastHit = new Dictionary<EnemySwordsman, float>();
     [SerializeField, Range(0.3f, 1f)] float stormPoseHoldAt = 0.85f; // 칼 박는 모션을 이 지점에서 멈춰 끝까지 유지 (반복 · 대기 자세로 빠지지 않게)
 
     IEnumerator Storm()
     {
+        stormLastHit.Clear();
         fx.Letterbox(true);
         fx.DarkenSky(1f, new Color(0.1f, 0.11f, 0.18f), 0.03f);
         fx.ShowTitle(Names[1], Readings[1], 1.6f);
@@ -46,7 +51,7 @@ public partial class PlayerUltimate
                 Vector3 p = StormPoint();
                 SkyStrike(p, Random.Range(14f, 20f));
                 Thunder(0.5f);
-                HitArea(p, stormStrikeRadius, stormDamage, stormPosture, 0.6f);
+                StormHit(p); // [변경]
                 if (followCamera != null) followCamera.Shake(0.08f, 0.1f);
             }
             yield return null;
@@ -59,14 +64,14 @@ public partial class PlayerUltimate
             SkyStrike(transform.position + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * 4f, 18f, 1, 2f);
         }
         SkyStrike(transform.position, 24f, 4, 5f); // 마무리는 여러 줄기가 한 점으로
-        HitArea(transform.position, 7f, stormFinalDamage, stormFinalDamage, 0.6f);
+        HitArea(transform.position, 7f, stormFinalDamage, stormFinalDamage, stormBossScale); // [변경]
         Thunder(1f);
         fx.Flash(new Color(0.75f, 0.85f, 1f), 0.9f);
         if (followCamera != null) followCamera.Shake(0.45f, 0.4f);
         yield return new WaitForSecondsRealtime(0.7f);
     }
 
-    // [변경] 핵심: 칼 박는 모션을 끝까지 유지
+    // 핵심: 칼 박는 모션을 끝까지 유지
     //  예전엔 지점에 닿기 전에 대기 자세로 넘어가는 전환(Exit)이 먼저 걸려 멈춤이 안 걸렸음
     //  → 전환이 시작되거나 지점에 닿으면 그 자리에서 이 상태로 되돌려 멈추고, 연출 동안 다른 상태로 바뀌면 다시 이 자세로 붙잡음
     IEnumerator HoldPose(string state, float at)
@@ -118,5 +123,21 @@ public partial class PlayerUltimate
         Vector3 p = transform.position + new Vector3(r.x, 0f, r.y);
         if (Physics.Raycast(p + Vector3.up * 20f, Vector3.down, out RaycastHit hit, 40f, ~0, QueryTriggerInteraction.Ignore)) p.y = hit.point.y;
         return p;
+    }
+
+    // [변경] 낙뢰 한 번: 반경 안 적 중 최근에 안 맞은 적만
+    void StormHit(Vector3 point)
+    {
+        float now = Time.unscaledTime;
+        foreach (EnemySwordsman enemy in EnemySwordsman.Alive.ToArrayCopy())
+        {
+            if (enemy == null || !enemy.CanBeTargeted) continue;
+            Vector3 d = enemy.transform.position - point;
+            d.y = 0f;
+            if (d.sqrMagnitude > stormStrikeRadius * stormStrikeRadius) continue;
+            if (stormLastHit.TryGetValue(enemy, out float last) && now - last < stormHitCooldown) continue;
+            stormLastHit[enemy] = now;
+            Hit(enemy, stormDamage, stormPosture, stormBossScale, false);
+        }
     }
 }

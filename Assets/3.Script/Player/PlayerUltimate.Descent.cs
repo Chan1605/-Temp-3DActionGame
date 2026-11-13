@@ -19,7 +19,7 @@ public partial class PlayerUltimate
     [SerializeField] float descentSheatheAt = 0.5f;  // 납도 모션의 이 지점 = 칼이 들어감
     [SerializeField] float descentDamage = 320f;
     [SerializeField] float descentPosture = 160f;
-    [SerializeField] float descentBossScale = 0.9f;
+    [SerializeField] float descentBossScale = 0.7f; // [변경] 보스에겐 천뢰일섬보다 약하게 (320×0.7 = 224)
 
     readonly List<LineRenderer> scars = new List<LineRenderer>();
     static Material scarMaterial;
@@ -31,7 +31,7 @@ public partial class PlayerUltimate
 
         // ① 강림
         fx.Letterbox(true);
-        fx.DarkenSky(1f, new Color(0.09f, 0.08f, 0.16f), 0.03f); // [변경] 덜 어둡고 덜 짙게 (화질 깨짐)
+        fx.DarkenSky(1f, new Color(0.09f, 0.08f, 0.16f), 0.03f); // 덜 어둡고 덜 짙게 (화질 깨짐)
         CombatTime.SetHold(0f);
         Play(ChargeState);
         Sound(chargeClip, 1f, 0.8f);
@@ -42,7 +42,7 @@ public partial class PlayerUltimate
         Vector3 tip = Chest + Vector3.up * 1.1f;
         for (int i = 0; i < descentStrikes; i++)
         {
-            for (int n = 0; n < 2; n++) // [변경] 더 비스듬히 · 가늘게 (곧은 기둥처럼 보이지 않게)
+            for (int n = 0; n < 2; n++) // 더 비스듬히 · 가늘게 (곧은 기둥처럼 보이지 않게)
                 ThunderBolt3D.Strike(tip + new Vector3(Random.Range(-9f, 9f), 24f, Random.Range(-9f, 9f)), tip, n == 0 ? 0.85f : 0.55f, 2);
             for (int k = 0; k < 4; k++)
             {
@@ -139,7 +139,7 @@ public partial class PlayerUltimate
         foreach (EnemySwordsman e in targets)
         {
             if (e == null || !e.CanBeTargeted) continue;
-            SkyStrike(e.transform.position, 22f, 2, 3.2f); // [변경] 4 → 2줄기 (겹친 굵은 막대처럼 보이던 문제)
+            SkyStrike(e.transform.position, 22f, 2, 3.2f); // 4 → 2줄기 (겹친 굵은 막대처럼 보이던 문제)
             Hit(e, descentDamage, descentPosture, descentBossScale, true);
         }
         Thunder(1f);
