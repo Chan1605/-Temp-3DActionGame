@@ -917,9 +917,6 @@ MonoBehaviour:
   enchantStance: 1
   enchant: {fileID: 0}
   dodge: {fileID: 0}
-  ultimateFreezeScale: 1.2
-  ultimateBossScale: 4
-  ultimateDrawDelay: 0.15
 --- !u!114 &4005965994054678145
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1814,6 +1811,7 @@ MonoBehaviour:
   justDodgeGain: 0.4
   executeGain: 1
   key: 36
+  holdStep: 0.45
   skill: {fileID: 0}
   combat: {fileID: 0}
   locomotion: {fileID: 0}
@@ -1837,10 +1835,21 @@ MonoBehaviour:
   descentRange: 16
   descentStrikes: 5
   descentStrikeGap: 0.2
+  descentBlinkGap: {x: 0.13, y: 0.05}
+  descentBehind: 1.6
+  descentSheatheSpeed: 0.55
+  descentSheatheAt: 0.5
+  descentDamage: 320
+  descentPosture: 160
+  descentBossScale: 0.9
   heavensLength: 14
   heavensWidth: 3
   heavensGather: 1.3
   heavensHold: 0.55
+  heavensSheatheSpeed: 0.8
+  heavensSheatheAt: 0.5
+  heavensCutAngle: -7
+  heavensSilence: 0.35
   heavensDamage: 260
   heavensPosture: 120
   heavensBossScale: 0.5
@@ -1852,6 +1861,7 @@ MonoBehaviour:
   stormPosture: 18
   stormAimChance: 0.7
   stormFinalDamage: 45
+  stormPoseHoldAt: 0.85
 --- !u!1 &1515010326207606855
 GameObject:
   m_ObjectHideFlags: 0
@@ -4248,6 +4258,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8073527139172792720}
+  - component: {fileID: 4760850223643566847}
   m_Layer: 0
   m_Name: SamuraiKatana
   m_TagString: Untagged
@@ -4271,6 +4282,23 @@ Transform:
   - {fileID: 3463505977790817789}
   m_Father: {fileID: 3111622538962996629}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4760850223643566847
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6880676671242608979}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 524e38a12cb16a44d90274391b7a75be, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::KatanaGrip
+  grip: -0.249
+  bladeLength: 1.264
+  tiltForward: 0
+  tiltSide: 0
+  twist: 0
 --- !u!1 &6972215413906294476
 GameObject:
   m_ObjectHideFlags: 0

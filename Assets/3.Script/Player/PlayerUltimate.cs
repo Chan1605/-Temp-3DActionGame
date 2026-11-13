@@ -47,6 +47,7 @@ public partial class PlayerUltimate : MonoBehaviour
 
     public float Gauge { get; private set; }
     public int Bars => Mathf.Min(MaxBars, Mathf.FloorToInt(Gauge + 0.0001f));
+    int MaxTier => Mathf.Min(Bars, SkillTree.UltimateTier); // [변경] 스킬트리에서 해금한 궁극기 단계 (1칸은 기본)
     public bool Active { get; private set; }
     public static bool AnyActive => current != null && current.Active; // 연출 중엔 설정 창을 열지 않도록 (SettingsMenu)
     static PlayerUltimate current;
@@ -178,7 +179,7 @@ public partial class PlayerUltimate : MonoBehaviour
         }
 
         holdTime += Time.unscaledDeltaTime;
-        int want = Mathf.Min(Bars, 1 + Mathf.FloorToInt(holdTime / Mathf.Max(0.05f, holdStep)));
+        int want = Mathf.Min(MaxTier, 1 + Mathf.FloorToInt(holdTime / Mathf.Max(0.05f, holdStep))); // [변경] 해금한 단계까지만
         if (want > Selecting)
         {
             Selecting = want;
@@ -187,7 +188,7 @@ public partial class PlayerUltimate : MonoBehaviour
         }
         if (kb[key].isPressed) return;
 
-        int tier = Mathf.Min(Selecting, Bars);
+        int tier = Mathf.Min(Selecting, MaxTier); // [변경]
         Selecting = 0;
         if (tier >= 1) Activate(tier);
     }
@@ -224,7 +225,7 @@ public partial class PlayerUltimate : MonoBehaviour
     IEnumerator Run(IEnumerator routine, bool returnToIdle)
     {
         Lock(true, false);
-        MenuOverlay.Show(this, fx.Overlay, BossHealthBar.Current); // [변경] 보스 체력은 남겨 궁극기 피해량을 보여 줌
+        MenuOverlay.Show(this, fx.Overlay, BossHealthBar.Current); // 보스 체력은 남겨 궁극기 피해량을 보여 줌
         yield return routine;
         MenuOverlay.Hide(this);
         Lock(false, returnToIdle);

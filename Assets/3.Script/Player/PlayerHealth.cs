@@ -53,7 +53,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     public float Health => health;
     public float MaxHealth => maxHealth;
     public bool IsStunned => stunTimer > 0f || grabbed || (execution != null && execution.IsActive) || ActionLocked; // 회피·패링·차지·각성이 이 값으로 막힘 // 잡힘 포함
-    public bool ActionLocked { get; set; } // [변경] 궁극기 연출 중: 회피 · 패링 · 차지 · 각성 · Q · 처형을 모두 막음
+    public bool ActionLocked { get; set; } // 궁극기 연출 중: 회피 · 패링 · 차지 · 각성 · Q · 처형을 모두 막음
     public bool IsGrabbed => grabbed;
     // 연타를 끝까지 다 맞지 않게: 경직 후반에는 회피로 끊을 수 있음
     public bool CanDodgeOutOfStun => !dead && !grabbed && !knockedDown && stunTimer > 0f && !float.IsInfinity(stunTimer)
@@ -331,7 +331,7 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     public void AddMaxHealth(float amount)
     {
         maxHealth += amount;
-        if (!dead) health = Mathf.Min(maxHealth, health + amount);
+        if (!dead) health = Mathf.Clamp(health + amount, 1f, maxHealth); // [변경] 스킬 초기화로 줄어들 때 죽지 않게
     }
 
     // 화톳불 휴식: 살아 있으면 체력을 가득

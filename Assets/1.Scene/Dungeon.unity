@@ -44593,7 +44593,7 @@ MonoBehaviour:
   stats: {fileID: 1928525157}
   vitalityAmount: 25
   thunderSlotAmount: 1
-  unlockAllAtStart: 1
+  unlockAllAtStart: 0
   debugKeys: 0
   accent: {r: 0.91, g: 0.78, b: 0.55, a: 1}
   dimText: {r: 1, g: 1, b: 1, a: 0.6}

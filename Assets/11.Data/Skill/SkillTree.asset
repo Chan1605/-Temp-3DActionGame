@@ -121,3 +121,40 @@ MonoBehaviour:
     branch: 1
     requires: 0b000000
     preview: {fileID: 0}
+  - id: 13
+    displayName: "\uB1CC\uC6B4\uB099\uB8B0\uC9C4"
+    description: "\uAC8C\uC774\uC9C0 1\uCE78 \xB7 \uAE30\uBCF8 \uAE30\uC220\n\uCE7C\uC744
+      \uB545\uC5D0 \uAF42\uC544 3\uCD08 \uB3D9\uC548 \uC8FC\uBCC0 11m\uC5D0 \uB099\uB8B0\uB97C
+      \uD37C\uBD93\uACE0, \uB9C8\uC9C0\uB9C9\uC5D0 \uAC00\uC6B4\uB370\uB85C \uD070
+      \uB099\uB8B0\uB97C \uB5A8\uC5B4\uB728\uB9B0\uB2E4.\n\uB099\uB8B0 \uD55C \uBC88
+      22 \uD53C\uD574 (\uBCF4\uC2A4 60%) \xB7 \uC801\uC774 \uC801\uC744\uC218\uB85D
+      \uD55C \uBA85\uC5D0\uAC8C \uBAB0\uB9B0\uB2E4."
+    cost: 0
+    tab: 2
+    branch: 0
+    requires: 
+    preview: {fileID: 32900000, guid: 29f629b8d61e77649bb58422b3ac16c7, type: 3}
+  - id: 14
+    displayName: "\uCC9C\uB8B0\uC77C\uC12C"
+    description: "\uAC8C\uC774\uC9C0 2\uCE78 \xB7 V\uB97C \uB204\uB974\uACE0 \uC788\uB2E4\uAC00
+      2\uCE78\uC5D0\uC11C \uB5C0\uB2E4\n\uBA48\uCD98 \uD751\uBC31 \uC138\uC0C1\uC5D0\uC11C
+      \uC55E\uCABD 14m\uB97C \uB2E8 \uD55C \uBC88 \uBCA0\uACE0, \uB0A9\uB3C4\uD558\uB294
+      \uC21C\uAC04 \uD654\uBA74\uC774 \uAC08\uB77C\uC9C0\uBA70 \uB099\uB8B0.\n\uC77C\uBC18
+      \uC801 \uC989\uC0AC \xB7 \uBCF4\uC2A4 130 \uD53C\uD574 + \uCCB4\uAC04."
+    cost: 2
+    tab: 2
+    branch: 0
+    requires: 0d000000
+    preview: {fileID: 32900000, guid: 6b5b515cd2ff51a44a93150183c4e9cc, type: 3}
+  - id: 15
+    displayName: "\uB1CC\uC2E0\uAC15\uB9BC"
+    description: "\uAC8C\uC774\uC9C0 3\uCE78 \xB7 V\uB97C \uB204\uB974\uACE0 \uC788\uB2E4\uAC00
+      3\uCE78\uC5D0\uC11C \uB5C0\uB2E4\n\uCE7C\uB05D \uB099\uB8B0 5\uC5F0\uD0C0 \uB4A4
+      \uC8FC\uBCC0 \uC801\uC744 \uAE5C\uBE61\uC774\uBA70 \uBCA0\uACE0, \uB290\uB9B0
+      \uB0A9\uB3C4\uC640 \uD568\uAED8 \uC77C\uC81C\uD788 \uB099\uB8B0.\n\uC77C\uBC18
+      \uC801 \uC989\uC0AC \xB7 \uBCF4\uC2A4 288 \uD53C\uD574 + \uD070 \uCCB4\uAC04."
+    cost: 3
+    tab: 2
+    branch: 0
+    requires: 0e000000
+    preview: {fileID: 32900000, guid: 3c600676bf0240e4aa570360dab7ccc4, type: 3}

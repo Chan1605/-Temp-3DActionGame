@@ -46,12 +46,13 @@ public class PlayerThunder : MonoBehaviour
     public float BossPostureScale => bossQPostureScale;
     public float BossStaggerDamageScale => bossStaggerDamageScale;
     public event Action<float> GaugeChanged;
-    public event Action<float> MaxGaugeChanged; // [변경] 뇌기 칸 수가 바뀜 (HUD 칸 추가)
+    public event Action<float> MaxGaugeChanged; // 뇌기 칸 수가 바뀜 (HUD 칸 추가)
 
-    // [변경] 수련(뇌기 확장): 칸 수를 늘림. 지금 뇌기는 그대로
+    // 수련(뇌기 확장): 칸 수를 늘림. 지금 뇌기는 그대로
     public void AddMaxGauge(float amount)
     {
         maxGauge += amount;
+        gauge = Mathf.Min(gauge, maxGauge); // [변경] 스킬 초기화로 칸이 줄면 넘친 뇌기는 버림
         MaxGaugeChanged?.Invoke(maxGauge);
         GaugeChanged?.Invoke(gauge);
     }

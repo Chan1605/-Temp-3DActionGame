@@ -50,6 +50,8 @@ public class SkillTreeMenu : MonoBehaviour
     Canvas menuCanvas, promptCanvas;
     Text pointsText, previewName, previewDesc, previewInfo, unlockText, noVideoText, promptText;
     Button unlockButton;
+    Text resetText; // 스킬 초기화 (두 번 눌러 확정)
+    float resetConfirmUntil;
     RawImage videoImage;
     VideoPlayer video;
     RenderTexture videoTexture;
@@ -97,7 +99,7 @@ public class SkillTreeMenu : MonoBehaviour
         if (stats != null) stats.LeveledUp -= OnLeveledUp;
         SkillTree.Changed -= Refresh;
         if (IsOpen && GamePause.IsPaused) GamePause.Set(false);
-        MenuOverlay.Hide(this); // [변경]
+        MenuOverlay.Hide(this);
     }
 
     void OnDestroy()
@@ -113,6 +115,11 @@ public class SkillTreeMenu : MonoBehaviour
         Keyboard kb = Keyboard.current;
         if (kb == null) return;
         if (IsOpen && kb.escapeKey.wasPressedThisFrame) Close();
+        if (resetConfirmUntil > 0f && Time.unscaledTime > resetConfirmUntil) // 확인 시간이 지나면 원래 문구로
+        {
+            resetConfirmUntil = 0f;
+            Refresh();
+        }
         if (debugKeys && kb.f9Key.wasPressedThisFrame)
         {
             SkillTree.AddPoints(5);
@@ -127,7 +134,7 @@ public class SkillTreeMenu : MonoBehaviour
         {
             closeRequested = false;
             menuCanvas.gameObject.SetActive(false);
-            MenuOverlay.Hide(this); // [변경]
+            MenuOverlay.Hide(this);
             if (video != null) video.Stop();
             GamePause.Set(false);
             Cursor.lockState = CursorLockMode.Locked;
@@ -148,7 +155,7 @@ public class SkillTreeMenu : MonoBehaviour
     {
         if (IsOpen) return;
         menuCanvas.gameObject.SetActive(true);
-        MenuOverlay.Show(this, menuCanvas); // [변경] 열린 동안 HUD 등 다른 UI를 숨김
+        MenuOverlay.Show(this, menuCanvas); // 열린 동안 HUD 등 다른 UI를 숨김
         GamePause.Set(true);
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -172,7 +179,7 @@ public class SkillTreeMenu : MonoBehaviour
             v.Box.color = owned ? new Color(accent.r, accent.g, accent.b, 0.28f) : new Color(1f, 1f, 1f, ready ? 0.07f : 0.03f);
             v.Outline.color = isSelected ? Color.white : owned ? accent : new Color(1f, 1f, 1f, affordable ? 0.55f : 0.18f);
             v.Name.color = owned || isSelected ? Color.white : ready ? new Color(1f, 1f, 1f, 0.8f) : new Color(1f, 1f, 1f, 0.35f);
-            v.Cost.text = owned ? "해금" : $"{v.Node.cost}P";
+            v.Cost.text = owned ? (v.Node.cost == 0 ? "기본" : "해금") : $"{v.Node.cost}P"; // 기본 기술 표시
             v.Cost.color = owned ? accent : affordable ? Color.white : new Color(1f, 1f, 1f, 0.35f);
 
             // 아이콘이 보일 땐 이름을 그만큼 오른쪽으로. 잠긴 노드는 흐리게
@@ -181,7 +188,41 @@ public class SkillTreeMenu : MonoBehaviour
             v.Icon.color = new Color(1f, 1f, 1f, owned ? 1f : ready ? 0.85f : 0.4f);
             v.Name.rectTransform.offsetMin = new Vector2(icons ? 62f : 18f, 0f);
         }
+        if (resetText != null && resetConfirmUntil <= 0f)
+        {
+            int refund = Refund();
+            resetText.text = refund > 0 ? $"스킬 초기화 (+{refund}P)" : "스킬 초기화";
+            resetText.color = refund > 0 ? Color.white : new Color(1f, 1f, 1f, 0.3f);
+        }
         UpdatePreviewText();
+    }
+
+    // 초기화하면 돌려받을 포인트 = 해금한 노드 비용 합 (기본 기술은 0)
+    int Refund()
+    {
+        int sum = 0;
+        foreach (SkillTreeData.Node n in nodes)
+            if (n.cost > 0 && SkillTree.IsUnlocked(n.id)) sum += n.cost;
+        return sum;
+    }
+
+    // 한 번 누르면 확인 문구, 3초 안에 다시 누르면 수련 효과를 되돌리고 포인트 반환
+    void OnReset()
+    {
+        int refund = Refund();
+        if (refund <= 0) return;
+        if (resetConfirmUntil <= 0f)
+        {
+            resetConfirmUntil = Time.unscaledTime + 3f;
+            resetText.text = "한 번 더 누르면 초기화";
+            resetText.color = accent;
+            return;
+        }
+        resetConfirmUntil = 0f;
+        foreach (SkillTreeData.Node n in nodes)
+            if (n.cost > 0 && SkillTree.IsUnlocked(n.id)) ApplyPassive(n.id, -1f);
+        SkillTree.Respec(refund);
+        Debug.Log($"[SkillTree] 초기화 · {refund}P 반환 (보유 {SkillTree.Points}P)");
     }
 
     bool RequirementsMet(SkillTreeData.Node node)
@@ -232,7 +273,7 @@ public class SkillTreeMenu : MonoBehaviour
         bool owned = SkillTree.IsUnlocked(node.id);
         bool ready = RequirementsMet(node);
 
-        string info = owned ? "해금됨" : $"필요 포인트 {node.cost}";
+        string info = owned ? (node.cost == 0 ? "기본 기술" : "해금됨") : $"필요 포인트 {node.cost}";
         if (!owned && !ready)
         {
             var names = new List<string>();
@@ -266,17 +307,17 @@ public class SkillTreeMenu : MonoBehaviour
     }
 
     // 수련 효과 적용 (해금하는 순간 한 번)
-    void ApplyPassive(SkillId id)
+    void ApplyPassive(SkillId id, float sign = 1f) // sign -1 = 초기화로 되돌림
     {
         switch (id)
         {
             case SkillId.Vitality1:
             case SkillId.Vitality2:
-                if (health != null) health.AddMaxHealth(vitalityAmount);
+                if (health != null) health.AddMaxHealth(vitalityAmount * sign);
                 break;
             case SkillId.ThunderSlot1:
             case SkillId.ThunderSlot2:
-                if (thunder != null) thunder.AddMaxGauge(thunderSlotAmount);
+                if (thunder != null) thunder.AddMaxGauge(thunderSlotAmount * sign);
                 break;
         }
     }
@@ -355,7 +396,7 @@ public class SkillTreeMenu : MonoBehaviour
             tabLines.Add(line);
         }
         Image headerLine = UIKit.Image(root, null, new Color(1f, 1f, 1f, 0.35f));
-        UIKit.Place(headerLine.rectTransform, 520f, 100f, 1030f, 1f);
+        UIKit.Place(headerLine.rectTransform, 640f, 100f, 910f, 1f); // 탭이 셋이 되어 선을 오른쪽으로
         pointsText = UIKit.Text(root, "", titleFont, 30, Color.white, TextAnchor.MiddleRight);
         pointsText.supportRichText = true;
         UIKit.Place(pointsText.rectTransform, 1540f, 97f, 300f, 50f);
@@ -372,6 +413,10 @@ public class SkillTreeMenu : MonoBehaviour
         unlockText = UIKit.Text(root, "해금하기", titleFont, 32, Color.white, TextAnchor.MiddleRight);
         UIKit.Place(unlockText.rectTransform, 1420f, 1002f, 400f, 56f);
         unlockButton = UIKit.TextButton(unlockText, Color.white, accent, OnUnlock);
+        resetText = UIKit.Text(root, "스킬 초기화", titleFont, 28, Color.white, TextAnchor.MiddleCenter); // 아래 가운데
+        UIKit.Place(resetText.rectTransform, 760f, 1002f, 400f, 56f);
+        UIKit.TextButton(resetText, Color.white, accent, OnReset);
+        resetText.gameObject.SetActive(!unlockAllAtStart); // 연습장(전부 해금)에선 숨김
     }
 
     // 갈래별 세로 열: 제목 + 노드 상자, 선행이 같은 갈래 바로 위 노드면 세로 연결선
@@ -488,8 +533,8 @@ public class SkillTreeMenu : MonoBehaviour
         previewDesc = UIKit.Text(root, "", bodyFont, 24, new Color(1f, 1f, 1f, 0.8f), TextAnchor.UpperLeft);
         previewDesc.horizontalOverflow = HorizontalWrapMode.Wrap;
         previewDesc.lineSpacing = 1.15f;
-        UIKit.Place(previewDesc.rectTransform, x, textY + 75f, w, 90f);
-        previewInfo = UIKit.Text(root, "", bodyFont, 22, accent, TextAnchor.MiddleLeft);
-        UIKit.Place(previewInfo.rectTransform, x, textY + 145f, w, 36f);
+        UIKit.Place(previewDesc.rectTransform, x, textY + 125f, w, 190f); // [변경] 설명이 4줄이어도 들어가게
+        previewInfo = UIKit.Text(root, "", bodyFont, 22, accent, TextAnchor.MiddleRight); // [변경] 해금 상태는 이름 줄 오른쪽으로 (긴 설명과 겹치던 문제)
+        UIKit.Place(previewInfo.rectTransform, x, textY, w, 50f);
     }
 }
